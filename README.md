@@ -1,31 +1,24 @@
 # PHPForge
 
-Shared Composer-powered development tooling for Infocyph PHP projects.
+Shared Composer-powered QA, refactoring, benchmark, release, hook, and CI tooling for Infocyph PHP projects.
 
-Install it in a project as a dev dependency:
+## Install
 
 ```bash
 composer require --dev infocyph/phpforge
 ```
 
-Composer may ask for first-time approval to run the `infocyph/phpforge` plugin. PHPForge also reports any related plugin permissions that should be enabled:
-
-```json
-"allow-plugins": {
-    "infocyph/phpforge": true,
-    "pestphp/pest-plugin": true,
-    "captainhook/captainhook": true
-}
-```
-
-After Composer activates the plugin, the consuming project can run:
+Composer may ask for first-time approval before it can run the PHPForge plugin. If needed, enable the related plugins:
 
 ```bash
-composer ic:tests
-composer ic:ci
-composer ic:process
-composer ic:benchmark
-composer ic:release:guard
+composer config allow-plugins.infocyph/phpforge true
+composer config allow-plugins.pestphp/pest-plugin true
+composer config allow-plugins.captainhook/captainhook true
+```
+
+Then inspect the project setup:
+
+```bash
 composer ic:doctor
 ```
 
@@ -33,10 +26,10 @@ composer ic:doctor
 
 | Command | Purpose |
 | --- | --- |
-| `ic:tests` | Runs syntax, Pest, Pint check, PHPCS, PHPStan, Psalm security analysis, and Rector dry run. |
+| `ic:tests` | Runs the full project quality suite: syntax, Pest, Pint, PHPCS, PHPStan, Psalm security analysis, and Rector dry run. |
 | `ic:tests:all` | Alias of `ic:tests`. |
 | `ic:tests:details` | Runs each detailed quality check without the parallel Pest shortcut. |
-| `ic:test:syntax` | Recursively checks project PHP files while respecting `.gitignore`, Git excludes, and global Git ignore rules. |
+| `ic:test:syntax` | Checks project PHP files while respecting `.gitignore`, Git excludes, and global Git ignore rules. |
 | `ic:test:code` | Runs Pest. |
 | `ic:test:lint` | Runs Pint in `--test` mode. |
 | `ic:test:sniff` | Runs PHP_CodeSniffer. |
@@ -44,11 +37,9 @@ composer ic:doctor
 | `ic:test:security` | Runs Psalm security analysis. |
 | `ic:test:refactor` | Runs Rector in dry-run mode. |
 | `ic:test:bench` | Runs PHPBench aggregate benchmarks. |
-| `ic:ci` | Runs the CI quality set. Use `--prefer-lowest` to skip heavyweight static/security analysis. |
-| `ic:init` | Copies optional PHPForge project files such as CaptainHook config and workflow wrappers. |
-| `ic:doctor` | Shows detected configs, vendor-dir, plugin permissions, and hook status. |
+| `ic:ci` | Runs syntax, Pest, Pint, PHPCS, Rector, and optionally PHPStan/Psalm. |
+| `ic:ci --prefer-lowest` | Runs the CI set without PHPStan/Psalm for prefer-lowest jobs. |
 | `ic:process` | Runs Rector, Pint, and PHPCBF fixers. |
-| `ic:process:all` | Alias of `ic:process`. |
 | `ic:process:lint` | Runs Pint fixes. |
 | `ic:process:sniff` | Runs PHPCBF fixes. |
 | `ic:process:sniff:fix` | Runs PHPCBF fixes. |
@@ -58,11 +49,25 @@ composer ic:doctor
 | `ic:bench:quick` | Runs a quick PHPBench aggregate pass. |
 | `ic:bench:chart` | Runs PHPBench chart report. |
 | `ic:phpstan:sarif` | Converts PHPStan JSON output to SARIF 2.1.0. |
-| `ic:release:audit` | Runs Composer audit guard. |
+| `ic:release:audit` | Runs Composer audit guard. Advisories fail; abandoned packages warn. |
 | `ic:release:guard` | Runs Composer validation, audit, and the full test suite. |
 | `ic:hooks` | Installs enabled CaptainHook hooks. |
+| `ic:init` | Copies optional project files such as `captainhook.json` and workflow wrappers. |
+| `ic:doctor` | Shows detected configs, vendor-dir, plugin permissions, and hook status. |
 
-The bundled CaptainHook pre-commit keeps the original Infocyph sequence with the `ic` namespace: `composer validate --strict`, `composer ic:release:audit`, then `composer ic:tests`.
+## Configuration
+
+Project config files always win over PHPForge bundled defaults.
+
+| Tool | Lookup order |
+| --- | --- |
+| Pest | `pest.xml`, then `phpunit.xml`, then bundled `pest.xml` |
+| PHPBench | `phpbench.json`, then bundled `phpbench.json` |
+| PHPCS / PHPCBF | `phpcs.xml.dist`, then bundled `phpcs.xml.dist` |
+| PHPStan | `phpstan.neon.dist`, then bundled `phpstan.neon.dist` |
+| Pint | `pint.json`, then bundled `pint.json` |
+| Psalm | `psalm.xml`, then bundled `psalm.xml` |
+| Rector | `rector.php`, then bundled `rector.php` |
 
 Useful environment overrides:
 
@@ -73,27 +78,28 @@ Useful environment overrides:
 | `IC_PSALM_THREADS` | `1` | Controls Psalm thread count. |
 | `IC_HOOKS_STRICT` | `1` | Fails Composer when automatic CaptainHook install fails. Set to `0` for best-effort hook installation. |
 
-## Configuration
+## Hooks
 
-PHPForge ships default config files for Pint, PHPCS, PHPStan, Psalm, Rector, PHPBench, Pest, PHPUnit, and CaptainHook. If the consuming project has a file with the same name at its root, PHPForge uses the project file instead of the bundled fallback.
+Install the default CaptainHook config:
 
-This lets a project start with the shared defaults and override only the tools that need project-specific behavior.
+```bash
+composer ic:init --captainhook
+composer ic:hooks
+```
 
-Config priority:
+The bundled pre-commit sequence is:
 
-| Tool | Project-first config lookup |
-| --- | --- |
-| Pest | `pest.xml`, then `phpunit.xml`, then bundled `pest.xml` |
-| PHPBench | `phpbench.json`, then bundled `phpbench.json` |
-| PHPCS / PHPCBF | `phpcs.xml.dist`, then bundled `phpcs.xml.dist` |
-| PHPStan | `phpstan.neon.dist`, then bundled `phpstan.neon.dist` |
-| Pint | `pint.json`, then bundled `pint.json` |
-| Psalm | `psalm.xml`, then bundled `psalm.xml` |
-| Rector | `rector.php`, then bundled `rector.php` |
+```bash
+composer validate --strict
+composer ic:release:audit
+composer ic:tests
+```
 
-## Migrating an Existing Project
+This PHPForge repository also defines local `ic:*` Composer scripts because Composer does not load the root package as its own plugin. Consuming projects use the plugin-provided commands.
 
-If a project already has the individual QA tools and Composer scripts locally, replace them with PHPForge.
+## Migrating
+
+Replace individual QA dependencies with PHPForge.
 
 Before:
 
@@ -110,11 +116,6 @@ Before:
     "symfony/var-dumper": "^7.3 || ^8.0.8",
     "tomasvotruba/cognitive-complexity": "^1.1",
     "vimeo/psalm": "^6.16.1"
-},
-"scripts": {
-    "tests": "@test:all",
-    "process": "@process:all",
-    "benchmark": "@bench:run"
 }
 ```
 
@@ -126,28 +127,13 @@ After:
 }
 ```
 
-Remove the old local QA scripts from the consuming project:
+Remove old local QA scripts such as `test:*`, `process:*`, `bench:*`, `tests`, `process`, `benchmark`, `release:audit`, and `release:guard`.
 
-```json
-"scripts": {
-}
-```
-
-Then run:
-
-```bash
-composer require --dev infocyph/phpforge
-composer update
-composer ic:init
-composer ic:doctor
-```
-
-Use the PHPForge commands instead:
+Command mapping:
 
 | Old command | New command |
 | --- | --- |
-| `composer tests` | `composer ic:tests` |
-| `composer test:all` | `composer ic:tests` |
+| `composer tests` / `composer test:all` | `composer ic:tests` |
 | `composer test:details` | `composer ic:tests:details` |
 | `composer test:syntax` | `composer ic:test:syntax` |
 | `composer test:code` | `composer ic:test:code` |
@@ -156,37 +142,17 @@ Use the PHPForge commands instead:
 | `composer test:static` | `composer ic:test:static` |
 | `composer test:security` | `composer ic:test:security` |
 | `composer test:refactor` | `composer ic:test:refactor` |
-| `composer test:bench` | `composer ic:test:bench` |
-| CI command list | `composer ic:ci` |
-| `composer process` | `composer ic:process` |
-| `composer process:all` | `composer ic:process` |
+| `composer process` / `composer process:all` | `composer ic:process` |
 | `composer process:lint` | `composer ic:process:lint` |
 | `composer process:sniff:fix` | `composer ic:process:sniff:fix` |
 | `composer process:refactor` | `composer ic:process:refactor` |
-| `composer benchmark` | `composer ic:benchmark` |
-| `composer bench:run` | `composer ic:benchmark` |
+| `composer benchmark` / `composer bench:run` | `composer ic:benchmark` |
 | `composer bench:quick` | `composer ic:bench:quick` |
 | `composer bench:chart` | `composer ic:bench:chart` |
 | `composer release:audit` | `composer ic:release:audit` |
 | `composer release:guard` | `composer ic:release:guard` |
 
-Keep project-specific config files only when the project needs overrides:
-
-```text
-captainhook.json
-pest.xml
-phpbench.json
-phpcs.xml.dist
-phpstan.neon.dist
-phpunit.xml
-pint.json
-psalm.xml
-rector.php
-```
-
-If those files are removed, PHPForge falls back to its bundled defaults.
-
-The old helper scripts are no longer needed:
+Old helper scripts are no longer needed:
 
 ```text
 .github/scripts/syntax.php
@@ -194,42 +160,33 @@ The old helper scripts are no longer needed:
 .github/scripts/phpstan-sarif.php
 ```
 
-PHPForge provides those behaviors through `ic:test:syntax`, `ic:release:audit`, and `ic:phpstan:sarif`.
-
-Recommended migrated `composer.json` shape:
-
-```json
-{
-    "require-dev": {
-        "infocyph/phpforge": "^1.0"
-    },
-    "minimum-stability": "stable",
-    "prefer-stable": true,
-    "config": {
-        "sort-packages": true,
-        "optimize-autoloader": true,
-        "classmap-authoritative": true
-    }
-}
-```
+PHPForge provides those through `ic:test:syntax`, `ic:release:audit`, and `ic:phpstan:sarif`.
 
 ## GitHub Actions
 
-PHPForge includes a converted Security & Standards workflow at:
+PHPForge publishes a reusable workflow:
 
-```text
-.github/workflows/security-standards.yml
+```yaml
+uses: infocyph/phpforge/.github/workflows/security-standards.yml@v1
 ```
 
-Use it from a consuming project through a tiny wrapper workflow:
+Install a wrapper workflow into a consuming project:
 
 ```bash
 composer ic:init --workflow --workflow-ref=v1
 ```
 
-Generated wrapper:
+Generated wrapper shape:
 
 ```yaml
+name: "Security & Standards"
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master", "develop", "development" ]
+
 jobs:
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@v1
@@ -240,15 +197,15 @@ jobs:
     with:
       php_versions: '["8.2","8.3","8.4","8.5"]'
       dependency_versions: '["prefer-lowest","prefer-stable"]'
+      run_analysis: true
 ```
 
-It replaces the old local Composer scripts with PHPForge commands:
+Workflow inputs:
 
-| Old workflow command | New workflow command |
-| --- | --- |
-| Multiple `composer test:*` calls | `composer ic:ci` |
-| Prefer-lowest CI subset | `composer ic:ci --prefer-lowest` |
-| `composer release:audit` | `composer ic:release:audit` |
-| `php .github/scripts/phpstan-sarif.php ...` | `composer ic:phpstan:sarif ...` |
+| Input | Default | Purpose |
+| --- | --- | --- |
+| `php_versions` | `["8.2","8.3","8.4","8.5"]` | PHP matrix as a JSON array string. |
+| `dependency_versions` | `["prefer-lowest","prefer-stable"]` | Composer dependency modes as a JSON array string. |
+| `run_analysis` | `true` | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs. |
 
-For code scanning, the workflow uses a project-local `phpstan.neon.dist` or `psalm.xml` when present. If not present, it falls back to PHPForge's bundled defaults.
+For code scanning, project-local `phpstan.neon.dist` and `psalm.xml` are used when present; otherwise the workflow falls back to PHPForge defaults.
