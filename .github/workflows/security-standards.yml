@@ -1,12 +1,23 @@
 name: "Security & Standards"
 
 on:
-  schedule:
-    - cron: "0 0 * * 0"
-  push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master", "develop", "development" ]
+  workflow_call:
+    inputs:
+      php_versions:
+        description: "JSON array of PHP versions."
+        required: false
+        type: string
+        default: '["8.2","8.3","8.4","8.5"]'
+      dependency_versions:
+        description: "JSON array of Composer dependency modes."
+        required: false
+        type: string
+        default: '["prefer-lowest","prefer-stable"]'
+      run_analysis:
+        description: "Run SARIF security/code-scanning analysis job."
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   prepare:
@@ -19,8 +30,8 @@ jobs:
       - name: Define shared matrix values
         id: matrix
         run: |
-          echo 'php_versions=["8.2","8.3","8.4","8.5"]' >> "$GITHUB_OUTPUT"
-          echo 'dependency_versions=["prefer-lowest","prefer-stable"]' >> "$GITHUB_OUTPUT"
+          echo 'php_versions=${{ inputs.php_versions }}' >> "$GITHUB_OUTPUT"
+          echo 'dependency_versions=${{ inputs.dependency_versions }}' >> "$GITHUB_OUTPUT"
 
   run:
     needs: prepare
@@ -62,6 +73,7 @@ jobs:
 
   analyze:
     needs: prepare
+    if: inputs.run_analysis
     name: Security Analysis - PHP ${{ matrix.php-versions }}
     runs-on: ubuntu-latest
     strategy:

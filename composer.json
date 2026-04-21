@@ -26,6 +26,23 @@
     "bin": [
         "bin/phpforge"
     ],
+    "scripts": {
+        "ic:test:syntax": "@php bin/phpforge syntax",
+        "ic:test:code": "@php vendor/bin/pest --configuration pest.xml",
+        "ic:test:lint": "@php vendor/bin/pint --test --config pint.json",
+        "ic:test:sniff": "@php vendor/bin/phpcs --standard=phpcs.xml.dist --report=full src bin",
+        "ic:test:static": "@php vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --memory-limit=1G --no-progress --debug",
+        "ic:test:security": "@php vendor/bin/psalm --config=psalm.xml --security-analysis --threads=1 --no-cache",
+        "ic:test:refactor": "@php vendor/bin/rector process --config=rector.php --dry-run --debug",
+        "ic:tests": [
+            "@ic:test:syntax",
+            "@php vendor/bin/pest --configuration pest.xml --parallel --processes=10",
+            "@ic:test:lint",
+            "@php vendor/bin/phpcs --standard=phpcs.xml.dist --report=summary src bin"
+        ],
+        "ic:release:audit": "@php bin/phpforge audit",
+        "post-autoload-dump": "captainhook install --only-enabled -nf"
+    },
     "require": {
         "php": ">=8.2",
         "captainhook/captainhook": "^5.29.2",
@@ -37,6 +54,7 @@
         "phpstan/phpstan": "^2.1.50",
         "rector/rector": "^2.4.2",
         "squizlabs/php_codesniffer": "^4.0.1",
+        "symfony/console": "^7.3 || ^8.0",
         "symfony/process": "^7.3 || ^8.0",
         "symfony/var-dumper": "^7.3 || ^8.0.8",
         "tomasvotruba/cognitive-complexity": "^1.1",

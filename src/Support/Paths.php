@@ -6,11 +6,6 @@ namespace Infocyph\PHPForge\Support;
 
 final class Paths
 {
-    public static function php(): string
-    {
-        return PHP_BINARY;
-    }
-
     public static function bin(string $name): string
     {
         $path = self::vendorDir() . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . $name;
@@ -31,6 +26,19 @@ final class Paths
         }
 
         return self::packageFile($file);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function existingProjectPaths(string ...$paths): array
+    {
+        $paths = $paths === [] ? ['src', 'tests', 'benchmarks', 'examples'] : $paths;
+
+        return array_values(array_filter(
+            $paths,
+            static fn(string $path): bool => is_dir(self::projectRoot() . DIRECTORY_SEPARATOR . $path),
+        ));
     }
 
     /**
@@ -62,6 +70,16 @@ final class Paths
         return dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file);
     }
 
+    public static function php(): string
+    {
+        return PHP_BINARY;
+    }
+
+    public static function projectRootPath(): string
+    {
+        return self::projectRoot();
+    }
+
     public static function vendorDir(): string
     {
         $configured = self::composerConfig('vendor-dir');
@@ -71,29 +89,6 @@ final class Paths
         }
 
         return self::projectRoot() . DIRECTORY_SEPARATOR . 'vendor';
-    }
-
-    public static function projectRootPath(): string
-    {
-        return self::projectRoot();
-    }
-
-    /**
-     * @return list<string>
-     */
-    public static function existingProjectPaths(string ...$paths): array
-    {
-        $paths = $paths === [] ? ['src', 'tests', 'benchmarks', 'examples'] : $paths;
-
-        return array_values(array_filter(
-            $paths,
-            static fn (string $path): bool => is_dir(self::projectRoot() . DIRECTORY_SEPARATOR . $path),
-        ));
-    }
-
-    private static function projectRoot(): string
-    {
-        return getcwd() ?: dirname(__DIR__, 2);
     }
 
     private static function absoluteProjectPath(string $path): string
@@ -109,28 +104,33 @@ final class Paths
     {
         $composerJson = self::projectRoot() . DIRECTORY_SEPARATOR . 'composer.json';
 
-        if (! is_file($composerJson) || ! is_readable($composerJson)) {
+        if (!is_file($composerJson) || !is_readable($composerJson)) {
             return null;
         }
 
         $contents = file_get_contents($composerJson);
 
-        if (! is_string($contents)) {
+        if (!is_string($contents)) {
             return null;
         }
 
         $data = json_decode($contents, true);
 
-        if (! is_array($data)) {
+        if (!is_array($data)) {
             return null;
         }
 
         $config = $data['config'] ?? [];
 
-        if (! is_array($config)) {
+        if (!is_array($config)) {
             return null;
         }
 
         return $config[$key] ?? null;
+    }
+
+    private static function projectRoot(): string
+    {
+        return getcwd() ?: dirname(__DIR__, 2);
     }
 }

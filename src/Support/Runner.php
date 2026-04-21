@@ -11,8 +11,7 @@ final class Runner
 {
     public function __construct(
         private readonly OutputInterface $output,
-    ) {
-    }
+    ) {}
 
     /**
      * @param list<list<string>> $tasks
@@ -29,7 +28,7 @@ final class Runner
                 $this->output->write($buffer, false, $type === Process::ERR ? OutputInterface::OUTPUT_RAW : OutputInterface::OUTPUT_NORMAL);
             });
 
-            if (! $process->isSuccessful()) {
+            if (!$process->isSuccessful()) {
                 return $process->getExitCode() ?? 1;
             }
         }

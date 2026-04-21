@@ -7,8 +7,8 @@ namespace Infocyph\PHPForge\Composer;
 use Composer\Composer;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\IO\IOInterface;
-use Composer\Plugin\Capable;
 use Composer\Plugin\Capability\CommandProvider as CommandProviderCapability;
+use Composer\Plugin\Capable;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
 use Composer\Script\ScriptEvents;
@@ -18,30 +18,6 @@ use Symfony\Component\Process\Process;
 final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
 {
     private ?IOInterface $io = null;
-
-    public function activate(Composer $composer, IOInterface $io): void
-    {
-        $this->io = $io;
-        $this->reportMissingAllowPlugins();
-    }
-
-    public function deactivate(Composer $composer, IOInterface $io): void
-    {
-    }
-
-    public function uninstall(Composer $composer, IOInterface $io): void
-    {
-    }
-
-    /**
-     * @return array<class-string, class-string>
-     */
-    public function getCapabilities(): array
-    {
-        return [
-            CommandProviderCapability::class => CommandProvider::class,
-        ];
-    }
 
     /**
      * @return array<string, string>
@@ -53,9 +29,29 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         ];
     }
 
+    public function activate(Composer $composer, IOInterface $io): void
+    {
+        unset($composer);
+
+        $this->io = $io;
+        $this->reportMissingAllowPlugins();
+    }
+
+    public function deactivate(Composer $composer, IOInterface $io): void {}
+
+    /**
+     * @return array<class-string, class-string>
+     */
+    public function getCapabilities(): array
+    {
+        return [
+            CommandProviderCapability::class => CommandProvider::class,
+        ];
+    }
+
     public function installHooks(Event $event): void
     {
-        if (! is_file((getcwd() ?: '') . DIRECTORY_SEPARATOR . 'captainhook.json')) {
+        if (!is_file((getcwd() ?: '') . DIRECTORY_SEPARATOR . 'captainhook.json')) {
             return;
         }
 
@@ -63,7 +59,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         $process->setTimeout(null);
         $process->run();
 
-        if (! $process->isSuccessful()) {
+        if (!$process->isSuccessful()) {
             $message = trim($process->getErrorOutput()) ?: trim($process->getOutput()) ?: 'CaptainHook install failed.';
 
             if (getenv('IC_HOOKS_STRICT') !== '0') {
@@ -75,29 +71,31 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         }
     }
 
+    public function uninstall(Composer $composer, IOInterface $io): void {}
+
     private function reportMissingAllowPlugins(): void
     {
         $composerJson = (getcwd() ?: '') . DIRECTORY_SEPARATOR . 'composer.json';
 
-        if (! is_file($composerJson) || ! is_readable($composerJson)) {
+        if (!is_file($composerJson) || !is_readable($composerJson)) {
             return;
         }
 
         $contents = file_get_contents($composerJson);
 
-        if (! is_string($contents) || $contents === '') {
+        if (!is_string($contents) || $contents === '') {
             return;
         }
 
         $data = json_decode($contents, true);
 
-        if (! is_array($data)) {
+        if (!is_array($data)) {
             return;
         }
 
         $config = $data['config'] ?? [];
 
-        if (! is_array($config)) {
+        if (!is_array($config)) {
             $config = [];
         }
 
@@ -107,7 +105,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
             return;
         }
 
-        if (! is_array($allowPlugins)) {
+        if (!is_array($allowPlugins)) {
             $allowPlugins = [];
         }
 
@@ -125,7 +123,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
             }
         }
 
-        if ($missing === [] || ! $this->io instanceof IOInterface) {
+        if ($missing === [] || !$this->io instanceof IOInterface) {
             return;
         }
 

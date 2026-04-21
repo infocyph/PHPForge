@@ -45,7 +45,7 @@ composer ic:doctor
 | `ic:test:refactor` | Runs Rector in dry-run mode. |
 | `ic:test:bench` | Runs PHPBench aggregate benchmarks. |
 | `ic:ci` | Runs the CI quality set. Use `--prefer-lowest` to skip heavyweight static/security analysis. |
-| `ic:init` | Copies optional PHPForge project files such as CaptainHook config and the Security & Standards workflow. |
+| `ic:init` | Copies optional PHPForge project files such as CaptainHook config and workflow wrappers. |
 | `ic:doctor` | Shows detected configs, vendor-dir, plugin permissions, and hook status. |
 | `ic:process` | Runs Rector, Pint, and PHPCBF fixers. |
 | `ic:process:all` | Alias of `ic:process`. |
@@ -218,13 +218,28 @@ Recommended migrated `composer.json` shape:
 PHPForge includes a converted Security & Standards workflow at:
 
 ```text
-resources/workflows/security-standards.yml
+.github/workflows/security-standards.yml
 ```
 
-Install it into a consuming project with:
+Use it from a consuming project through a tiny wrapper workflow:
 
 ```bash
-composer ic:init --workflow
+composer ic:init --workflow --workflow-ref=v1
+```
+
+Generated wrapper:
+
+```yaml
+jobs:
+  phpforge:
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@v1
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    with:
+      php_versions: '["8.2","8.3","8.4","8.5"]'
+      dependency_versions: '["prefer-lowest","prefer-stable"]'
 ```
 
 It replaces the old local Composer scripts with PHPForge commands:

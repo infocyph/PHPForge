@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Infocyph\PHPForge\Composer;
 
-use Composer\Command\BaseCommand;
 use Infocyph\PHPForge\Support\Paths;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-final class DoctorCommand extends BaseCommand
+final class DoctorCommand extends Command
 {
     private const CONFIGS = [
         'pest.xml',
@@ -29,15 +29,21 @@ final class DoctorCommand extends BaseCommand
         'captainhook/captainhook',
     ];
 
+    public function __construct()
+    {
+        parent::__construct('ic:doctor');
+    }
+
     protected function configure(): void
     {
         $this
-            ->setName('ic:doctor')
             ->setDescription('Show PHPForge environment, config, and hook diagnostics.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        unset($input);
+
         $output->writeln('<info>PHPForge Doctor</info>');
         $output->writeln('Project root: ' . Paths::projectRootPath());
         $output->writeln('Vendor dir:   ' . Paths::vendorDir());
@@ -70,13 +76,13 @@ final class DoctorCommand extends BaseCommand
     {
         $composerJson = Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'composer.json';
 
-        if (! is_file($composerJson)) {
+        if (!is_file($composerJson)) {
             return [];
         }
 
         $data = json_decode((string) file_get_contents($composerJson), true);
 
-        if (! is_array($data)) {
+        if (!is_array($data)) {
             return [];
         }
 
