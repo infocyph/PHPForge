@@ -1,0 +1,11 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Infocyph\PHPForge\Support\Cli;
+
+require __DIR__ . '/../src/Support/Cli.php';
+require __DIR__ . '/../src/Support/Paths.php';
+
+exit((new Cli())->run($argv));

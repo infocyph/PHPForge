@@ -1,0 +1,59 @@
+{
+    "name": "infocyph/phpforge",
+    "description": "Shared QA, refactoring, benchmark and release tooling for Infocyph PHP projects.",
+    "type": "composer-plugin",
+    "license": "MIT",
+    "keywords": [
+        "infocyph",
+        "composer-plugin",
+        "quality",
+        "testing",
+        "static-analysis",
+        "refactoring",
+        "benchmark"
+    ],
+    "authors": [
+        {
+            "name": "abmmhasan",
+            "email": "abmmhasan@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Infocyph\\PHPForge\\": "src/"
+        }
+    },
+    "bin": [
+        "bin/phpforge"
+    ],
+    "require": {
+        "php": ">=8.2",
+        "captainhook/captainhook": "^5.29.2",
+        "composer-plugin-api": "^2.6",
+        "laravel/pint": "^1.29",
+        "pestphp/pest": "^4.6.3",
+        "pestphp/pest-plugin-drift": "^4.1",
+        "phpbench/phpbench": "^1.6.1",
+        "phpstan/phpstan": "^2.1.50",
+        "rector/rector": "^2.4.2",
+        "squizlabs/php_codesniffer": "^4.0.1",
+        "symfony/process": "^7.3 || ^8.0",
+        "symfony/var-dumper": "^7.3 || ^8.0.8",
+        "tomasvotruba/cognitive-complexity": "^1.1",
+        "vimeo/psalm": "^6.16.1"
+    },
+    "require-dev": {},
+    "extra": {
+        "class": "Infocyph\\PHPForge\\Composer\\Plugin"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true,
+        "allow-plugins": {
+            "captainhook/captainhook": true,
+            "pestphp/pest-plugin": true
+        }
+    }
+}
