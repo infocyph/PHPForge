@@ -64,7 +64,7 @@
     "extra": {
         "class": "Infocyph\\PHPForge\\Composer\\Plugin"
     },
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "prefer-stable": true,
     "config": {
         "sort-packages": true,
