@@ -107,7 +107,6 @@ final class InitCommand extends Command
 
         $workflowRefChoices = [
             'main' => 'main',
-            'v1' => 'v1',
         ];
 
         if (!in_array($settings['workflow_ref'], $workflowRefChoices, true)) {

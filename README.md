@@ -96,7 +96,7 @@ Selector presets include:
 
 | Prompt                | Built-in Choices                                                                 |
 | --------------------- | -------------------------------------------------------------------------------- |
-| PHPForge workflow ref | `main`, `v1`, configured ref, or custom                                      |
+| PHPForge workflow ref | `main`, configured ref, or custom                                            |
 | PHP version matrix    | Supported range, current range, latest stable, or custom JSON                    |
 | Dependency matrix     | Prefer-lowest plus stable, stable only, or custom JSON                           |
 | PHP extensions        | None, common extensions, MySQL, PostgreSQL, MySQL plus PostgreSQL, or custom     |
@@ -116,7 +116,7 @@ Use targeted or non-interactive init commands when needed:
 
 ```bash
 composer ic:init --captainhook
-composer ic:init --workflow --workflow-ref=v1.0.0
+composer ic:init --workflow --workflow-ref=main
 composer ic:init --no-interaction-defaults
 composer ic:init --force
 ```
@@ -179,7 +179,7 @@ composer ic:init --force
 | ----------------------------------------------------- | ------------------------------------------------------------------------ |
 | `composer ic:init`                                  | Interactively sets up CaptainHook and the workflow wrapper.              |
 | `composer ic:init --captainhook`                    | Copies only `captainhook.json`.                                        |
-| `composer ic:init --workflow --workflow-ref=v1.0.0` | Copies only the workflow wrapper and pins it to the given PHPForge ref.  |
+| `composer ic:init --workflow --workflow-ref=main`   | Copies only the workflow wrapper and points it at the given PHPForge ref. |
 | `composer ic:init --no-interaction-defaults`        | Copies default init files without prompting.                             |
 | `composer ic:init --force`                          | Overwrites existing copied files.                                        |
 | `composer ic:hooks`                                 | Installs enabled CaptainHook hooks.                                      |
@@ -276,7 +276,7 @@ That keeps hooks installed for this repository. Consuming projects get automatic
 PHPForge publishes a reusable workflow:
 
 ```yaml
-uses: infocyph/phpforge/.github/workflows/security-standards.yml@v1
+uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
 ```
 
 Install a wrapper workflow into a consuming project:
@@ -285,10 +285,10 @@ Install a wrapper workflow into a consuming project:
 composer ic:init
 ```
 
-For automated setup, skip prompts and pin the reusable workflow ref:
+For automated setup, skip prompts and choose the reusable workflow ref:
 
 ```bash
-composer ic:init --workflow --workflow-ref=v1.0.0 --no-interaction-defaults
+composer ic:init --workflow --workflow-ref=main --no-interaction-defaults
 ```
 
 Generated wrapper shape:
@@ -306,7 +306,7 @@ on:
 
 jobs:
   phpforge:
-    uses: infocyph/phpforge/.github/workflows/security-standards.yml@v1
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     permissions:
       security-events: write
       actions: read
@@ -435,7 +435,7 @@ Fast CI for active development:
 ```yaml
 jobs:
   phpforge:
-    uses: infocyph/phpforge/.github/workflows/security-standards.yml@v1.0.0
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     with:
       php_versions: '["8.4","8.5"]'
       dependency_versions: '["prefer-stable"]'
@@ -447,7 +447,7 @@ Release confidence matrix:
 ```yaml
 jobs:
   phpforge:
-    uses: infocyph/phpforge/.github/workflows/security-standards.yml@v1.0.0
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     permissions:
       security-events: write
       actions: read
@@ -463,7 +463,7 @@ Project with extensions and no SARIF upload:
 ```yaml
 jobs:
   phpforge:
-    uses: infocyph/phpforge/.github/workflows/security-standards.yml@v1.0.0
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     with:
       php_versions: '["8.3","8.4"]'
       php_extensions: "mbstring, intl, pdo_mysql"
@@ -476,7 +476,7 @@ Project with extensions, coverage, and larger analysis limits:
 ```yaml
 jobs:
   phpforge:
-    uses: infocyph/phpforge/.github/workflows/security-standards.yml@v1.0.0
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     permissions:
       security-events: write
       actions: read
