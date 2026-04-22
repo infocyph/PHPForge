@@ -16,7 +16,6 @@ final class DoctorCommand extends Command
     private const PLUGINS = [
         'infocyph/phpforge',
         'pestphp/pest-plugin',
-        'captainhook/captainhook',
     ];
 
     public function __construct()
