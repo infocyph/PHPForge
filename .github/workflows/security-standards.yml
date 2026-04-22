@@ -13,6 +13,31 @@ on:
         required: false
         type: string
         default: '["prefer-lowest","prefer-stable"]'
+      php_extensions:
+        description: "Comma-separated PHP extensions for shivammathur/setup-php."
+        required: false
+        type: string
+        default: ""
+      coverage:
+        description: "Coverage driver for shivammathur/setup-php."
+        required: false
+        type: string
+        default: "none"
+      composer_flags:
+        description: "Extra flags appended to composer install/update."
+        required: false
+        type: string
+        default: ""
+      phpstan_memory_limit:
+        description: "PHPStan memory limit."
+        required: false
+        type: string
+        default: "1G"
+      psalm_threads:
+        description: "Psalm thread count."
+        required: false
+        type: string
+        default: "1"
       run_analysis:
         description: "Run SARIF security/code-scanning analysis job."
         required: false
@@ -52,7 +77,8 @@ jobs:
         with:
           php-version: ${{ matrix.php-versions }}
           tools: composer:v2
-          coverage: xdebug
+          extensions: ${{ inputs.php_extensions }}
+          coverage: ${{ inputs.coverage }}
 
       - name: Check PHP Version
         run: php -v
@@ -61,9 +87,12 @@ jobs:
         run: composer validate --strict
 
       - name: Resolve dependencies (${{ matrix.dependency-version }})
-        run: composer update --no-interaction --prefer-dist --no-progress --${{ matrix.dependency-version }}
+        run: composer update --no-interaction --prefer-dist --no-progress --${{ matrix.dependency-version }} ${{ inputs.composer_flags }}
 
       - name: Test
+        env:
+          IC_PHPSTAN_MEMORY_LIMIT: ${{ inputs.phpstan_memory_limit }}
+          IC_PSALM_THREADS: ${{ inputs.psalm_threads }}
         run: |
           if [ "${{ matrix.dependency-version }}" != "prefer-lowest" ]; then
             composer ic:ci
@@ -93,18 +122,23 @@ jobs:
         with:
           php-version: ${{ matrix.php-versions }}
           tools: composer:v2
-          coverage: xdebug
+          extensions: ${{ inputs.php_extensions }}
+          coverage: ${{ inputs.coverage }}
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
+        run: composer install --no-interaction --prefer-dist --no-progress ${{ inputs.composer_flags }}
 
       - name: Composer Audit
         run: composer ic:release:audit
 
       - name: Quality Gate (PHPStan)
+        env:
+          IC_PHPSTAN_MEMORY_LIMIT: ${{ inputs.phpstan_memory_limit }}
         run: composer ic:test:static
 
       - name: Security Gate (Psalm)
+        env:
+          IC_PSALM_THREADS: ${{ inputs.psalm_threads }}
         run: composer ic:test:security
 
       - name: Run PHPStan (Code Scanning)
@@ -115,7 +149,7 @@ jobs:
             PHPSTAN_CONFIG="phpstan.neon.dist"
           fi
 
-          php "$VENDOR_DIR/bin/phpstan" analyse --configuration="$PHPSTAN_CONFIG" --memory-limit=1G --no-progress --error-format=json > phpstan-results.json || true
+          php "$VENDOR_DIR/bin/phpstan" analyse --configuration="$PHPSTAN_CONFIG" --memory-limit="${{ inputs.phpstan_memory_limit }}" --no-progress --error-format=json > phpstan-results.json || true
           composer ic:phpstan:sarif phpstan-results.json phpstan-results.sarif
         continue-on-error: true
 
@@ -134,7 +168,7 @@ jobs:
             PSALM_CONFIG="psalm.xml"
           fi
 
-          php "$VENDOR_DIR/bin/psalm" --config="$PSALM_CONFIG" --security-analysis --threads=1 --report=psalm-results.sarif || true
+          php "$VENDOR_DIR/bin/psalm" --config="$PSALM_CONFIG" --security-analysis --threads="${{ inputs.psalm_threads }}" --report=psalm-results.sarif || true
         continue-on-error: true
 
       - name: Upload Psalm Results
