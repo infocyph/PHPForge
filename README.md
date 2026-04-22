@@ -49,6 +49,16 @@ JSON diagnostics are available for automation:
 composer ic:doctor --json
 ```
 
+## Agent Guide
+
+For coding agents, CI agents, or external automation working inside a project that uses PHPForge, start with:
+
+```text
+vendor/infocyph/phpforge/AGENTS.md
+```
+
+It summarizes project commands, verification steps, config priority rules, workflow inputs, hook behavior, and agent expectations. If an agent only auto-discovers root-level instruction files, copy or reference it from the project root as `AGENTS.md`.
+
 ## Quick Start
 
 Common daily commands:
