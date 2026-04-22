@@ -112,7 +112,6 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         $wanted = [
             'infocyph/phpforge',
             'pestphp/pest-plugin',
-            'captainhook/captainhook',
         ];
 
         $missing = [];

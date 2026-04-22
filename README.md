@@ -25,7 +25,7 @@ PHPForge brings these tools through one package:
 Install in the consuming project:
 
 ```bash
-composer require --dev infocyph/phpforge
+composer require --dev infocyph/phpforge:dev-main
 ```
 
 Composer may ask for plugin approval. If approval is needed, run:
@@ -33,7 +33,6 @@ Composer may ask for plugin approval. If approval is needed, run:
 ```bash
 composer config allow-plugins.infocyph/phpforge true
 composer config allow-plugins.pestphp/pest-plugin true
-composer config allow-plugins.captainhook/captainhook true
 composer install
 ```
 

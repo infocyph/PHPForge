@@ -70,7 +70,6 @@
         "sort-packages": true,
         "optimize-autoloader": true,
         "allow-plugins": {
-            "captainhook/captainhook": true,
             "pestphp/pest-plugin": true
         }
     }
