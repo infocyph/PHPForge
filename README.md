@@ -25,7 +25,7 @@ PHPForge brings these tools through one package:
 Install in the consuming project:
 
 ```bash
-composer require --dev infocyph/phpforge
+composer require --dev infocyph/phpforge:dev-main
 ```
 
 Composer may ask for plugin approval. If approval is needed, run:
