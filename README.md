@@ -96,15 +96,16 @@ Selector presets include:
 | Prompt                | Built-in Choices                                                                                                |
 | --------------------- | --------------------------------------------------------------------------------------------------------------- |
 | PHPForge workflow ref | `main`, configured ref, or custom                                                                             |
-| PHP version matrix    | `supported`, `current`, `stable`, or custom JSON.                                                         |
+| PHP version matrix    | `supported`, `current`, `stable`, or custom JSON. Presets resolve from Endoflife API (`https://endoflife.date/api/php.json`) with fallback to `["8.2","8.3","8.4","8.5"]`. |
 | Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]`, or custom JSON          |
-| PHP extensions        | `none` => `""`, `detected` (from local PHP), `common`, `mysql`, `pgsql`, `mysql+pgsql`, or custom |
+| PHP extensions        | `none` => `""`, `detected` (from project `composer.json` `ext-*` entries in `require`, `require-dev`, and `suggest`), `common`, `mysql`, `pgsql`, `mysql+pgsql`, or custom |
 | Coverage driver       | `none`, `xdebug`, or `pcov`                                                                               |
 | Extra Composer flags  | `none` => `""`, `with-all-dependencies`, `ignore-ext-redis`, or custom                                  |
 | PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                               |
 | Psalm threads         | `1`, `2`, `4`, or custom                                                                                  |
 
 `supported` includes non-EOL PHP minor cycles (>= `8.2`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
+The PHP extensions selector shows resolved extension lists in the prompt and prints the final resolved value after selection.
 
 The generated files are:
 

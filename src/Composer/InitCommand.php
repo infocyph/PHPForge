@@ -96,19 +96,8 @@ final class InitCommand extends Command
     }
 
     /**
-     * @return array{
-     *     workflow: bool,
-     *     captainhook: bool,
-     *     workflow_ref: string,
-     *     php_versions: string,
-     *     dependency_versions: string,
-     *     php_extensions: string,
-     *     coverage: string,
-     *     composer_flags: string,
-     *     phpstan_memory_limit: string,
-     *     psalm_threads: string,
-     *     run_analysis: bool
-     * }
+     * @param array<string, bool|string> $settings
+     * @return array<string, bool|string>
      */
     private function ask(InputInterface $input, OutputInterface $output, array $settings): array
     {
@@ -118,98 +107,31 @@ final class InitCommand extends Command
             return $settings;
         }
 
-        $settings['captainhook'] = $helper->ask($input, $output, new ConfirmationQuestion('Install CaptainHook config? [Y/n] ', true));
-        $settings['workflow'] = $helper->ask($input, $output, new ConfirmationQuestion('Install GitHub Actions workflow wrapper? [Y/n] ', true));
+        $settings = $this->askInstallTargets($helper, $input, $output, $settings);
 
         if (!$settings['workflow']) {
             return $settings;
         }
 
-        $workflowRefChoices = [
-            'main' => 'main',
-        ];
+        $settings['workflow_ref'] = $this->askWorkflowRef($helper, $input, $output, (string) $settings['workflow_ref']);
+        $settings['php_versions'] = $this->askPhpVersions($helper, $input, $output, (string) $settings['php_versions']);
+        $settings['dependency_versions'] = $this->askDependencyVersions($helper, $input, $output, (string) $settings['dependency_versions']);
+        $settings['php_extensions'] = $this->askPhpExtensions($helper, $input, $output, (string) $settings['php_extensions']);
+        $settings['coverage'] = $this->askCoverageDriver($helper, $input, $output, (string) $settings['coverage']);
+        $settings['composer_flags'] = $this->askComposerFlags($helper, $input, $output, (string) $settings['composer_flags']);
+        $settings['phpstan_memory_limit'] = $this->askPhpstanMemoryLimit($helper, $input, $output, (string) $settings['phpstan_memory_limit']);
+        $settings['psalm_threads'] = $this->askPsalmThreads($helper, $input, $output, (string) $settings['psalm_threads']);
+        $settings['run_analysis'] = $this->askRunAnalysis($helper, $input, $output, (bool) $settings['run_analysis']);
 
-        if (!in_array($settings['workflow_ref'], $workflowRefChoices, true)) {
-            $workflowRefChoices['configured'] = $settings['workflow_ref'];
-        }
+        return $settings;
+    }
 
-        $workflowRefChoices['custom'] = 'custom';
-
-        $workflowRef = $helper->ask($input, $output, new ChoiceQuestion(
-            'PHPForge workflow ref',
-            $workflowRefChoices,
-            array_search($settings['workflow_ref'], $workflowRefChoices, true) ?: 'main',
-        ));
-
-        $settings['workflow_ref'] = $workflowRef === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom PHPForge workflow ref: ', $settings['workflow_ref']))
-            : (string) $workflowRef;
-
-        $phpVersionPresets = $this->phpVersionPresets();
-
-        $phpPreset = (string) $helper->ask($input, $output, new ChoiceQuestion(
-            'PHP version matrix',
-            [
-                'supported',
-                'current',
-                'stable',
-                'custom',
-            ],
-            'supported',
-        ));
-
-        $settings['php_versions'] = $phpPreset === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom PHP versions JSON: ', $settings['php_versions']))
-            : ($phpVersionPresets[$phpPreset] ?? $settings['php_versions']);
-
-        $dependencyVersionPresets = [
-            'full' => '["prefer-lowest","prefer-stable"]',
-            'stable' => '["prefer-stable"]',
-        ];
-
-        $dependencyPreset = (string) $helper->ask($input, $output, new ChoiceQuestion(
-            'Dependency matrix',
-            [
-                'full',
-                'stable',
-                'custom',
-            ],
-            'full',
-        ));
-
-        $settings['dependency_versions'] = $dependencyPreset === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom dependency versions JSON: ', $settings['dependency_versions']))
-            : ($dependencyVersionPresets[$dependencyPreset] ?? $settings['dependency_versions']);
-
-        $phpExtensionPresets = [
-            'none' => '',
-            'detected' => $this->detectedPhpExtensions(),
-            'common' => 'mbstring, intl, bcmath',
-            'mysql' => 'mbstring, intl, bcmath, pdo_mysql',
-            'pgsql' => 'mbstring, intl, bcmath, pdo_pgsql',
-            'mysql+pgsql' => 'mbstring, intl, bcmath, pdo_mysql, pdo_pgsql',
-        ];
-
-        $extensionPreset = (string) $helper->ask($input, $output, new ChoiceQuestion(
-            'PHP extensions',
-            [
-                'none',
-                'detected',
-                'common',
-                'mysql',
-                'pgsql',
-                'mysql+pgsql',
-                'custom',
-            ],
-            'none',
-        ));
-
-        $settings['php_extensions'] = $extensionPreset === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom PHP extensions, comma-separated: ', $settings['php_extensions']))
-            : ($phpExtensionPresets[$extensionPreset] ?? $settings['php_extensions']);
-
-        $settings['coverage'] = (string) $helper->ask($input, $output, new ChoiceQuestion('Coverage driver', ['none', 'xdebug', 'pcov'], $settings['coverage']));
-
+    private function askComposerFlags(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $defaultComposerFlags,
+    ): string {
         $composerFlagPresets = [
             'none' => '',
             'with-all-dependencies' => '--with-all-dependencies',
@@ -227,10 +149,117 @@ final class InitCommand extends Command
             'none',
         ));
 
-        $settings['composer_flags'] = $composerFlags === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom Composer flags: ', $settings['composer_flags']))
-            : ($composerFlagPresets[$composerFlags] ?? $settings['composer_flags']);
+        return $composerFlags === 'custom'
+            ? (string) $helper->ask($input, $output, new Question('Custom Composer flags: ', $defaultComposerFlags))
+            : ($composerFlagPresets[$composerFlags] ?? $defaultComposerFlags);
+    }
 
+    private function askCoverageDriver(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $defaultCoverage,
+    ): string {
+        return (string) $helper->ask($input, $output, new ChoiceQuestion('Coverage driver', ['none', 'xdebug', 'pcov'], $defaultCoverage));
+    }
+
+    private function askDependencyVersions(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $defaultDependencyVersions,
+    ): string {
+        $dependencyVersionPresets = [
+            'full' => '["prefer-lowest","prefer-stable"]',
+            'stable' => '["prefer-stable"]',
+        ];
+
+        $dependencyPreset = (string) $helper->ask($input, $output, new ChoiceQuestion(
+            'Dependency matrix',
+            [
+                'full',
+                'stable',
+                'custom',
+            ],
+            'full',
+        ));
+
+        return $dependencyPreset === 'custom'
+            ? (string) $helper->ask($input, $output, new Question('Custom dependency versions JSON: ', $defaultDependencyVersions))
+            : ($dependencyVersionPresets[$dependencyPreset] ?? $defaultDependencyVersions);
+    }
+
+    /**
+     * @param array<string, bool|string> $settings
+     * @return array<string, bool|string>
+     */
+    private function askInstallTargets(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        array $settings,
+    ): array {
+        $settings['captainhook'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install CaptainHook config? [Y/n] ', true));
+        $settings['workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitHub Actions workflow wrapper? [Y/n] ', true));
+
+        return $settings;
+    }
+
+    private function askPhpExtensions(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $defaultExtensions,
+    ): string {
+        $phpExtensionPresets = [
+            'none' => '',
+            'detected' => $this->detectedPhpExtensions(),
+            'common' => 'mbstring, intl, bcmath',
+            'mysql' => 'mbstring, intl, bcmath, pdo_mysql',
+            'pgsql' => 'mbstring, intl, bcmath, pdo_pgsql',
+            'mysql+pgsql' => 'mbstring, intl, bcmath, pdo_mysql, pdo_pgsql',
+        ];
+
+        $detectedExtensionsLabel = $phpExtensionPresets['detected'] !== ''
+            ? $phpExtensionPresets['detected']
+            : 'none detected';
+
+        $extensionChoiceMap = [
+            'none (no extra extensions)' => 'none',
+            sprintf('detected (from composer ext-* require/require-dev/suggest: %s)', $detectedExtensionsLabel) => 'detected',
+            'common (mbstring, intl, bcmath)' => 'common',
+            'mysql (mbstring, intl, bcmath, pdo_mysql)' => 'mysql',
+            'pgsql (mbstring, intl, bcmath, pdo_pgsql)' => 'pgsql',
+            'mysql+pgsql (mbstring, intl, bcmath, pdo_mysql, pdo_pgsql)' => 'mysql+pgsql',
+            'custom (enter comma-separated extension names)' => 'custom',
+        ];
+
+        $extensionChoice = (string) $helper->ask($input, $output, new ChoiceQuestion(
+            'PHP extensions',
+            array_keys($extensionChoiceMap),
+            'none (no extra extensions)',
+        ));
+
+        $extensionPreset = $extensionChoiceMap[$extensionChoice] ?? 'none';
+
+        $resolvedExtensions = $extensionPreset === 'custom'
+            ? (string) $helper->ask($input, $output, new Question('Custom PHP extensions, comma-separated: ', $defaultExtensions))
+            : ($phpExtensionPresets[$extensionPreset] ?? $defaultExtensions);
+
+        $output->writeln(sprintf(
+            '<comment>Resolved PHP extensions: %s</comment>',
+            $resolvedExtensions !== '' ? $resolvedExtensions : '(none)',
+        ));
+
+        return $resolvedExtensions;
+    }
+
+    private function askPhpstanMemoryLimit(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $defaultPhpstanMemoryLimit,
+    ): string {
         $phpstanMemoryLimit = $helper->ask($input, $output, new ChoiceQuestion(
             'PHPStan memory limit',
             [
@@ -239,13 +268,43 @@ final class InitCommand extends Command
                 '4G',
                 'custom',
             ],
-            $settings['phpstan_memory_limit'],
+            $defaultPhpstanMemoryLimit,
         ));
 
-        $settings['phpstan_memory_limit'] = $phpstanMemoryLimit === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom PHPStan memory limit: ', $settings['phpstan_memory_limit']))
+        return $phpstanMemoryLimit === 'custom'
+            ? (string) $helper->ask($input, $output, new Question('Custom PHPStan memory limit: ', $defaultPhpstanMemoryLimit))
             : (string) $phpstanMemoryLimit;
+    }
 
+    private function askPhpVersions(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $defaultPhpVersions,
+    ): string {
+        $phpVersionPresets = $this->phpVersionPresets();
+        $phpPreset = (string) $helper->ask($input, $output, new ChoiceQuestion(
+            'PHP version matrix',
+            [
+                'supported',
+                'current',
+                'stable',
+                'custom',
+            ],
+            'supported',
+        ));
+
+        return $phpPreset === 'custom'
+            ? (string) $helper->ask($input, $output, new Question('Custom PHP versions JSON: ', $defaultPhpVersions))
+            : ($phpVersionPresets[$phpPreset] ?? $defaultPhpVersions);
+    }
+
+    private function askPsalmThreads(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $defaultPsalmThreads,
+    ): string {
         $psalmThreads = $helper->ask($input, $output, new ChoiceQuestion(
             'Psalm threads',
             [
@@ -254,16 +313,50 @@ final class InitCommand extends Command
                 '4',
                 'custom',
             ],
-            $settings['psalm_threads'],
+            $defaultPsalmThreads,
         ));
 
-        $settings['psalm_threads'] = $psalmThreads === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom Psalm thread count: ', $settings['psalm_threads']))
+        return $psalmThreads === 'custom'
+            ? (string) $helper->ask($input, $output, new Question('Custom Psalm thread count: ', $defaultPsalmThreads))
             : (string) $psalmThreads;
+    }
 
-        $settings['run_analysis'] = $helper->ask($input, $output, new ConfirmationQuestion('Enable SARIF code-scanning analysis? [Y/n] ', $settings['run_analysis']));
+    private function askRunAnalysis(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        bool $defaultRunAnalysis,
+    ): bool {
+        return (bool) $helper->ask($input, $output, new ConfirmationQuestion('Enable SARIF code-scanning analysis? [Y/n] ', $defaultRunAnalysis));
+    }
 
-        return $settings;
+    private function askWorkflowRef(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $defaultWorkflowRef,
+    ): string {
+        $workflowRefChoices = [
+            'main' => 'main',
+        ];
+
+        if (!in_array($defaultWorkflowRef, $workflowRefChoices, true)) {
+            $workflowRefChoices['configured'] = $defaultWorkflowRef;
+        }
+
+        $workflowRefChoices['custom'] = 'custom';
+
+        $workflowRef = (string) $helper->ask($input, $output, new ChoiceQuestion(
+            'PHPForge workflow ref',
+            $workflowRefChoices,
+            array_search($defaultWorkflowRef, $workflowRefChoices, true) ?: 'main',
+        ));
+
+        if ($workflowRef !== 'custom') {
+            return $workflowRef;
+        }
+
+        return (string) $helper->ask($input, $output, new Question('Custom PHPForge workflow ref: ', $defaultWorkflowRef));
     }
 
     private function copy(string $source, string $target, bool $force, OutputInterface $output): int
@@ -351,23 +444,54 @@ final class InitCommand extends Command
 
     private function detectedPhpExtensions(): string
     {
-        $candidates = [
-            'mbstring',
-            'intl',
-            'bcmath',
-            'pdo_mysql',
-            'pdo_pgsql',
-        ];
+        $composerJson = Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'composer.json';
 
-        $detected = [];
+        if (!is_file($composerJson) || !is_readable($composerJson)) {
+            return '';
+        }
 
-        foreach ($candidates as $extension) {
-            if (extension_loaded($extension)) {
-                $detected[] = $extension;
+        $contents = file_get_contents($composerJson);
+
+        if (!is_string($contents) || $contents === '') {
+            return '';
+        }
+
+        $data = json_decode($contents, true);
+
+        if (!is_array($data)) {
+            return '';
+        }
+
+        $extensions = [];
+
+        foreach (['require', 'require-dev', 'suggest'] as $section) {
+            $packages = $data[$section] ?? null;
+
+            if (!is_array($packages)) {
+                continue;
+            }
+
+            foreach ($packages as $package => $constraint) {
+                unset($constraint);
+
+                if (!is_string($package) || !str_starts_with($package, 'ext-')) {
+                    continue;
+                }
+
+                $extension = substr($package, 4);
+
+                if ($extension === '') {
+                    continue;
+                }
+
+                $extensions[] = str_replace('-', '_', $extension);
             }
         }
 
-        return implode(', ', $detected);
+        $extensions = array_values(array_unique($extensions));
+        sort($extensions);
+
+        return implode(', ', $extensions);
     }
 
     private function isCycleSupported(mixed $eol, \DateTimeImmutable $today): bool
