@@ -93,16 +93,18 @@ Enable SARIF code-scanning analysis?
 
 Selector presets include:
 
-| Prompt                | Built-in Choices                                                                 |
-| --------------------- | -------------------------------------------------------------------------------- |
-| PHPForge workflow ref | `main`, configured ref, or custom                                            |
-| PHP version matrix    | Supported range, current range, latest stable, or custom JSON                    |
-| Dependency matrix     | Prefer-lowest plus stable, stable only, or custom JSON                           |
-| PHP extensions        | None, common extensions, MySQL, PostgreSQL, MySQL plus PostgreSQL, or custom     |
-| Coverage driver       | `none`, `xdebug`, or `pcov`                                                |
-| Extra Composer flags  | None,`--with-all-dependencies`, `--ignore-platform-req=ext-redis`, or custom |
-| PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                |
-| Psalm threads         | `1`, `2`, `4`, or custom                                                   |
+| Prompt                | Built-in Choices                                                                                                |
+| --------------------- | --------------------------------------------------------------------------------------------------------------- |
+| PHPForge workflow ref | `main`, configured ref, or custom                                                                             |
+| PHP version matrix    | `supported`, `current`, `stable`, or custom JSON.                                                         |
+| Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]`, or custom JSON          |
+| PHP extensions        | `none` => `""`, `detected` (from local PHP), `common`, `mysql`, `pgsql`, `mysql+pgsql`, or custom |
+| Coverage driver       | `none`, `xdebug`, or `pcov`                                                                               |
+| Extra Composer flags  | `none` => `""`, `with-all-dependencies`, `ignore-ext-redis`, or custom                                  |
+| PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                               |
+| Psalm threads         | `1`, `2`, `4`, or custom                                                                                  |
+
+`supported` includes non-EOL PHP minor cycles (>= `8.2`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
 
 The generated files are:
 
@@ -110,6 +112,15 @@ The generated files are:
 captainhook.json
 .github/workflows/security-standards.yml
 ```
+
+After `ic:init`, run:
+
+```bash
+composer ic:tests
+```
+
+If `captainhook.json` was installed, hooks auto-install on the next `composer install` or `composer update`.
+Use `composer ic:hooks` only when you want to install/update hooks immediately.
 
 Use targeted or non-interactive init commands when needed:
 
@@ -174,24 +185,24 @@ composer ic:init --force
 
 ### Config And Utility Commands
 
-| Command                                               | Purpose                                                                  |
-| ----------------------------------------------------- | ------------------------------------------------------------------------ |
-| `composer ic:init`                                  | Interactively sets up CaptainHook and the workflow wrapper.              |
-| `composer ic:init --captainhook`                    | Copies only `captainhook.json`.                                        |
+| Command                                               | Purpose                                                                   |
+| ----------------------------------------------------- | ------------------------------------------------------------------------- |
+| `composer ic:init`                                  | Interactively sets up CaptainHook and the workflow wrapper.               |
+| `composer ic:init --captainhook`                    | Copies only `captainhook.json`.                                         |
 | `composer ic:init --workflow --workflow-ref=main`   | Copies only the workflow wrapper and points it at the given PHPForge ref. |
-| `composer ic:init --no-interaction-defaults`        | Copies default init files without prompting.                             |
-| `composer ic:init --force`                          | Overwrites existing copied files.                                        |
-| `composer ic:hooks`                                 | Installs enabled CaptainHook hooks.                                      |
-| `composer ic:doctor`                                | Shows detected configs, vendor-dir, plugin permissions, and hook status. |
-| `composer ic:doctor --json`                         | Outputs doctor diagnostics as JSON.                                      |
-| `composer ic:list-config`                           | Lists config files and their resolution source.                          |
-| `composer ic:list-config --json`                    | Outputs config resolution as JSON.                                       |
-| `composer ic:publish-config [file...]`              | Copies selected bundled config files into the project.                   |
-| `composer ic:publish-config --all`                  | Copies every bundled config file into the project.                       |
-| `composer ic:publish-config --all --force`          | Overwrites all project config files with bundled defaults.               |
-| `composer ic:clean`                                 | Removes known PHPForge output files and cache directories.               |
-| `composer ic:version`                               | Shows PHPForge, PHP, PHP binary, and vendor-dir information.             |
-| `composer ic:phpstan:sarif input.json output.sarif` | Converts PHPStan JSON output to SARIF 2.1.0.                             |
+| `composer ic:init --no-interaction-defaults`        | Copies default init files without prompting.                              |
+| `composer ic:init --force`                          | Overwrites existing copied files.                                         |
+| `composer ic:hooks`                                 | Installs enabled CaptainHook hooks.                                       |
+| `composer ic:doctor`                                | Shows detected configs, vendor-dir, plugin permissions, and hook status.  |
+| `composer ic:doctor --json`                         | Outputs doctor diagnostics as JSON.                                       |
+| `composer ic:list-config`                           | Lists config files and their resolution source.                           |
+| `composer ic:list-config --json`                    | Outputs config resolution as JSON.                                        |
+| `composer ic:publish-config [file...]`              | Copies selected bundled config files into the project.                    |
+| `composer ic:publish-config --all`                  | Copies every bundled config file into the project.                        |
+| `composer ic:publish-config --all --force`          | Overwrites all project config files with bundled defaults.                |
+| `composer ic:clean`                                 | Removes known PHPForge output files and cache directories.                |
+| `composer ic:version`                               | Shows PHPForge, PHP, PHP binary, and vendor-dir information.              |
+| `composer ic:phpstan:sarif input.json output.sarif` | Converts PHPStan JSON output to SARIF 2.1.0.                              |
 
 ## Configuration
 
