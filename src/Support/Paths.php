@@ -8,7 +8,7 @@ final class Paths
 {
     public static function bin(string $name): string
     {
-        $path = self::vendorDir() . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . $name;
+        $path = self::binDir() . DIRECTORY_SEPARATOR . $name;
 
         if (is_file($path)) {
             return $path;
@@ -112,6 +112,17 @@ final class Paths
         }
 
         return self::projectRoot() . DIRECTORY_SEPARATOR . $path;
+    }
+
+    private static function binDir(): string
+    {
+        $configured = self::composerConfig('bin-dir');
+
+        if (is_string($configured) && $configured !== '') {
+            return self::absoluteProjectPath($configured);
+        }
+
+        return self::vendorDir() . DIRECTORY_SEPARATOR . 'bin';
     }
 
     private static function composerConfig(string $key): mixed

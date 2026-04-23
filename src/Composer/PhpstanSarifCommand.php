@@ -30,7 +30,7 @@ final class PhpstanSarifCommand extends Command
     {
         return (new Runner($output))->run([[
             Paths::php(),
-            Paths::packageFile('bin/phpforge'),
+            Paths::bin('phpforge'),
             'phpstan-sarif',
             (string) $input->getArgument('input'),
             (string) $input->getArgument('output'),

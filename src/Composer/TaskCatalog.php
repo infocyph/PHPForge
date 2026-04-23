@@ -113,7 +113,7 @@ final class TaskCatalog
      */
     public static function releaseAudit(): array
     {
-        return [[Paths::php(), Paths::packageFile('bin/phpforge'), 'audit']];
+        return [[Paths::php(), Paths::bin('phpforge'), 'audit']];
     }
 
     /**
@@ -165,7 +165,7 @@ final class TaskCatalog
      */
     public static function syntax(): array
     {
-        return [[Paths::php(), Paths::packageFile('bin/phpforge'), 'syntax']];
+        return [[Paths::php(), Paths::bin('phpforge'), 'syntax']];
     }
 
     /**
@@ -208,6 +208,18 @@ final class TaskCatalog
         ];
     }
 
+    private static function absoluteProjectPath(string $projectRoot, string $path): string
+    {
+        if (preg_match('/^[A-Za-z]:[\/\\\\]/', $path) === 1 || str_starts_with($path, DIRECTORY_SEPARATOR)) {
+            return $path;
+        }
+
+        $normalized = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+        $normalized = ltrim($normalized, '.\\/ ');
+
+        return $projectRoot . DIRECTORY_SEPARATOR . $normalized;
+    }
+
     /**
      * @return list<string>
      */
@@ -227,12 +239,31 @@ final class TaskCatalog
         return (string) max($minimum, min($maximum, (int) $value));
     }
 
+    private static function isBundledConfigInConsumingProject(string $configPath): bool
+    {
+        $projectRoot = realpath(Paths::projectRootPath());
+        $packageRoot = realpath(dirname(__DIR__, 2));
+        $configRealPath = realpath($configPath);
+
+        if (!is_string($projectRoot) || !is_string($packageRoot) || !is_string($configRealPath)) {
+            return false;
+        }
+
+        if ($projectRoot === $packageRoot) {
+            return false;
+        }
+
+        return str_starts_with($configRealPath, $packageRoot . DIRECTORY_SEPARATOR);
+    }
+
     /**
      * @return list<string>
      */
     private static function pestConfigArgs(): array
     {
-        return ['--configuration', Paths::firstConfig(['pest.xml', 'phpunit.xml', 'pest.xml.dist', 'phpunit.xml.dist'])];
+        $config = Paths::firstConfig(['pest.xml', 'phpunit.xml', 'pest.xml.dist', 'phpunit.xml.dist']);
+
+        return ['--configuration', self::resolvePestConfigPath($config)];
     }
 
     private static function pestProcesses(): string
@@ -247,8 +278,85 @@ final class TaskCatalog
         return is_string($value) && $value !== '' ? $value : '1G';
     }
 
+    private static function projectAdjustedBundledPestConfig(string $configPath): string
+    {
+        if (!class_exists(\DOMDocument::class)) {
+            return $configPath;
+        }
+
+        $contents = file_get_contents($configPath);
+
+        if (!is_string($contents) || $contents === '') {
+            return $configPath;
+        }
+
+        $dom = new \DOMDocument();
+        $dom->preserveWhiteSpace = true;
+        $dom->formatOutput = true;
+
+        set_error_handler(static fn(): bool => true);
+
+        try {
+            $loaded = $dom->loadXML($contents);
+        } finally {
+            restore_error_handler();
+        }
+
+        if (!$loaded) {
+            return $configPath;
+        }
+
+        $projectRoot = Paths::projectRootPath();
+        $phpunit = $dom->documentElement;
+
+        if ($phpunit instanceof \DOMElement) {
+            $bootstrap = trim((string) $phpunit->getAttribute('bootstrap'));
+
+            if ($bootstrap !== '') {
+                $phpunit->setAttribute('bootstrap', self::absoluteProjectPath($projectRoot, $bootstrap));
+            }
+        }
+
+        $directories = $dom->getElementsByTagName('directory');
+
+        foreach ($directories as $directory) {
+            if (!$directory instanceof \DOMElement) {
+                continue;
+            }
+
+            $path = trim($directory->textContent);
+
+            if ($path === '') {
+                continue;
+            }
+
+            $directory->nodeValue = self::absoluteProjectPath($projectRoot, $path);
+        }
+
+        $tempPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-pest-' . sha1($configPath . $projectRoot . $contents) . '.xml';
+
+        if (!is_file($tempPath)) {
+            $written = file_put_contents($tempPath, $dom->saveXML());
+
+            if ($written === false) {
+                return $configPath;
+            }
+        }
+
+        return $tempPath;
+    }
+
     private static function psalmThreads(): string
     {
         return self::envInt('IC_PSALM_THREADS', 1, 1, 64);
+    }
+
+    private static function resolvePestConfigPath(string $configPath): string
+    {
+        if (!self::isBundledConfigInConsumingProject($configPath)) {
+            return $configPath;
+        }
+
+        return self::projectAdjustedBundledPestConfig($configPath);
     }
 }
