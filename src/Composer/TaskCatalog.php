@@ -13,7 +13,7 @@ final class TaskCatalog
      */
     public static function benchChart(): array
     {
-        return [[Paths::php(), Paths::bin('phpbench'), 'run', '--config=' . Paths::config('phpbench.json'), '--report=chart']];
+        return [[Paths::php(), Paths::bin('phpbench'), 'run', '--config=' . self::benchConfigPath(), '--report=chart']];
     }
 
     /**
@@ -21,7 +21,7 @@ final class TaskCatalog
      */
     public static function benchQuick(): array
     {
-        return [[Paths::php(), Paths::bin('phpbench'), 'run', '--config=' . Paths::config('phpbench.json'), '--report=aggregate', '--revs=10', '--iterations=3', '--warmup=1']];
+        return [[Paths::php(), Paths::bin('phpbench'), 'run', '--config=' . self::benchConfigPath(), '--report=aggregate', '--revs=10', '--iterations=3', '--warmup=1']];
     }
 
     /**
@@ -29,7 +29,7 @@ final class TaskCatalog
      */
     public static function benchRun(): array
     {
-        return [[Paths::php(), Paths::bin('phpbench'), 'run', '--config=' . Paths::config('phpbench.json'), '--report=aggregate']];
+        return [[Paths::php(), Paths::bin('phpbench'), 'run', '--config=' . self::benchConfigPath(), '--report=aggregate']];
     }
 
     /**
@@ -157,7 +157,7 @@ final class TaskCatalog
      */
     public static function staticAnalysis(): array
     {
-        return [[Paths::php(), Paths::bin('phpstan'), 'analyse', '--configuration=' . Paths::config('phpstan.neon.dist'), '--memory-limit=' . self::phpstanMemoryLimit(), '--no-progress', '--debug']];
+        return [[Paths::php(), Paths::bin('phpstan'), 'analyse', '--configuration=' . Paths::config('phpstan.neon.dist'), '--memory-limit=' . self::phpstanMemoryLimit(), '--no-progress', '--debug', ...self::staticAnalysisPaths()]];
     }
 
     /**
@@ -220,6 +220,11 @@ final class TaskCatalog
         return $projectRoot . DIRECTORY_SEPARATOR . $normalized;
     }
 
+    private static function benchConfigPath(): string
+    {
+        return self::resolveBenchConfigPath(Paths::config('phpbench.json'));
+    }
+
     /**
      * @return list<string>
      */
@@ -276,6 +281,50 @@ final class TaskCatalog
         $value = getenv('IC_PHPSTAN_MEMORY_LIMIT');
 
         return is_string($value) && $value !== '' ? $value : '1G';
+    }
+
+    private static function projectAdjustedBundledBenchConfig(string $configPath): string
+    {
+        $contents = file_get_contents($configPath);
+
+        if (!is_string($contents) || $contents === '') {
+            return $configPath;
+        }
+
+        $config = json_decode($contents, true);
+
+        if (!is_array($config)) {
+            return $configPath;
+        }
+
+        $projectRoot = Paths::projectRootPath();
+
+        foreach (['runner.bootstrap', 'runner.path'] as $key) {
+            $value = $config[$key] ?? null;
+
+            if (is_string($value) && $value !== '') {
+                $config[$key] = self::absoluteProjectPath($projectRoot, $value);
+            }
+        }
+
+        $encoded = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+        if (!is_string($encoded) || $encoded === '') {
+            return $configPath;
+        }
+
+        $encoded .= "\n";
+        $tempPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-phpbench-' . sha1($configPath . $projectRoot . $encoded) . '.json';
+
+        if (!is_file($tempPath)) {
+            $written = file_put_contents($tempPath, $encoded);
+
+            if ($written === false) {
+                return $configPath;
+            }
+        }
+
+        return $tempPath;
     }
 
     private static function projectAdjustedBundledPestConfig(string $configPath): string
@@ -351,6 +400,15 @@ final class TaskCatalog
         return self::envInt('IC_PSALM_THREADS', 1, 1, 64);
     }
 
+    private static function resolveBenchConfigPath(string $configPath): string
+    {
+        if (!self::isBundledConfigInConsumingProject($configPath)) {
+            return $configPath;
+        }
+
+        return self::projectAdjustedBundledBenchConfig($configPath);
+    }
+
     private static function resolvePestConfigPath(string $configPath): string
     {
         if (!self::isBundledConfigInConsumingProject($configPath)) {
@@ -358,5 +416,21 @@ final class TaskCatalog
         }
 
         return self::projectAdjustedBundledPestConfig($configPath);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function staticAnalysisPaths(): array
+    {
+        $paths = Paths::existingProjectPaths('src', 'app');
+
+        if ($paths !== []) {
+            return $paths;
+        }
+
+        $fallbackPaths = Paths::existingProjectPaths('config', 'database', 'tests', 'benchmarks', 'examples');
+
+        return $fallbackPaths !== [] ? $fallbackPaths : ['.'];
     }
 }
