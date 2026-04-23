@@ -16,6 +16,13 @@ use Symfony\Component\Console\Question\Question;
 
 final class InitCommand extends Command
 {
+    private const END_OF_LIFE_PHP_API = 'https://endoflife.date/api/php.json';
+
+    /**
+     * @var array<string, string>|null
+     */
+    private ?array $phpVersionPresetsCache = null;
+
     public function __construct()
     {
         parent::__construct('ic:init');
@@ -38,6 +45,7 @@ final class InitCommand extends Command
         $copyCaptainHook = (bool) $input->getOption('captainhook');
         $explicit = $copyWorkflow || $copyCaptainHook || (bool) $input->getOption('no-interaction-defaults');
         $settings = $this->defaultSettings((string) $input->getOption('workflow-ref'));
+        $settings['php_versions'] = $this->phpVersionPresets()['supported'];
 
         if (!$explicit && $input->isInteractive()) {
             $settings = $this->ask($input, $output, $settings);
@@ -71,6 +79,18 @@ final class InitCommand extends Command
         }
 
         $output->writeln(sprintf('<info>PHPForge init complete: %d file(s) copied.</info>', $copied));
+        $output->writeln('<info>Next steps:</info>');
+
+        if ($copyWorkflow) {
+            $output->writeln('  - Review and commit .github/workflows/security-standards.yml');
+        }
+
+        if ($copyCaptainHook) {
+            $output->writeln('  - Hooks auto-install on the next composer install/update');
+            $output->writeln('  - Optional now: composer ic:hooks (install/update immediately)');
+        }
+
+        $output->writeln('  - Run composer ic:tests to validate setup');
 
         return 0;
     }
@@ -125,68 +145,91 @@ final class InitCommand extends Command
             ? (string) $helper->ask($input, $output, new Question('Custom PHPForge workflow ref: ', $settings['workflow_ref']))
             : (string) $workflowRef;
 
-        $phpPreset = $helper->ask($input, $output, new ChoiceQuestion(
+        $phpVersionPresets = $this->phpVersionPresets();
+
+        $phpPreset = (string) $helper->ask($input, $output, new ChoiceQuestion(
             'PHP version matrix',
             [
-                'supported' => '["8.2","8.3","8.4","8.5"]',
-                'current' => '["8.4","8.5"]',
-                'stable' => '["8.5"]',
-                'custom' => 'custom',
+                'supported',
+                'current',
+                'stable',
+                'custom',
             ],
             'supported',
         ));
 
         $settings['php_versions'] = $phpPreset === 'custom'
             ? (string) $helper->ask($input, $output, new Question('Custom PHP versions JSON: ', $settings['php_versions']))
-            : (string) $phpPreset;
+            : ($phpVersionPresets[$phpPreset] ?? $settings['php_versions']);
 
-        $dependencyPreset = $helper->ask($input, $output, new ChoiceQuestion(
+        $dependencyVersionPresets = [
+            'full' => '["prefer-lowest","prefer-stable"]',
+            'stable' => '["prefer-stable"]',
+        ];
+
+        $dependencyPreset = (string) $helper->ask($input, $output, new ChoiceQuestion(
             'Dependency matrix',
             [
-                'full' => '["prefer-lowest","prefer-stable"]',
-                'stable' => '["prefer-stable"]',
-                'custom' => 'custom',
+                'full',
+                'stable',
+                'custom',
             ],
             'full',
         ));
 
         $settings['dependency_versions'] = $dependencyPreset === 'custom'
             ? (string) $helper->ask($input, $output, new Question('Custom dependency versions JSON: ', $settings['dependency_versions']))
-            : (string) $dependencyPreset;
+            : ($dependencyVersionPresets[$dependencyPreset] ?? $settings['dependency_versions']);
 
-        $extensionPreset = $helper->ask($input, $output, new ChoiceQuestion(
+        $phpExtensionPresets = [
+            'none' => '',
+            'detected' => $this->detectedPhpExtensions(),
+            'common' => 'mbstring, intl, bcmath',
+            'mysql' => 'mbstring, intl, bcmath, pdo_mysql',
+            'pgsql' => 'mbstring, intl, bcmath, pdo_pgsql',
+            'mysql+pgsql' => 'mbstring, intl, bcmath, pdo_mysql, pdo_pgsql',
+        ];
+
+        $extensionPreset = (string) $helper->ask($input, $output, new ChoiceQuestion(
             'PHP extensions',
             [
-                'none' => '',
-                'common' => 'mbstring, intl, bcmath',
-                'mysql' => 'mbstring, intl, bcmath, pdo_mysql',
-                'pgsql' => 'mbstring, intl, bcmath, pdo_pgsql',
-                'mysql+pgsql' => 'mbstring, intl, bcmath, pdo_mysql, pdo_pgsql',
-                'custom' => 'custom',
+                'none',
+                'detected',
+                'common',
+                'mysql',
+                'pgsql',
+                'mysql+pgsql',
+                'custom',
             ],
             'none',
         ));
 
         $settings['php_extensions'] = $extensionPreset === 'custom'
             ? (string) $helper->ask($input, $output, new Question('Custom PHP extensions, comma-separated: ', $settings['php_extensions']))
-            : (string) $extensionPreset;
+            : ($phpExtensionPresets[$extensionPreset] ?? $settings['php_extensions']);
 
         $settings['coverage'] = (string) $helper->ask($input, $output, new ChoiceQuestion('Coverage driver', ['none', 'xdebug', 'pcov'], $settings['coverage']));
 
-        $composerFlags = $helper->ask($input, $output, new ChoiceQuestion(
+        $composerFlagPresets = [
+            'none' => '',
+            'with-all-dependencies' => '--with-all-dependencies',
+            'ignore-ext-redis' => '--ignore-platform-req=ext-redis',
+        ];
+
+        $composerFlags = (string) $helper->ask($input, $output, new ChoiceQuestion(
             'Extra Composer flags',
             [
-                'none' => '',
-                'with-all-dependencies' => '--with-all-dependencies',
-                'ignore-ext-redis' => '--ignore-platform-req=ext-redis',
-                'custom' => 'custom',
+                'none',
+                'with-all-dependencies',
+                'ignore-ext-redis',
+                'custom',
             ],
             'none',
         ));
 
         $settings['composer_flags'] = $composerFlags === 'custom'
             ? (string) $helper->ask($input, $output, new Question('Custom Composer flags: ', $settings['composer_flags']))
-            : (string) $composerFlags;
+            : ($composerFlagPresets[$composerFlags] ?? $settings['composer_flags']);
 
         $phpstanMemoryLimit = $helper->ask($input, $output, new ChoiceQuestion(
             'PHPStan memory limit',
@@ -304,6 +347,161 @@ final class InitCommand extends Command
             'psalm_threads' => '1',
             'run_analysis' => true,
         ];
+    }
+
+    private function detectedPhpExtensions(): string
+    {
+        $candidates = [
+            'mbstring',
+            'intl',
+            'bcmath',
+            'pdo_mysql',
+            'pdo_pgsql',
+        ];
+
+        $detected = [];
+
+        foreach ($candidates as $extension) {
+            if (extension_loaded($extension)) {
+                $detected[] = $extension;
+            }
+        }
+
+        return implode(', ', $detected);
+    }
+
+    private function isCycleSupported(mixed $eol, \DateTimeImmutable $today): bool
+    {
+        if ($eol === false) {
+            return true;
+        }
+
+        $eolDate = $this->parseDate($eol);
+
+        if (!$eolDate instanceof \DateTimeImmutable) {
+            return false;
+        }
+
+        return $eolDate >= $today;
+    }
+
+    private function parseDate(mixed $value): ?\DateTimeImmutable
+    {
+        if (!is_string($value) || $value === '') {
+            return null;
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('Y-m-d', $value);
+
+        return $date instanceof \DateTimeImmutable ? $date : null;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function phpVersionPresets(): array
+    {
+        if (is_array($this->phpVersionPresetsCache)) {
+            return $this->phpVersionPresetsCache;
+        }
+
+        $supported = $this->supportedPhpVersionsFromApi();
+
+        if ($supported === []) {
+            $supported = ['8.2', '8.3', '8.4', '8.5'];
+        }
+
+        $current = array_slice($supported, -2);
+
+        if ($current === []) {
+            $current = $supported;
+        }
+
+        $stable = array_slice($supported, -1);
+
+        if ($stable === []) {
+            $stable = $supported;
+        }
+
+        $this->phpVersionPresetsCache = [
+            'supported' => (string) json_encode(array_values($supported), JSON_UNESCAPED_SLASHES),
+            'current' => (string) json_encode(array_values($current), JSON_UNESCAPED_SLASHES),
+            'stable' => (string) json_encode(array_values($stable), JSON_UNESCAPED_SLASHES),
+        ];
+
+        return $this->phpVersionPresetsCache;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function supportedPhpVersionsFromApi(): array
+    {
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 2.0,
+                'ignore_errors' => true,
+                'user_agent' => 'infocyph/phpforge ic:init',
+            ],
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ],
+        ]);
+
+        set_error_handler(static fn(): bool => true);
+
+        try {
+            $payload = file_get_contents(self::END_OF_LIFE_PHP_API, false, $context);
+        } finally {
+            restore_error_handler();
+        }
+
+        if (!is_string($payload) || $payload === '') {
+            return [];
+        }
+
+        $decoded = json_decode($payload, true);
+
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $today = new \DateTimeImmutable('today');
+        $versions = [];
+
+        foreach ($decoded as $release) {
+            if (!is_array($release)) {
+                continue;
+            }
+
+            $cycle = $release['cycle'] ?? null;
+
+            if (!is_string($cycle) || preg_match('/^\d+\.\d+$/', $cycle) !== 1) {
+                continue;
+            }
+
+            if (version_compare($cycle, '8.2', '<')) {
+                continue;
+            }
+
+            $releaseDate = $this->parseDate($release['releaseDate'] ?? null);
+
+            if ($releaseDate instanceof \DateTimeImmutable && $releaseDate > $today) {
+                continue;
+            }
+
+            if (!$this->isCycleSupported($release['eol'] ?? null, $today)) {
+                continue;
+            }
+
+            $versions[] = $cycle;
+        }
+
+        $versions = array_values(array_unique($versions));
+        usort($versions, static fn(string $a, string $b): int => version_compare($a, $b));
+
+        return $versions;
     }
 
     private function write(string $contents, string $target, bool $force, OutputInterface $output): int
