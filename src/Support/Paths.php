@@ -46,12 +46,10 @@ final class Paths
      */
     public static function firstConfig(array $files): string
     {
-        foreach ($files as $file) {
-            $projectFile = self::projectRoot() . DIRECTORY_SEPARATOR . $file;
+        $projectConfig = self::firstProjectConfig($files);
 
-            if (is_file($projectFile)) {
-                return $projectFile;
-            }
+        if (is_string($projectConfig)) {
+            return $projectConfig;
         }
 
         foreach ($files as $file) {
@@ -63,6 +61,22 @@ final class Paths
         }
 
         return self::packageFile($files[0]);
+    }
+
+    /**
+     * @param non-empty-list<string> $files
+     */
+    public static function firstProjectConfig(array $files): ?string
+    {
+        foreach ($files as $file) {
+            $projectFile = self::projectRoot() . DIRECTORY_SEPARATOR . $file;
+
+            if (is_file($projectFile)) {
+                return $projectFile;
+            }
+        }
+
+        return null;
     }
 
     public static function packageFile(string $file): string

@@ -211,7 +211,7 @@ Project config files always have priority over PHPForge bundled defaults.
 
 | Tool           | Lookup Order                                                  |
 | -------------- | ------------------------------------------------------------- |
-| Pest           | `pest.xml`, then `phpunit.xml`, then bundled `pest.xml` |
+| Pest           | `pest.xml`, then `phpunit.xml`, then `pest.xml.dist`, then `phpunit.xml.dist`, then bundled `pest.xml` |
 | PHPBench       | `phpbench.json`, then bundled `phpbench.json`             |
 | PHPCS / PHPCBF | `phpcs.xml.dist`, then bundled `phpcs.xml.dist`           |
 | PHPStan        | `phpstan.neon.dist`, then bundled `phpstan.neon.dist`     |

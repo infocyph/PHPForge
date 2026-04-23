@@ -175,7 +175,7 @@ final class TaskCatalog
     {
         return [
             ...self::syntax(),
-            [Paths::php(), Paths::bin('pest'), '--configuration', Paths::firstConfig(['pest.xml', 'phpunit.xml']), '--parallel', '--processes=' . self::pestProcesses()],
+            [Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), '--parallel', '--processes=' . self::pestProcesses()],
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', ...self::codePaths()],
             ...self::staticAnalysis(),
@@ -189,7 +189,7 @@ final class TaskCatalog
      */
     public static function testCode(): array
     {
-        return [[Paths::php(), Paths::bin('pest'), '--configuration', Paths::firstConfig(['pest.xml', 'phpunit.xml'])]];
+        return [[Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs()]];
     }
 
     /**
@@ -225,6 +225,14 @@ final class TaskCatalog
         }
 
         return (string) max($minimum, min($maximum, (int) $value));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function pestConfigArgs(): array
+    {
+        return ['--configuration', Paths::firstConfig(['pest.xml', 'phpunit.xml', 'pest.xml.dist', 'phpunit.xml.dist'])];
     }
 
     private static function pestProcesses(): string

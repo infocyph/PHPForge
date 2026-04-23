@@ -14,6 +14,16 @@ it('uses the first available project config from a list', function (): void {
         ->toBe(getcwd() . DIRECTORY_SEPARATOR . 'pest.xml');
 });
 
+it('returns the first available project-only config from a list', function (): void {
+    expect(Paths::firstProjectConfig(['pest.xml', 'phpunit.xml']))
+        ->toBe(getcwd() . DIRECTORY_SEPARATOR . 'pest.xml');
+});
+
+it('returns null when no project-only config exists', function (): void {
+    expect(Paths::firstProjectConfig(['missing-a.xml', 'missing-b.xml']))
+        ->toBeNull();
+});
+
 it('resolves package files from the PHPForge package root', function (): void {
     expect(Paths::packageFile('bin/phpforge'))
         ->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpforge');
