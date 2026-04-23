@@ -138,20 +138,31 @@ final class InitCommand extends Command
             'ignore-ext-redis' => '--ignore-platform-req=ext-redis',
         ];
 
-        $composerFlags = (string) $helper->ask($input, $output, new ChoiceQuestion(
+        $composerFlagChoiceMap = [
+            'none (no extra Composer flags)' => 'none',
+            'with-all-dependencies (--with-all-dependencies; update transitive deps as needed)' => 'with-all-dependencies',
+            'ignore-ext-redis (--ignore-platform-req=ext-redis; ignore ext-redis platform check)' => 'ignore-ext-redis',
+            'custom (enter custom Composer flags)' => 'custom',
+        ];
+
+        $composerFlagChoice = (string) $helper->ask($input, $output, new ChoiceQuestion(
             'Extra Composer flags',
-            [
-                'none',
-                'with-all-dependencies',
-                'ignore-ext-redis',
-                'custom',
-            ],
-            'none',
+            array_keys($composerFlagChoiceMap),
+            'none (no extra Composer flags)',
         ));
 
-        return $composerFlags === 'custom'
+        $composerFlags = $composerFlagChoiceMap[$composerFlagChoice] ?? 'none';
+
+        $resolvedComposerFlags = $composerFlags === 'custom'
             ? (string) $helper->ask($input, $output, new Question('Custom Composer flags: ', $defaultComposerFlags))
             : ($composerFlagPresets[$composerFlags] ?? $defaultComposerFlags);
+
+        $output->writeln(sprintf(
+            '<comment>Resolved Composer flags: %s</comment>',
+            $resolvedComposerFlags !== '' ? $resolvedComposerFlags : '(none)',
+        ));
+
+        return $resolvedComposerFlags;
     }
 
     private function askCoverageDriver(
@@ -174,19 +185,27 @@ final class InitCommand extends Command
             'stable' => '["prefer-stable"]',
         ];
 
-        $dependencyPreset = (string) $helper->ask($input, $output, new ChoiceQuestion(
+        $dependencyChoiceMap = [
+            sprintf('full (%s)', $dependencyVersionPresets['full']) => 'full',
+            sprintf('stable (%s)', $dependencyVersionPresets['stable']) => 'stable',
+            'custom (enter JSON array string)' => 'custom',
+        ];
+
+        $dependencyChoice = (string) $helper->ask($input, $output, new ChoiceQuestion(
             'Dependency matrix',
-            [
-                'full',
-                'stable',
-                'custom',
-            ],
-            'full',
+            array_keys($dependencyChoiceMap),
+            sprintf('full (%s)', $dependencyVersionPresets['full']),
         ));
 
-        return $dependencyPreset === 'custom'
+        $dependencyPreset = $dependencyChoiceMap[$dependencyChoice] ?? 'full';
+
+        $resolvedDependencyVersions = $dependencyPreset === 'custom'
             ? (string) $helper->ask($input, $output, new Question('Custom dependency versions JSON: ', $defaultDependencyVersions))
             : ($dependencyVersionPresets[$dependencyPreset] ?? $defaultDependencyVersions);
+
+        $output->writeln(sprintf('<comment>Resolved dependency matrix: %s</comment>', $resolvedDependencyVersions));
+
+        return $resolvedDependencyVersions;
     }
 
     /**
@@ -283,20 +302,28 @@ final class InitCommand extends Command
         string $defaultPhpVersions,
     ): string {
         $phpVersionPresets = $this->phpVersionPresets();
-        $phpPreset = (string) $helper->ask($input, $output, new ChoiceQuestion(
+        $phpVersionChoiceMap = [
+            sprintf('supported (%s)', $phpVersionPresets['supported'] ?? $defaultPhpVersions) => 'supported',
+            sprintf('current (%s)', $phpVersionPresets['current'] ?? $defaultPhpVersions) => 'current',
+            sprintf('stable (%s)', $phpVersionPresets['stable'] ?? $defaultPhpVersions) => 'stable',
+            'custom (enter JSON array string)' => 'custom',
+        ];
+
+        $phpVersionChoice = (string) $helper->ask($input, $output, new ChoiceQuestion(
             'PHP version matrix',
-            [
-                'supported',
-                'current',
-                'stable',
-                'custom',
-            ],
-            'supported',
+            array_keys($phpVersionChoiceMap),
+            sprintf('supported (%s)', $phpVersionPresets['supported'] ?? $defaultPhpVersions),
         ));
 
-        return $phpPreset === 'custom'
+        $phpPreset = $phpVersionChoiceMap[$phpVersionChoice] ?? 'supported';
+
+        $resolvedPhpVersions = $phpPreset === 'custom'
             ? (string) $helper->ask($input, $output, new Question('Custom PHP versions JSON: ', $defaultPhpVersions))
             : ($phpVersionPresets[$phpPreset] ?? $defaultPhpVersions);
+
+        $output->writeln(sprintf('<comment>Resolved PHP versions: %s</comment>', $resolvedPhpVersions));
+
+        return $resolvedPhpVersions;
     }
 
     private function askPsalmThreads(

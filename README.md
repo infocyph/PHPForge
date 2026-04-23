@@ -97,15 +97,15 @@ Selector presets include:
 | --------------------- | --------------------------------------------------------------------------------------------------------------- |
 | PHPForge workflow ref | `main`, configured ref, or custom                                                                             |
 | PHP version matrix    | `supported`, `current`, `stable`, or custom JSON. Presets resolve from Endoflife API (`https://endoflife.date/api/php.json`) with fallback to `["8.2","8.3","8.4","8.5"]`. |
-| Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]`, or custom JSON          |
+| Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]`, or custom JSON. Prompt shows resolved JSON beside each option. |
 | PHP extensions        | `none` => `""`, `detected` (from project `composer.json` `ext-*` entries in `require`, `require-dev`, and `suggest`), `common`, `mysql`, `pgsql`, `mysql+pgsql`, or custom |
 | Coverage driver       | `none`, `xdebug`, or `pcov`                                                                               |
-| Extra Composer flags  | `none` => `""`, `with-all-dependencies`, `ignore-ext-redis`, or custom                                  |
+| Extra Composer flags  | `none` => `""`, `with-all-dependencies` => `--with-all-dependencies`, `ignore-ext-redis` => `--ignore-platform-req=ext-redis`, or custom. Prompt explains each option effect. |
 | PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                               |
 | Psalm threads         | `1`, `2`, `4`, or custom                                                                                  |
 
 `supported` includes non-EOL PHP minor cycles (>= `8.2`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
-The PHP extensions selector shows resolved extension lists in the prompt and prints the final resolved value after selection.
+PHP version, dependency matrix, PHP extensions, and Composer flags selectors show resolved values in the prompt and print the final resolved value after selection.
 
 The generated files are:
 
@@ -194,8 +194,8 @@ composer ic:init --force
 | `composer ic:init --no-interaction-defaults`        | Copies default init files without prompting.                              |
 | `composer ic:init --force`                          | Overwrites existing copied files.                                         |
 | `composer ic:hooks`                                 | Installs enabled CaptainHook hooks.                                       |
-| `composer ic:doctor`                                | Shows detected configs, vendor-dir, plugin permissions, and hook status.  |
-| `composer ic:doctor --json`                         | Outputs doctor diagnostics as JSON.                                       |
+| `composer ic:doctor`                                | Shows detected configs, vendor-dir, plugin permissions, hook status, and workflow wrapper validation warnings. |
+| `composer ic:doctor --json`                         | Outputs doctor diagnostics as JSON, including workflow wrapper validation details. |
 | `composer ic:list-config`                           | Lists config files and their resolution source.                           |
 | `composer ic:list-config --json`                    | Outputs config resolution as JSON.                                        |
 | `composer ic:publish-config [file...]`              | Copies selected bundled config files into the project.                    |
