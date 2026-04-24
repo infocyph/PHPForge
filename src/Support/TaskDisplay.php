@@ -29,12 +29,16 @@ final class TaskDisplay
 
         $base = strtolower(basename(str_replace('\\', '/', $command)));
 
-        if (preg_match('/^php(\d+(\.\d+)*)?$/', $base) === 1) {
-            return 'php';
-        }
-
         if (str_ends_with($base, '.bat')) {
             return substr($base, 0, -4);
+        }
+
+        if (str_ends_with($base, '.exe')) {
+            $base = substr($base, 0, -4);
+        }
+
+        if (preg_match('/^php(\d+(\.\d+)*)?$/', $base) === 1) {
+            return 'php';
         }
 
         return $base;
@@ -188,6 +192,7 @@ final class TaskDisplay
             $tool === 'phpforge' && $subcommand === 'syntax' => 'Checking Syntax',
             $tool === 'phpforge' && $subcommand === 'audit' => 'Composer Audit',
             $tool === 'composer' && $subcommand === 'validate' => 'Composer Validate',
+            $tool === 'composer' && $subcommand === 'normalize' => 'Composer Normalize',
             $tool === 'pest' => 'Pest',
             $tool === 'pint' => 'Pint',
             $tool === 'phpcs' => 'PHPCS',

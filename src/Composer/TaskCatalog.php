@@ -83,9 +83,18 @@ final class TaskCatalog
     /**
      * @return list<list<string>>
      */
+    public static function normalizeComposer(): array
+    {
+        return [['composer', 'normalize']];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
     public static function processAll(): array
     {
         return [
+            ...self::normalizeComposer(),
             ...self::refactorFix(),
             ...self::lintFix(),
             ...self::sniffFix(),

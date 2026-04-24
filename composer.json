@@ -1,8 +1,8 @@
 {
     "name": "infocyph/phpforge",
     "description": "Shared QA, refactoring, benchmark and release tooling for Infocyph PHP projects.",
-    "type": "composer-plugin",
     "license": "MIT",
+    "type": "composer-plugin",
     "keywords": [
         "infocyph",
         "composer-plugin",
@@ -18,35 +18,11 @@
             "email": "abmmhasan@gmail.com"
         }
     ],
-    "autoload": {
-        "psr-4": {
-            "Infocyph\\PHPForge\\": "src/"
-        }
-    },
-    "bin": [
-        "bin/phpforge"
-    ],
-    "scripts": {
-        "ic:test:syntax": "@php bin/phpforge syntax",
-        "ic:test:code": "@php vendor/bin/pest --configuration pest.xml",
-        "ic:test:lint": "@php vendor/bin/pint --test --config pint.json",
-        "ic:test:sniff": "@php vendor/bin/phpcs --standard=phpcs.xml.dist --report=full src bin",
-        "ic:test:static": "@php vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --memory-limit=1G --no-progress --debug",
-        "ic:test:security": "@php vendor/bin/psalm --config=psalm.xml --security-analysis --threads=1 --no-cache",
-        "ic:test:refactor": "@php vendor/bin/rector process --config=rector.php --dry-run --debug",
-        "ic:tests": [
-            "@ic:test:syntax",
-            "@php vendor/bin/pest --configuration pest.xml --parallel --processes=10",
-            "@ic:test:lint",
-            "@php vendor/bin/phpcs --standard=phpcs.xml.dist --report=summary src bin"
-        ],
-        "ic:release:audit": "@php bin/phpforge audit",
-        "post-autoload-dump": "captainhook install --only-enabled -nf"
-    },
     "require": {
         "php": ">=8.2",
-        "captainhook/captainhook": "^5.29.2",
         "composer-plugin-api": "^2.6",
+        "captainhook/captainhook": "^5.29.2",
+        "ergebnis/composer-normalize": "^2.51",
         "laravel/pint": "^1.29",
         "pestphp/pest": "^4.6.3",
         "pestphp/pest-plugin-drift": "^4.1",
@@ -63,16 +39,42 @@
     "require-dev": {
         "composer/composer": "^2.9"
     },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "Infocyph\\PHPForge\\": "src/"
+        }
+    },
+    "bin": [
+        "bin/phpforge"
+    ],
+    "config": {
+        "allow-plugins": {
+            "ergebnis/composer-normalize": true,
+            "pestphp/pest-plugin": true
+        },
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
     "extra": {
         "class": "Infocyph\\PHPForge\\Composer\\Plugin"
     },
-    "minimum-stability": "dev",
-    "prefer-stable": true,
-    "config": {
-        "sort-packages": true,
-        "optimize-autoloader": true,
-        "allow-plugins": {
-            "pestphp/pest-plugin": true
-        }
+    "scripts": {
+        "post-autoload-dump": "captainhook install --only-enabled -nf",
+        "ic:release:audit": "@php bin/phpforge audit",
+        "ic:test:code": "@php vendor/bin/pest --configuration pest.xml",
+        "ic:test:lint": "@php vendor/bin/pint --test --config pint.json",
+        "ic:test:refactor": "@php vendor/bin/rector process --config=rector.php --dry-run --debug",
+        "ic:test:security": "@php vendor/bin/psalm --config=psalm.xml --security-analysis --threads=1 --no-cache",
+        "ic:test:sniff": "@php vendor/bin/phpcs --standard=phpcs.xml.dist --report=full src bin",
+        "ic:test:static": "@php vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --memory-limit=1G --no-progress --debug",
+        "ic:test:syntax": "@php bin/phpforge syntax",
+        "ic:tests": [
+            "@ic:test:syntax",
+            "@php vendor/bin/pest --configuration pest.xml --parallel --processes=10",
+            "@ic:test:lint",
+            "@php vendor/bin/phpcs --standard=phpcs.xml.dist --report=summary src bin"
+        ]
     }
 }

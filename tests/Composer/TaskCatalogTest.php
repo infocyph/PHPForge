@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 use Infocyph\PHPForge\Composer\TaskCatalog;
 
+it('runs composer normalize as part of process all', function (): void {
+    expect(TaskCatalog::processAll()[0])->toBe(['composer', 'normalize']);
+});
+
 it('rewrites bundled phpbench config paths for consuming projects', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
