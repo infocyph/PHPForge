@@ -21,6 +21,11 @@ it('labels project configs as project source', function (): void {
         ->toBe('Pest (Project)');
 });
 
+it('formats php tools after runtime options', function (): void {
+    expect(TaskDisplay::heading([PHP_BINARY, '-d', 'error_reporting=24575', 'vendor/bin/psalm', '--config=psalm.xml']))
+        ->toBe('Psalm (Project)');
+});
+
 it('labels bundled vendor config paths as stock source', function (): void {
     $stockVendorConfig = '/app/UID/vendor/infocyph/phpforge/pint.json';
 

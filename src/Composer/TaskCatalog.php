@@ -8,6 +8,8 @@ use Infocyph\PHPForge\Support\Paths;
 
 final class TaskCatalog
 {
+    private const PHP_ERROR_REPORTING_WITHOUT_ENGINE_DEPRECATIONS = 'error_reporting=24575';
+
     /**
      * @return list<list<string>>
      */
@@ -142,7 +144,7 @@ final class TaskCatalog
      */
     public static function security(): array
     {
-        return [[Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--security-analysis', '--threads=' . self::psalmThreads(), '--no-cache']];
+        return [[Paths::php(), '-d', self::PHP_ERROR_REPORTING_WITHOUT_ENGINE_DEPRECATIONS, Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--security-analysis', '--threads=' . self::psalmThreads(), '--no-cache']];
     }
 
     /**
@@ -188,7 +190,7 @@ final class TaskCatalog
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', ...self::codePaths()],
             ...self::staticAnalysis(),
-            [Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
+            [Paths::php(), '-d', self::PHP_ERROR_REPORTING_WITHOUT_ENGINE_DEPRECATIONS, Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
             ...self::refactorCheck(),
         ];
     }

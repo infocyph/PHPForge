@@ -67,7 +67,7 @@
         "ic:test:code": "@php vendor/bin/pest --configuration pest.xml",
         "ic:test:lint": "@php vendor/bin/pint --test --config pint.json",
         "ic:test:refactor": "@php vendor/bin/rector process --config=rector.php --dry-run --debug",
-        "ic:test:security": "@php vendor/bin/psalm --config=psalm.xml --security-analysis --threads=1 --no-cache",
+        "ic:test:security": "@php -d error_reporting=24575 vendor/bin/psalm --config=psalm.xml --security-analysis --threads=1 --no-cache",
         "ic:test:sniff": "@php vendor/bin/phpcs --standard=phpcs.xml.dist --report=full src bin",
         "ic:test:static": "@php vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --memory-limit=1G --no-progress --debug",
         "ic:test:syntax": "@php bin/phpforge syntax",
