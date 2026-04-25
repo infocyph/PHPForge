@@ -66,8 +66,14 @@ it('uses the bundled phpbench config directly for consuming projects', function 
 it('uses the bundled pest config directly for consuming projects', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
+    $testsPath = $projectRoot . DIRECTORY_SEPARATOR . 'tests';
+    $vendorPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor';
+    $autoloadPath = $vendorPath . DIRECTORY_SEPARATOR . 'autoload.php';
 
     mkdir($projectRoot, 0777, true);
+    mkdir($testsPath, 0777, true);
+    mkdir($vendorPath, 0777, true);
+    touch($autoloadPath);
 
     chdir($projectRoot);
 
@@ -76,11 +82,17 @@ it('uses the bundled pest config directly for consuming projects', function (): 
 
         expect($command)->toContain('--configuration');
         expect($command)->toContain(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'pest.xml');
+        expect($command)->toContain('--bootstrap');
+        expect($command)->toContain($autoloadPath);
+        expect($command)->toContain('tests');
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);
         }
 
+        unlink($autoloadPath);
+        rmdir($vendorPath);
+        rmdir($testsPath);
         rmdir($projectRoot);
     }
 });

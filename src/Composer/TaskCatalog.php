@@ -362,7 +362,20 @@ final class TaskCatalog
      */
     private static function pestConfigArgs(): array
     {
-        return ['--configuration', Paths::firstConfig(['pest.xml', 'phpunit.xml', 'pest.xml.dist', 'phpunit.xml.dist'])];
+        $configPath = Paths::firstConfig(['pest.xml', 'phpunit.xml', 'pest.xml.dist', 'phpunit.xml.dist']);
+        $args = ['--configuration', $configPath];
+
+        if (!self::isBundledConfigInConsumingProject($configPath)) {
+            return $args;
+        }
+
+        $autoload = Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+
+        if (is_file($autoload)) {
+            $args = [...$args, '--bootstrap', $autoload];
+        }
+
+        return [...$args, ...Paths::existingProjectPaths('tests')];
     }
 
     private static function pestProcesses(): string
