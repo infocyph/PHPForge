@@ -166,7 +166,9 @@ final class TaskCatalog
      */
     public static function staticAnalysis(): array
     {
-        return [[Paths::php(), Paths::bin('phpstan'), 'analyse', '--configuration=' . Paths::config('phpstan.neon.dist'), '--memory-limit=' . self::phpstanMemoryLimit(), '--no-progress', '--debug']];
+        $configPath = Paths::config('phpstan.neon.dist');
+
+        return [[Paths::php(), Paths::bin('phpstan'), 'analyse', '--configuration=' . $configPath, '--memory-limit=' . self::phpstanMemoryLimit(), '--no-progress', '--debug', ...self::bundledPhpstanPathArgs($configPath)]];
     }
 
     /**
@@ -319,6 +321,16 @@ final class TaskCatalog
         }
 
         return $resolvedPaths;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function bundledPhpstanPathArgs(string $configPath): array
+    {
+        return self::isBundledConfigInConsumingProject($configPath)
+            ? Paths::existingProjectPaths('src')
+            : [];
     }
 
     /**
