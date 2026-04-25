@@ -18,6 +18,7 @@ PHPForge brings these tools through one package:
 | Psalm                    | Security and taint analysis                 |
 | Rector                   | Refactor checks and automated refactors     |
 | PHPBench                 | Benchmarks                                  |
+| Composer Normalize       | `composer.json` normalization               |
 | Composer audit           | Release/security audit guard                |
 
 ## Install
@@ -32,6 +33,7 @@ Composer may ask for plugin approval. If approval is needed, run:
 
 ```bash
 composer config allow-plugins.infocyph/phpforge true
+composer config allow-plugins.ergebnis/composer-normalize true
 composer config allow-plugins.pestphp/pest-plugin true
 composer install
 ```
@@ -53,7 +55,7 @@ composer ic:doctor --json
 For coding agents, CI agents, or external automation working inside a project that uses PHPForge, start with:
 
 ```text
-vendor/infocyph/phpforge/AGENTS.md
+vendor/infocyph/phpforge/resources/AGENTS.md
 ```
 
 It summarizes project commands, verification steps, config priority rules, workflow inputs, hook behavior, and agent expectations. If an agent only auto-discovers root-level instruction files, copy or reference it from the project root as `AGENTS.md`.
@@ -208,6 +210,7 @@ composer ic:init --force
 ## Configuration
 
 Project config files always have priority over PHPForge bundled defaults.
+PHPForge keeps its own active config files at the package root so the package can test itself with the same defaults it ships; `resources/` is reserved for distributable templates that should not affect editor or agent auto-discovery.
 
 | Tool           | Lookup Order                                                  |
 | -------------- | ------------------------------------------------------------- |
@@ -514,6 +517,7 @@ Before:
 ```json
 "require-dev": {
     "captainhook/captainhook": "^5.29.2",
+    "ergebnis/composer-normalize": "^2.51",
     "laravel/pint": "^1.29",
     "pestphp/pest": "^4.6.3",
     "pestphp/pest-plugin-drift": "^4.1",
