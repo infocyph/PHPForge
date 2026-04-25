@@ -68,7 +68,7 @@ final class TaskDisplay
         }
 
         if (self::isBundledVendorPath($path)) {
-            return 'Stock';
+            return 'Stock: ' . self::displayPath($path);
         }
 
         $resolvedPath = realpath($path);
@@ -80,14 +80,19 @@ final class TaskDisplay
         $packageRealPath = realpath($packageRoot);
 
         if (is_string($packageRealPath) && is_string($projectRealPath) && $projectRealPath !== $packageRealPath && self::isPathWithin($candidate, $packageRealPath)) {
-            return 'Stock';
+            return 'Stock: ' . self::displayPath($candidate);
         }
 
         if (is_string($projectRealPath) && self::isPathWithin($candidate, $projectRealPath)) {
-            return 'Project';
+            return 'Project: ' . self::displayPath($candidate);
         }
 
         return null;
+    }
+
+    private static function displayPath(string $path): string
+    {
+        return str_replace('\\', '/', $path);
     }
 
     private static function isBundledVendorPath(string $path): bool

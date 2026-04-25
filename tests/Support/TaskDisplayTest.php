@@ -16,14 +16,15 @@ it('formats composer normalize with a friendly title', function (): void {
 
 it('labels project configs as project source', function (): void {
     $projectConfig = getcwd() . DIRECTORY_SEPARATOR . 'pest.xml';
+    $resolvedConfig = realpath($projectConfig);
 
     expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/pest', '--configuration', $projectConfig]))
-        ->toBe('Pest (Project)');
+        ->toBe('Pest (Project: ' . str_replace('\\', '/', is_string($resolvedConfig) ? $resolvedConfig : $projectConfig) . ')');
 });
 
 it('labels bundled vendor config paths as stock source', function (): void {
     $stockVendorConfig = '/app/UID/vendor/infocyph/phpforge/pint.json';
 
     expect(TaskDisplay::heading([PHP_BINARY, '/app/UID/vendor/bin/pint', '--config', $stockVendorConfig]))
-        ->toBe('Pint (Stock)');
+        ->toBe('Pint (Stock: /app/UID/vendor/infocyph/phpforge/pint.json)');
 });
