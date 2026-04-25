@@ -8,7 +8,7 @@
 
 ## Commands
 
-- `composer ic:process` - fixes Rector, Pint, PHPCBF issues.
+- `composer ic:process` - fixes Composer Normalize, Rector, Pint, PHPCBF issues.
 - `composer ic:tests:details` - detailed step-by-step errors.
 - `composer ic:tests` - full quality suite.
 - `composer ic:release:guard` - release gate.
@@ -27,7 +27,7 @@
 
 - Config priority: project `pest.xml`/`phpunit.xml`, `phpbench.json`, `phpcs.xml.dist`, `phpstan.neon.dist`, `pint.json`, `psalm.xml`, `rector.php`, `captainhook.json`; then PHPForge defaults.
 - Syntax scan respects Git ignores, including `vendor`.
-- Pre-commit runs `composer validate --strict`, `composer ic:release:audit`, `composer ic:tests`.
+- Pre-commit runs `composer validate --strict`, `composer normalize --dry-run`, `composer ic:release:audit`, `composer ic:tests`.
 - `IC_HOOKS_STRICT=1` is default; use `IC_HOOKS_STRICT=0 composer install` only for best-effort hook install.
 - Workflow: `infocyph/phpforge/.github/workflows/security-standards.yml@main`.
 - Workflow inputs: `php_versions`, `dependency_versions`, `php_extensions`, `coverage`, `composer_flags`, `phpstan_memory_limit`, `psalm_threads`, `run_analysis`.
