@@ -214,7 +214,7 @@ PHPForge keeps its own active config files at the package root so the package ca
 
 | Tool           | Lookup Order                                                  |
 | -------------- | ------------------------------------------------------------- |
-| Pest           | `pest.xml`, then `phpunit.xml`, then `pest.xml.dist`, then `phpunit.xml.dist`, then bundled `pest.xml` |
+| Pest / PHPUnit | `pest.xml`, then `phpunit.xml`, then `pest.xml.dist`, then `phpunit.xml.dist`, then bundled `pest.xml` |
 | PHPBench       | `phpbench.json`, then bundled `phpbench.json`             |
 | PHPCS / PHPCBF | `phpcs.xml.dist`, then bundled `phpcs.xml.dist`           |
 | PHPStan        | `phpstan.neon.dist`, then bundled `phpstan.neon.dist`     |
@@ -283,7 +283,7 @@ This package also has a root `post-autoload-dump` script:
 "post-autoload-dump": "captainhook install --only-enabled -nf"
 ```
 
-That keeps hooks installed for this repository. Consuming projects get automatic hook installation from the PHPForge Composer plugin when `captainhook.json` exists.
+That keeps hooks installed for this repository. Consuming projects get automatic hook installation from the PHPForge Composer plugin with project `captainhook.json` when present, otherwise with the bundled PHPForge `captainhook.json`.
 
 ## GitHub Actions
 
@@ -506,7 +506,7 @@ jobs:
       run_analysis: true
 ```
 
-For code scanning, project-local `phpstan.neon.dist` and `psalm.xml` are used when present; otherwise the workflow falls back to PHPForge defaults.
+For code scanning, project-local `phpstan.neon.dist` and `psalm.xml` are used when present; otherwise the workflow falls back to PHPForge defaults. The selected PHPStan config is the source of truth for analysed paths; PHPForge does not append extra CLI paths for SARIF generation.
 
 ## Migration Guide
 

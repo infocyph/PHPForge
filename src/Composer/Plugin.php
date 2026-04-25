@@ -51,11 +51,13 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
 
     public function installHooks(Event $event): void
     {
-        if (!is_file((getcwd() ?: '') . DIRECTORY_SEPARATOR . 'captainhook.json')) {
+        $configPath = Paths::config('captainhook.json');
+
+        if (!is_file($configPath)) {
             return;
         }
 
-        $process = new Process([Paths::php(), Paths::bin('captainhook'), 'install', '--only-enabled', '-nf'], getcwd() ?: null);
+        $process = new Process([Paths::php(), Paths::bin('captainhook'), 'install', '--configuration=' . $configPath, '--only-enabled', '-nf'], getcwd() ?: null);
         $process->setTimeout(null);
         $process->run();
 

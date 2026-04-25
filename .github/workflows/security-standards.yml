@@ -145,21 +145,12 @@ jobs:
         run: |
           VENDOR_DIR="$(composer config vendor-dir)"
           PHPSTAN_CONFIG="$VENDOR_DIR/infocyph/phpforge/phpstan.neon.dist"
+
           if [ -f "phpstan.neon.dist" ]; then
             PHPSTAN_CONFIG="phpstan.neon.dist"
           fi
 
-          TARGET_PATHS=()
-          for dir in src app config database tests benchmarks examples; do
-            if [ -d "$dir" ]; then
-              TARGET_PATHS+=("$dir")
-            fi
-          done
-          if [ "${#TARGET_PATHS[@]}" -eq 0 ]; then
-            TARGET_PATHS=(".")
-          fi
-
-          php "$VENDOR_DIR/bin/phpstan" analyse --configuration="$PHPSTAN_CONFIG" --memory-limit="${{ inputs.phpstan_memory_limit }}" --no-progress --error-format=json "${TARGET_PATHS[@]}" > phpstan-results.json || true
+          php "$VENDOR_DIR/bin/phpstan" analyse --configuration="$PHPSTAN_CONFIG" --memory-limit="${{ inputs.phpstan_memory_limit }}" --no-progress --error-format=json > phpstan-results.json || true
           composer ic:phpstan:sarif phpstan-results.json phpstan-results.sarif
         continue-on-error: true
 

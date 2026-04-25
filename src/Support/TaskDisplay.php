@@ -67,10 +67,6 @@ final class TaskDisplay
             return null;
         }
 
-        if (self::isNormalizedStockTempPath($path)) {
-            return 'Stock';
-        }
-
         if (self::isBundledVendorPath($path)) {
             return 'Stock';
         }
@@ -99,13 +95,6 @@ final class TaskDisplay
         $normalizedPath = str_replace('\\', '/', strtolower($path));
 
         return str_contains($normalizedPath, '/vendor/infocyph/phpforge/');
-    }
-
-    private static function isNormalizedStockTempPath(string $path): bool
-    {
-        $file = basename($path);
-
-        return str_starts_with($file, 'phpforge-pest-') || str_starts_with($file, 'phpforge-phpbench-');
     }
 
     private static function isPathWithin(string $path, string $base): bool

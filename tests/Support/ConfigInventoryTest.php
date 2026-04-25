@@ -6,6 +6,10 @@ use Infocyph\PHPForge\Support\ConfigInventory;
 
 it('lists bundled config files without duplicates', function (): void {
     expect(ConfigInventory::files())
+        ->toContain('pest.xml')
+        ->toContain('phpunit.xml')
+        ->toContain('pest.xml.dist')
+        ->toContain('phpunit.xml.dist')
         ->toContain('pint.json')
         ->toContain('phpstan.neon.dist')
         ->toContain('psalm.xml')

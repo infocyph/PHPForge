@@ -50,7 +50,7 @@ final class ConfigInventory
     public static function tools(): array
     {
         return [
-            'pest' => ['pest.xml', 'phpunit.xml'],
+            'pest' => ['pest.xml', 'phpunit.xml', 'pest.xml.dist', 'phpunit.xml.dist'],
             'phpbench' => ['phpbench.json'],
             'phpcs' => ['phpcs.xml.dist'],
             'phpstan' => ['phpstan.neon.dist'],
