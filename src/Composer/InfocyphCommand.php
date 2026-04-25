@@ -15,7 +15,7 @@ final class InfocyphCommand extends Command
      * @param list<list<string>> $tasks
      */
     public function __construct(
-        private readonly string $commandName,
+        string $commandName,
         private readonly string $commandDescription,
         private readonly array $tasks,
     ) {

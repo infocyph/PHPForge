@@ -287,12 +287,17 @@ final class Cli
         return 0;
     }
 
+    private function intValue(mixed $value, int $default): int
+    {
+        return is_int($value) ? $value : $default;
+    }
+
     private function normalizeUri(string $path): string
     {
         $normalized = str_replace('\\', '/', $path);
-        $cwd = getcwd();
+        $cwd = getcwd() ?: null;
 
-        if (is_string($cwd) && $cwd !== '') {
+        if ($cwd !== null) {
             $cwd = rtrim(str_replace('\\', '/', $cwd), '/');
 
             if (preg_match('/^[A-Za-z]:\//', $normalized) === 1 && stripos($normalized, $cwd . '/') === 0) {
@@ -358,18 +363,22 @@ final class Cli
         $results = [];
         $rules = [];
 
-        foreach (($decoded['errors'] ?? []) as $error) {
-            if (!is_string($error) || $error === '') {
-                continue;
-            }
+        $errors = $decoded['errors'] ?? [];
 
-            $ruleId = 'phpstan.internal';
-            $rules[$ruleId] = true;
-            $results[] = [
-                'ruleId' => $ruleId,
-                'level' => 'error',
-                'message' => ['text' => $error],
-            ];
+        if (is_array($errors)) {
+            foreach ($errors as $error) {
+                if (!is_string($error) || $error === '') {
+                    continue;
+                }
+
+                $ruleId = 'phpstan.internal';
+                $rules[$ruleId] = true;
+                $results[] = [
+                    'ruleId' => $ruleId,
+                    'level' => 'error',
+                    'message' => ['text' => $error],
+                ];
+            }
         }
 
         $files = $decoded['files'] ?? [];
@@ -391,13 +400,13 @@ final class Cli
                         continue;
                     }
 
-                    $ruleId = (string) ($messageData['identifier'] ?? '') ?: 'phpstan.issue';
-                    $line = max(1, (int) ($messageData['line'] ?? 1));
+                    $ruleId = $this->stringValue($messageData['identifier'] ?? null, 'phpstan.issue');
+                    $line = max(1, $this->intValue($messageData['line'] ?? null, 1));
                     $rules[$ruleId] = true;
                     $results[] = [
                         'ruleId' => $ruleId,
                         'level' => 'error',
-                        'message' => ['text' => (string) ($messageData['message'] ?? 'PHPStan issue')],
+                        'message' => ['text' => $this->stringValue($messageData['message'] ?? null, 'PHPStan issue')],
                         'locations' => [[
                             'physicalLocation' => [
                                 'artifactLocation' => ['uri' => $this->normalizeUri($filePath)],
@@ -496,6 +505,11 @@ final class Cli
         }
 
         return $files;
+    }
+
+    private function stringValue(mixed $value, string $default): string
+    {
+        return is_string($value) && $value !== '' ? $value : $default;
     }
 
     /**
