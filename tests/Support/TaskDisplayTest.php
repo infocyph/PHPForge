@@ -9,6 +9,11 @@ it('formats syntax checks with a friendly title', function (): void {
         ->toBe('Checking Syntax');
 });
 
+it('formats composer normalize with a friendly title', function (): void {
+    expect(TaskDisplay::heading(['composer', 'normalize']))
+        ->toBe('Composer Normalize');
+});
+
 it('labels project configs as project source', function (): void {
     $projectConfig = getcwd() . DIRECTORY_SEPARATOR . 'pest.xml';
 

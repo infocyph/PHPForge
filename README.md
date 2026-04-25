@@ -159,14 +159,14 @@ composer ic:init --force
 
 ### Process Commands
 
-| Command                           | Purpose                              |
-| --------------------------------- | ------------------------------------ |
-| `composer ic:process`           | Runs Rector, Pint, and PHPCBF fixes. |
-| `composer ic:process:all`       | Alias of `ic:process`.             |
-| `composer ic:process:refactor`  | Runs Rector fixes.                   |
-| `composer ic:process:lint`      | Runs Pint fixes.                     |
-| `composer ic:process:sniff`     | Runs PHPCBF fixes.                   |
-| `composer ic:process:sniff:fix` | Alias of `ic:process:sniff`.       |
+| Command                           | Purpose                                                   |
+| --------------------------------- | --------------------------------------------------------- |
+| `composer ic:process`             | Runs Composer Normalize, Rector, Pint, and PHPCBF fixes. |
+| `composer ic:process:all`         | Alias of `ic:process`.                                    |
+| `composer ic:process:refactor`    | Runs Rector fixes.                                        |
+| `composer ic:process:lint`        | Runs Pint fixes.                                          |
+| `composer ic:process:sniff`       | Runs PHPCBF fixes.                                        |
+| `composer ic:process:sniff:fix`   | Alias of `ic:process:sniff`.                              |
 
 ### Benchmark Commands
 
