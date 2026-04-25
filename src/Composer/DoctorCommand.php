@@ -170,12 +170,7 @@ final class DoctorCommand extends Command
         $withIndent = -1;
 
         foreach ($lines as $line) {
-            if (
-                $ref === ''
-                && preg_match('/^\s*uses:\s*infocyph\/phpforge\/\.github\/workflows\/security-standards\.yml@([^\s#]+)\s*$/', $line, $matches) === 1
-            ) {
-                $ref = $matches[1];
-            }
+            $ref = $ref !== '' ? $ref : $this->workflowRefFromLine($line);
 
             if (preg_match('/^(\s*)with:\s*$/', $line, $withMatches) === 1) {
                 $collectInputs = true;
@@ -192,27 +187,15 @@ final class DoctorCommand extends Command
                 continue;
             }
 
-            if (preg_match('/^(\s*)([a-z_][a-z0-9_]*):\s*(.*?)\s*$/i', $line, $matches) !== 1) {
-                $indent = strlen($line) - strlen(ltrim($line, ' '));
+            $input = $this->workflowInputFromLine($line, $withIndent);
 
-                if ($indent <= $withIndent) {
-                    $collectInputs = false;
-                }
+            if ($input === null) {
+                $collectInputs = strlen($line) - strlen(ltrim($line, ' ')) > $withIndent;
 
                 continue;
             }
 
-            $indent = strlen($matches[1]);
-
-            if ($indent <= $withIndent) {
-                $collectInputs = false;
-
-                continue;
-            }
-
-            $key = $matches[2];
-            $value = $this->normalizeYamlScalar($matches[3]);
-            $inputs[$key] = $value;
+            $inputs[$input['key']] = $input['value'];
         }
 
         return ['ref' => $ref, 'inputs' => $inputs];
@@ -399,5 +382,33 @@ final class DoctorCommand extends Command
         }
 
         return $result;
+    }
+
+    /**
+     * @return array{key: string, value: string}|null
+     */
+    private function workflowInputFromLine(string $line, int $withIndent): ?array
+    {
+        if (preg_match('/^(\s*)([a-z_][a-z0-9_]*):\s*(.*?)\s*$/i', $line, $matches) !== 1) {
+            return null;
+        }
+
+        if (strlen($matches[1]) <= $withIndent) {
+            return null;
+        }
+
+        return [
+            'key' => $matches[2],
+            'value' => $this->normalizeYamlScalar($matches[3]),
+        ];
+    }
+
+    private function workflowRefFromLine(string $line): string
+    {
+        if (preg_match('/^\s*uses:\s*infocyph\/phpforge\/\.github\/workflows\/security-standards\.yml@([^\s#]+)\s*$/', $line, $matches) !== 1) {
+            return '';
+        }
+
+        return $matches[1];
     }
 }

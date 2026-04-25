@@ -655,7 +655,13 @@ final class InitCommand extends Command
         }
 
         $versions = array_values(array_unique($versions));
-        usort($versions, static fn(string $a, string $b): int => version_compare($a, $b));
+        usort($versions, static function (string $a, string $b): int {
+            if (version_compare($a, $b, '<')) {
+                return -1;
+            }
+
+            return version_compare($a, $b, '>') ? 1 : 0;
+        });
 
         return $versions;
     }

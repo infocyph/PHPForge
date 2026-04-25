@@ -37,7 +37,7 @@ final class PhpstanSarifConverter
             return 2;
         }
 
-        return $this->writeSarif($decoded, $output);
+        return $this->writeSarif($this->stringKeyedArray($decoded), $output);
     }
 
     private function intValue(mixed $value, int $default): int
@@ -188,6 +188,24 @@ final class PhpstanSarifConverter
             ],
             $ruleIds,
         );
+    }
+
+    /**
+     * @param array<mixed> $array
+     *
+     * @return array<string, mixed>
+     */
+    private function stringKeyedArray(array $array): array
+    {
+        $result = [];
+
+        foreach ($array as $key => $value) {
+            if (is_string($key)) {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
     }
 
     private function stringValue(mixed $value, string $default): string
