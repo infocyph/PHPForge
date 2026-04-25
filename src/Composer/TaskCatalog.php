@@ -13,7 +13,7 @@ final class TaskCatalog
      */
     public static function benchChart(): array
     {
-        return [[Paths::php(), Paths::bin('phpbench'), 'run', '--config=' . self::benchConfigPath(), '--report=chart']];
+        return [self::benchCommand(['--report=chart'])];
     }
 
     /**
@@ -21,7 +21,7 @@ final class TaskCatalog
      */
     public static function benchQuick(): array
     {
-        return [[Paths::php(), Paths::bin('phpbench'), 'run', '--config=' . self::benchConfigPath(), '--report=aggregate', '--revs=10', '--iterations=3', '--warmup=1']];
+        return [self::benchCommand(['--report=aggregate', '--revs=10', '--iterations=3', '--warmup=1'])];
     }
 
     /**
@@ -29,7 +29,7 @@ final class TaskCatalog
      */
     public static function benchRun(): array
     {
-        return [[Paths::php(), Paths::bin('phpbench'), 'run', '--config=' . self::benchConfigPath(), '--report=aggregate']];
+        return [self::benchCommand(['--report=aggregate'])];
     }
 
     /**
@@ -61,7 +61,7 @@ final class TaskCatalog
      */
     public static function hooks(): array
     {
-        return [[Paths::php(), Paths::bin('captainhook'), 'install', '--only-enabled', '-nf']];
+        return [[Paths::php(), Paths::bin('captainhook'), 'install', '--configuration=' . Paths::config('captainhook.json'), '--only-enabled', '-nf']];
     }
 
     /**
@@ -166,7 +166,7 @@ final class TaskCatalog
      */
     public static function staticAnalysis(): array
     {
-        return [[Paths::php(), Paths::bin('phpstan'), 'analyse', '--configuration=' . Paths::config('phpstan.neon.dist'), '--memory-limit=' . self::phpstanMemoryLimit(), '--no-progress', '--debug', ...self::staticAnalysisPaths()]];
+        return [[Paths::php(), Paths::bin('phpstan'), 'analyse', '--configuration=' . Paths::config('phpstan.neon.dist'), '--memory-limit=' . self::phpstanMemoryLimit(), '--no-progress', '--debug']];
     }
 
     /**
@@ -229,9 +229,96 @@ final class TaskCatalog
         return $projectRoot . DIRECTORY_SEPARATOR . $normalized;
     }
 
-    private static function benchConfigPath(): string
+    /**
+     * @param list<string> $options
+     *
+     * @return list<string>
+     */
+    private static function benchCommand(array $options): array
     {
-        return self::resolveBenchConfigPath(Paths::config('phpbench.json'));
+        $configPath = Paths::config('phpbench.json');
+
+        return [
+            Paths::php(),
+            Paths::bin('phpbench'),
+            'run',
+            '--config=' . $configPath,
+            ...self::bundledBenchBootstrapArgs($configPath),
+            ...$options,
+            ...self::bundledBenchPathArgs($configPath),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function benchConfig(string $configPath): array
+    {
+        $contents = file_get_contents($configPath);
+
+        if (!is_string($contents) || $contents === '') {
+            return [];
+        }
+
+        $config = json_decode($contents, true);
+
+        if (!is_array($config)) {
+            return [];
+        }
+
+        $stringKeyedConfig = [];
+
+        foreach ($config as $key => $value) {
+            if (is_string($key)) {
+                $stringKeyedConfig[$key] = $value;
+            }
+        }
+
+        return $stringKeyedConfig;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function bundledBenchBootstrapArgs(string $configPath): array
+    {
+        if (!self::isBundledConfigInConsumingProject($configPath)) {
+            return [];
+        }
+
+        $bootstrap = self::benchConfig($configPath)['runner.bootstrap'] ?? null;
+
+        return is_string($bootstrap) && $bootstrap !== ''
+            ? ['--bootstrap', self::absoluteProjectPath(Paths::projectRootPath(), $bootstrap)]
+            : [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function bundledBenchPathArgs(string $configPath): array
+    {
+        if (!self::isBundledConfigInConsumingProject($configPath)) {
+            return [];
+        }
+
+        $paths = self::benchConfig($configPath)['runner.path'] ?? [];
+        $paths = is_string($paths) ? [$paths] : $paths;
+
+        if (!is_array($paths)) {
+            return [];
+        }
+
+        $projectRoot = Paths::projectRootPath();
+        $resolvedPaths = [];
+
+        foreach ($paths as $path) {
+            if (is_string($path) && $path !== '') {
+                $resolvedPaths[] = self::absoluteProjectPath($projectRoot, $path);
+            }
+        }
+
+        return $resolvedPaths;
     }
 
     /**
@@ -275,9 +362,7 @@ final class TaskCatalog
      */
     private static function pestConfigArgs(): array
     {
-        $config = Paths::firstConfig(['pest.xml', 'phpunit.xml', 'pest.xml.dist', 'phpunit.xml.dist']);
-
-        return ['--configuration', self::resolvePestConfigPath($config)];
+        return ['--configuration', Paths::firstConfig(['pest.xml', 'phpunit.xml', 'pest.xml.dist', 'phpunit.xml.dist'])];
     }
 
     private static function pestProcesses(): string
@@ -292,154 +377,8 @@ final class TaskCatalog
         return is_string($value) && $value !== '' ? $value : '1G';
     }
 
-    private static function projectAdjustedBundledBenchConfig(string $configPath): string
-    {
-        $contents = file_get_contents($configPath);
-
-        if (!is_string($contents) || $contents === '') {
-            return $configPath;
-        }
-
-        $config = json_decode($contents, true);
-
-        if (!is_array($config)) {
-            return $configPath;
-        }
-
-        $projectRoot = Paths::projectRootPath();
-
-        foreach (['runner.bootstrap', 'runner.path'] as $key) {
-            $value = $config[$key] ?? null;
-
-            if (is_string($value) && $value !== '') {
-                $config[$key] = self::absoluteProjectPath($projectRoot, $value);
-            }
-        }
-
-        $encoded = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-
-        if (!is_string($encoded) || $encoded === '') {
-            return $configPath;
-        }
-
-        $encoded .= "\n";
-        $tempPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-phpbench-' . sha1($configPath . $projectRoot . $encoded) . '.json';
-
-        if (!is_file($tempPath)) {
-            $written = file_put_contents($tempPath, $encoded);
-
-            if ($written === false) {
-                return $configPath;
-            }
-        }
-
-        return $tempPath;
-    }
-
-    private static function projectAdjustedBundledPestConfig(string $configPath): string
-    {
-        if (!class_exists(\DOMDocument::class)) {
-            return $configPath;
-        }
-
-        $contents = file_get_contents($configPath);
-
-        if (!is_string($contents) || $contents === '') {
-            return $configPath;
-        }
-
-        $dom = new \DOMDocument();
-        $dom->preserveWhiteSpace = true;
-        $dom->formatOutput = true;
-
-        set_error_handler(static fn(): bool => true);
-
-        try {
-            $loaded = $dom->loadXML($contents);
-        } finally {
-            restore_error_handler();
-        }
-
-        if (!$loaded) {
-            return $configPath;
-        }
-
-        $projectRoot = Paths::projectRootPath();
-        $phpunit = $dom->documentElement;
-
-        if ($phpunit instanceof \DOMElement) {
-            $bootstrap = trim((string) $phpunit->getAttribute('bootstrap'));
-
-            if ($bootstrap !== '') {
-                $phpunit->setAttribute('bootstrap', self::absoluteProjectPath($projectRoot, $bootstrap));
-            }
-        }
-
-        $directories = $dom->getElementsByTagName('directory');
-
-        foreach ($directories as $directory) {
-            if (!$directory instanceof \DOMElement) {
-                continue;
-            }
-
-            $path = trim($directory->textContent);
-
-            if ($path === '') {
-                continue;
-            }
-
-            $directory->nodeValue = self::absoluteProjectPath($projectRoot, $path);
-        }
-
-        $tempPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-pest-' . sha1($configPath . $projectRoot . $contents) . '.xml';
-
-        if (!is_file($tempPath)) {
-            $written = file_put_contents($tempPath, $dom->saveXML());
-
-            if ($written === false) {
-                return $configPath;
-            }
-        }
-
-        return $tempPath;
-    }
-
     private static function psalmThreads(): string
     {
         return self::envInt('IC_PSALM_THREADS', 1, 1, 64);
-    }
-
-    private static function resolveBenchConfigPath(string $configPath): string
-    {
-        if (!self::isBundledConfigInConsumingProject($configPath)) {
-            return $configPath;
-        }
-
-        return self::projectAdjustedBundledBenchConfig($configPath);
-    }
-
-    private static function resolvePestConfigPath(string $configPath): string
-    {
-        if (!self::isBundledConfigInConsumingProject($configPath)) {
-            return $configPath;
-        }
-
-        return self::projectAdjustedBundledPestConfig($configPath);
-    }
-
-    /**
-     * @return list<string>
-     */
-    private static function staticAnalysisPaths(): array
-    {
-        $paths = Paths::existingProjectPaths('src', 'app');
-
-        if ($paths !== []) {
-            return $paths;
-        }
-
-        $fallbackPaths = Paths::existingProjectPaths('config', 'database', 'tests', 'benchmarks', 'examples');
-
-        return $fallbackPaths !== [] ? $fallbackPaths : ['.'];
     }
 }

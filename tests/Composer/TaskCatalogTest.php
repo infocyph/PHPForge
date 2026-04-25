@@ -8,10 +8,11 @@ it('runs composer normalize as part of process all', function (): void {
     expect(TaskCatalog::processAll()[0])->toBe(['composer', 'normalize']);
 });
 
-it('rewrites bundled phpbench config paths for consuming projects', function (): void {
+it('uses the bundled phpbench config directly for consuming projects', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
     $benchmarksPath = $projectRoot . DIRECTORY_SEPARATOR . 'benchmarks';
+    $bootstrapPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
 
     mkdir($projectRoot, 0777, true);
     mkdir($benchmarksPath, 0777, true);
@@ -33,15 +34,87 @@ it('rewrites bundled phpbench config paths for consuming projects', function ():
         expect(is_string($configArgument))->toBeTrue();
 
         $configPath = substr((string) $configArgument, strlen('--config='));
-        expect(is_file($configPath))->toBeTrue();
+        expect($configPath)->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'phpbench.json');
+        expect($command)->toContain('--bootstrap');
+        expect($command)->toContain($bootstrapPath);
+        expect($command)->toContain($benchmarksPath);
+        expect(basename($configPath))->not()->toStartWith('phpforge-phpbench-');
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
 
-        $contents = file_get_contents($configPath);
-        expect(is_string($contents))->toBeTrue();
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($projectRoot, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
+        );
 
-        $config = json_decode((string) $contents, true);
-        expect(is_array($config))->toBeTrue();
-        expect($config['runner.bootstrap'] ?? null)->toBe($projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php');
-        expect($config['runner.path'] ?? null)->toBe($benchmarksPath);
+        foreach ($iterator as $item) {
+            if ($item->isDir()) {
+                rmdir($item->getPathname());
+
+                continue;
+            }
+
+            unlink($item->getPathname());
+        }
+
+        rmdir($projectRoot);
+    }
+});
+
+it('uses the bundled pest config directly for consuming projects', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
+
+    mkdir($projectRoot, 0777, true);
+
+    chdir($projectRoot);
+
+    try {
+        $command = TaskCatalog::testCode()[0];
+
+        expect($command)->toContain('--configuration');
+        expect($command)->toContain(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'pest.xml');
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        rmdir($projectRoot);
+    }
+});
+
+it('uses the resolved captainhook config directly', function (): void {
+    $command = TaskCatalog::hooks()[0];
+
+    expect($command)->toContain('--configuration=' . dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'captainhook.json');
+});
+
+it('lets project phpstan config define analysed paths', function (): void {
+    $command = TaskCatalog::staticAnalysis()[0];
+
+    expect($command)->toContain('--configuration=' . dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'phpstan.neon.dist');
+    expect($command)->not()->toContain('src');
+    expect($command)->not()->toContain('app');
+});
+
+it('uses the bundled phpstan config directly for consuming projects', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
+    $srcPath = $projectRoot . DIRECTORY_SEPARATOR . 'src';
+
+    mkdir($projectRoot, 0777, true);
+    mkdir($srcPath, 0777, true);
+
+    chdir($projectRoot);
+
+    try {
+        $command = TaskCatalog::staticAnalysis()[0];
+
+        expect($command)->toContain('--configuration=' . dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'phpstan.neon.dist');
+        expect($command)->not()->toContain('src');
+        expect($command)->not()->toContain('app');
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);

@@ -21,13 +21,6 @@ it('labels project configs as project source', function (): void {
         ->toBe('Pest (Project)');
 });
 
-it('labels normalized temporary configs as stock source', function (): void {
-    $stockTempConfig = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-pest-example.xml';
-
-    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/pest', '--configuration', $stockTempConfig]))
-        ->toBe('Pest (Stock)');
-});
-
 it('labels bundled vendor config paths as stock source', function (): void {
     $stockVendorConfig = '/app/UID/vendor/infocyph/phpforge/pint.json';
 
