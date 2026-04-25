@@ -425,7 +425,7 @@ final class InitCommand extends Command
         }
 
         $contents = str_replace('@main', '@' . $settings['workflow_ref'], $contents);
-        $contents = str_replace('php_versions: \'["8.2","8.3","8.4","8.5"]\'', "php_versions: '" . $settings['php_versions'] . "'", $contents);
+        $contents = str_replace('php_versions: \'["8.3","8.4","8.5"]\'', "php_versions: '" . $settings['php_versions'] . "'", $contents);
         $contents = str_replace('dependency_versions: \'["prefer-lowest","prefer-stable"]\'', "dependency_versions: '" . $settings['dependency_versions'] . "'", $contents);
         $contents = str_replace('php_extensions: ""', 'php_extensions: "' . $settings['php_extensions'] . '"', $contents);
         $contents = str_replace('coverage: "none"', 'coverage: "' . $settings['coverage'] . '"', $contents);
@@ -458,7 +458,7 @@ final class InitCommand extends Command
             'workflow' => true,
             'captainhook' => true,
             'workflow_ref' => $workflowRef,
-            'php_versions' => '["8.2","8.3","8.4","8.5"]',
+            'php_versions' => '["8.3","8.4","8.5"]',
             'dependency_versions' => '["prefer-lowest","prefer-stable"]',
             'php_extensions' => '',
             'coverage' => 'none',
@@ -559,7 +559,7 @@ final class InitCommand extends Command
         $supported = $this->supportedPhpVersionsFromApi();
 
         if ($supported === []) {
-            $supported = ['8.2', '8.3', '8.4', '8.5'];
+            $supported = ['8.3', '8.4', '8.5'];
         }
 
         $current = array_slice($supported, -2);
@@ -632,7 +632,7 @@ final class InitCommand extends Command
                 continue;
             }
 
-            if (version_compare($cycle, '8.2', '<')) {
+            if (version_compare($cycle, '8.3', '<')) {
                 continue;
             }
 

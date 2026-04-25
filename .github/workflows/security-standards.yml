@@ -7,7 +7,7 @@ on:
         description: "JSON array of PHP versions."
         required: false
         type: string
-        default: '["8.2","8.3","8.4","8.5"]'
+        default: '["8.3","8.4","8.5"]'
       dependency_versions:
         description: "JSON array of Composer dependency modes."
         required: false
