@@ -14,6 +14,7 @@ final class Cli
         $command = $argv[1] ?? 'help';
 
         return match ($command) {
+            'ci' => $this->ci(array_slice($argv, 2)),
             'syntax' => $this->syntax(array_slice($argv, 2)),
             'phpstan-sarif' => $this->phpstanSarif((string) ($argv[2] ?? ''), (string) ($argv[3] ?? 'phpstan-results.sarif')),
             'audit' => $this->audit(),
@@ -126,6 +127,34 @@ final class Cli
             fwrite(STDERR, 'Security vulnerabilities detected by composer audit.' . PHP_EOL);
 
             return 1;
+        }
+
+        return 0;
+    }
+
+    /**
+     * @param list<string> $args
+     */
+    private function ci(array $args): int
+    {
+        $preferLowest = in_array('--prefer-lowest', $args, true);
+        $commands = [
+            'composer ic:tests',
+        ];
+
+        if (!$preferLowest) {
+            $commands[] = 'composer ic:test:static';
+            $commands[] = 'composer ic:test:security';
+        }
+
+        $commands[] = 'composer ic:test:refactor';
+
+        foreach ($commands as $command) {
+            $exitCode = $this->passthru($command);
+
+            if ($exitCode !== 0) {
+                return $exitCode;
+            }
         }
 
         return 0;
@@ -253,7 +282,7 @@ final class Cli
 
     private function help(): int
     {
-        fwrite(STDOUT, 'Usage: phpforge syntax [paths...] | audit | phpstan-sarif <phpstan-json> [sarif-output]' . PHP_EOL);
+        fwrite(STDOUT, 'Usage: phpforge ci [--prefer-lowest] | syntax [paths...] | audit | phpstan-sarif <phpstan-json> [sarif-output]' . PHP_EOL);
 
         return 0;
     }
@@ -276,6 +305,23 @@ final class Cli
         $normalized = ltrim($normalized, './');
 
         return $normalized === '' ? 'unknown.php' : $normalized;
+    }
+
+    private function passthru(string $command): int
+    {
+        $process = proc_open($command, [
+            0 => ['file', 'php://stdin', 'r'],
+            1 => ['file', 'php://stdout', 'w'],
+            2 => ['file', 'php://stderr', 'w'],
+        ], $pipes);
+
+        if (!is_resource($process)) {
+            fwrite(STDERR, sprintf('Failed to start process: %s', $command) . PHP_EOL);
+
+            return 1;
+        }
+
+        return proc_close($process);
     }
 
     private function phpstanSarif(string $input, string $output): int
