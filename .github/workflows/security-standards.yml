@@ -97,7 +97,7 @@ jobs:
           if [ "${{ matrix.dependency-version }}" != "prefer-lowest" ]; then
             composer ic:ci
           else
-            composer ic:ci --prefer-lowest
+            composer ic:ci -- --prefer-lowest
           fi
 
   analyze:
@@ -169,7 +169,7 @@ jobs:
             PSALM_CONFIG="psalm.xml"
           fi
 
-          php -d error_reporting=24575 "$VENDOR_DIR/bin/psalm" --config="$PSALM_CONFIG" --security-analysis --threads="${{ inputs.psalm_threads }}" --report=psalm-results.sarif || true
+          php "$VENDOR_DIR/bin/psalm" --config="$PSALM_CONFIG" --security-analysis --threads="${{ inputs.psalm_threads }}" --report=psalm-results.sarif || true
         continue-on-error: true
 
       - name: Upload Psalm Results

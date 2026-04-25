@@ -138,10 +138,9 @@ final class TaskDisplay
         $subcommand = '';
 
         if ($tool === 'php' && isset($task[1])) {
-            $toolIndex = self::phpScriptIndex($task);
-            $tool = self::commandBasename($task[$toolIndex] ?? '');
+            $tool = self::commandBasename($task[1]);
 
-            for ($index = $toolIndex + 1; $index < count($task); $index++) {
+            for ($index = 2; $index < count($task); $index++) {
                 if ($task[$index] !== '' && !str_starts_with($task[$index], '-')) {
                     $subcommand = $task[$index];
 
@@ -167,34 +166,6 @@ final class TaskDisplay
             'tool' => $tool,
             'subcommand' => $subcommand,
         ];
-    }
-
-    /**
-     * @param list<string> $task
-     */
-    private static function phpScriptIndex(array $task): int
-    {
-        $taskCount = count($task);
-
-        for ($index = 1; $index < $taskCount; $index++) {
-            $argument = $task[$index];
-
-            if ($argument === '-d' || $argument === '-c') {
-                $index++;
-
-                continue;
-            }
-
-            if (str_starts_with($argument, '-d') || str_starts_with($argument, '-c')) {
-                continue;
-            }
-
-            if ($argument !== '' && !str_starts_with($argument, '-')) {
-                return $index;
-            }
-        }
-
-        return 1;
     }
 
     /**
