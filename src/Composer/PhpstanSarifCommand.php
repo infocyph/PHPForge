@@ -28,12 +28,15 @@ final class PhpstanSarifCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $inputPath = $input->getArgument('input');
+        $outputPath = $input->getArgument('output');
+
         return (new Runner($output))->run([[
             Paths::php(),
             Paths::bin('phpforge'),
             'phpstan-sarif',
-            (string) $input->getArgument('input'),
-            (string) $input->getArgument('output'),
+            is_string($inputPath) ? $inputPath : '',
+            is_string($outputPath) ? $outputPath : 'phpstan-results.sarif',
         ]]);
     }
 }

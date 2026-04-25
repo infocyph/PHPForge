@@ -8,13 +8,7 @@ final class Paths
 {
     public static function bin(string $name): string
     {
-        $path = self::binDir() . DIRECTORY_SEPARATOR . $name;
-
-        if (is_file($path)) {
-            return $path;
-        }
-
-        return $path;
+        return self::binDir() . DIRECTORY_SEPARATOR . $name;
     }
 
     public static function config(string $file): string

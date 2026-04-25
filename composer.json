@@ -62,6 +62,8 @@
     },
     "scripts": {
         "post-autoload-dump": "captainhook install --only-enabled -nf",
+        "ic:ci": "@php bin/phpforge ci",
+        "ic:phpstan:sarif": "@php bin/phpforge phpstan-sarif",
         "ic:release:audit": "@php bin/phpforge audit",
         "ic:test:code": "@php vendor/bin/pest --configuration pest.xml",
         "ic:test:lint": "@php vendor/bin/pint --test --config pint.json",

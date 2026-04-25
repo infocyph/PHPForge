@@ -44,7 +44,7 @@ final class InitCommand extends Command
         $copyWorkflow = (bool) $input->getOption('workflow');
         $copyCaptainHook = (bool) $input->getOption('captainhook');
         $explicit = $copyWorkflow || $copyCaptainHook || (bool) $input->getOption('no-interaction-defaults');
-        $settings = $this->defaultSettings((string) $input->getOption('workflow-ref'));
+        $settings = $this->defaultSettings($this->stringValue($input->getOption('workflow-ref'), 'main'));
         $settings['php_versions'] = $this->phpVersionPresets()['supported'];
 
         if (!$explicit && $input->isInteractive()) {
@@ -145,17 +145,17 @@ final class InitCommand extends Command
             'custom (enter custom Composer flags)' => 'custom',
         ];
 
-        $composerFlagChoice = (string) $helper->ask($input, $output, new ChoiceQuestion(
+        $composerFlagChoice = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
             'Extra Composer flags',
             array_keys($composerFlagChoiceMap),
             'none (no extra Composer flags)',
-        ));
+        )), 'none (no extra Composer flags)');
 
         $composerFlags = $composerFlagChoiceMap[$composerFlagChoice] ?? 'none';
 
         $resolvedComposerFlags = $composerFlags === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom Composer flags: ', $defaultComposerFlags))
-            : ($composerFlagPresets[$composerFlags] ?? $defaultComposerFlags);
+            ? $this->stringValue($helper->ask($input, $output, new Question('Custom Composer flags: ', $defaultComposerFlags)), $defaultComposerFlags)
+            : $composerFlagPresets[$composerFlags];
 
         $output->writeln(sprintf(
             '<comment>Resolved Composer flags: %s</comment>',
@@ -171,7 +171,7 @@ final class InitCommand extends Command
         OutputInterface $output,
         string $defaultCoverage,
     ): string {
-        return (string) $helper->ask($input, $output, new ChoiceQuestion('Coverage driver', ['none', 'xdebug', 'pcov'], $defaultCoverage));
+        return $this->stringValue($helper->ask($input, $output, new ChoiceQuestion('Coverage driver', ['none', 'xdebug', 'pcov'], $defaultCoverage)), $defaultCoverage);
     }
 
     private function askDependencyVersions(
@@ -191,17 +191,17 @@ final class InitCommand extends Command
             'custom (enter JSON array string)' => 'custom',
         ];
 
-        $dependencyChoice = (string) $helper->ask($input, $output, new ChoiceQuestion(
+        $dependencyChoice = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
             'Dependency matrix',
             array_keys($dependencyChoiceMap),
             sprintf('full (%s)', $dependencyVersionPresets['full']),
-        ));
+        )), sprintf('full (%s)', $dependencyVersionPresets['full']));
 
         $dependencyPreset = $dependencyChoiceMap[$dependencyChoice] ?? 'full';
 
         $resolvedDependencyVersions = $dependencyPreset === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom dependency versions JSON: ', $defaultDependencyVersions))
-            : ($dependencyVersionPresets[$dependencyPreset] ?? $defaultDependencyVersions);
+            ? $this->stringValue($helper->ask($input, $output, new Question('Custom dependency versions JSON: ', $defaultDependencyVersions)), $defaultDependencyVersions)
+            : $dependencyVersionPresets[$dependencyPreset];
 
         $output->writeln(sprintf('<comment>Resolved dependency matrix: %s</comment>', $resolvedDependencyVersions));
 
@@ -253,17 +253,17 @@ final class InitCommand extends Command
             'custom (enter comma-separated extension names)' => 'custom',
         ];
 
-        $extensionChoice = (string) $helper->ask($input, $output, new ChoiceQuestion(
+        $extensionChoice = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
             'PHP extensions',
             array_keys($extensionChoiceMap),
             'none (no extra extensions)',
-        ));
+        )), 'none (no extra extensions)');
 
         $extensionPreset = $extensionChoiceMap[$extensionChoice] ?? 'none';
 
         $resolvedExtensions = $extensionPreset === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom PHP extensions, comma-separated: ', $defaultExtensions))
-            : ($phpExtensionPresets[$extensionPreset] ?? $defaultExtensions);
+            ? $this->stringValue($helper->ask($input, $output, new Question('Custom PHP extensions, comma-separated: ', $defaultExtensions)), $defaultExtensions)
+            : $phpExtensionPresets[$extensionPreset];
 
         $output->writeln(sprintf(
             '<comment>Resolved PHP extensions: %s</comment>',
@@ -279,7 +279,7 @@ final class InitCommand extends Command
         OutputInterface $output,
         string $defaultPhpstanMemoryLimit,
     ): string {
-        $phpstanMemoryLimit = $helper->ask($input, $output, new ChoiceQuestion(
+        $phpstanMemoryLimit = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
             'PHPStan memory limit',
             [
                 '1G',
@@ -288,11 +288,11 @@ final class InitCommand extends Command
                 'custom',
             ],
             $defaultPhpstanMemoryLimit,
-        ));
+        )), $defaultPhpstanMemoryLimit);
 
         return $phpstanMemoryLimit === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom PHPStan memory limit: ', $defaultPhpstanMemoryLimit))
-            : (string) $phpstanMemoryLimit;
+            ? $this->stringValue($helper->ask($input, $output, new Question('Custom PHPStan memory limit: ', $defaultPhpstanMemoryLimit)), $defaultPhpstanMemoryLimit)
+            : $phpstanMemoryLimit;
     }
 
     private function askPhpVersions(
@@ -309,16 +309,16 @@ final class InitCommand extends Command
             'custom (enter JSON array string)' => 'custom',
         ];
 
-        $phpVersionChoice = (string) $helper->ask($input, $output, new ChoiceQuestion(
+        $phpVersionChoice = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
             'PHP version matrix',
             array_keys($phpVersionChoiceMap),
             sprintf('supported (%s)', $phpVersionPresets['supported'] ?? $defaultPhpVersions),
-        ));
+        )), sprintf('supported (%s)', $phpVersionPresets['supported'] ?? $defaultPhpVersions));
 
         $phpPreset = $phpVersionChoiceMap[$phpVersionChoice] ?? 'supported';
 
         $resolvedPhpVersions = $phpPreset === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom PHP versions JSON: ', $defaultPhpVersions))
+            ? $this->stringValue($helper->ask($input, $output, new Question('Custom PHP versions JSON: ', $defaultPhpVersions)), $defaultPhpVersions)
             : ($phpVersionPresets[$phpPreset] ?? $defaultPhpVersions);
 
         $output->writeln(sprintf('<comment>Resolved PHP versions: %s</comment>', $resolvedPhpVersions));
@@ -332,7 +332,7 @@ final class InitCommand extends Command
         OutputInterface $output,
         string $defaultPsalmThreads,
     ): string {
-        $psalmThreads = $helper->ask($input, $output, new ChoiceQuestion(
+        $psalmThreads = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
             'Psalm threads',
             [
                 '1',
@@ -341,11 +341,11 @@ final class InitCommand extends Command
                 'custom',
             ],
             $defaultPsalmThreads,
-        ));
+        )), $defaultPsalmThreads);
 
         return $psalmThreads === 'custom'
-            ? (string) $helper->ask($input, $output, new Question('Custom Psalm thread count: ', $defaultPsalmThreads))
-            : (string) $psalmThreads;
+            ? $this->stringValue($helper->ask($input, $output, new Question('Custom Psalm thread count: ', $defaultPsalmThreads)), $defaultPsalmThreads)
+            : $psalmThreads;
     }
 
     private function askRunAnalysis(
@@ -373,17 +373,17 @@ final class InitCommand extends Command
 
         $workflowRefChoices['custom'] = 'custom';
 
-        $workflowRef = (string) $helper->ask($input, $output, new ChoiceQuestion(
+        $workflowRef = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
             'PHPForge workflow ref',
             $workflowRefChoices,
             array_search($defaultWorkflowRef, $workflowRefChoices, true) ?: 'main',
-        ));
+        )), $defaultWorkflowRef);
 
         if ($workflowRef !== 'custom') {
             return $workflowRef;
         }
 
-        return (string) $helper->ask($input, $output, new Question('Custom PHPForge workflow ref: ', $defaultWorkflowRef));
+        return $this->stringValue($helper->ask($input, $output, new Question('Custom PHPForge workflow ref: ', $defaultWorkflowRef)), $defaultWorkflowRef);
     }
 
     private function copy(string $source, string $target, bool $force, OutputInterface $output): int
@@ -575,12 +575,17 @@ final class InitCommand extends Command
         }
 
         $this->phpVersionPresetsCache = [
-            'supported' => (string) json_encode(array_values($supported), JSON_UNESCAPED_SLASHES),
-            'current' => (string) json_encode(array_values($current), JSON_UNESCAPED_SLASHES),
-            'stable' => (string) json_encode(array_values($stable), JSON_UNESCAPED_SLASHES),
+            'supported' => (string) json_encode($supported, JSON_UNESCAPED_SLASHES),
+            'current' => (string) json_encode($current, JSON_UNESCAPED_SLASHES),
+            'stable' => (string) json_encode($stable, JSON_UNESCAPED_SLASHES),
         ];
 
         return $this->phpVersionPresetsCache;
+    }
+
+    private function stringValue(mixed $value, string $default): string
+    {
+        return is_string($value) ? $value : $default;
     }
 
     /**
@@ -650,7 +655,13 @@ final class InitCommand extends Command
         }
 
         $versions = array_values(array_unique($versions));
-        usort($versions, static fn(string $a, string $b): int => version_compare($a, $b));
+        usort($versions, static function (string $a, string $b): int {
+            if (version_compare($a, $b, '<')) {
+                return -1;
+            }
+
+            return version_compare($a, $b, '>') ? 1 : 0;
+        });
 
         return $versions;
     }

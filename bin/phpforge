@@ -5,7 +5,10 @@ declare(strict_types=1);
 
 use Infocyph\PHPForge\Support\Cli;
 
+require __DIR__ . '/../src/Support/ComposerAuditor.php';
 require __DIR__ . '/../src/Support/Cli.php';
+require __DIR__ . '/../src/Support/PhpstanSarifConverter.php';
 require __DIR__ . '/../src/Support/Paths.php';
+require __DIR__ . '/../src/Support/SyntaxChecker.php';
 
 exit((new Cli())->run($argv));

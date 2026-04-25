@@ -53,43 +53,7 @@ final class DoctorCommand extends Command
             return 0;
         }
 
-        $output->writeln('<info>PHPForge Doctor</info>');
-        $output->writeln('Project root: ' . $diagnostics['project_root']);
-        $output->writeln('Vendor dir:   ' . $diagnostics['vendor_dir']);
-        $output->writeln('');
-        $output->writeln('<info>Config files</info>');
-
-        foreach ($diagnostics['configs'] as $config) {
-            $output->writeln(sprintf('  %-18s %s', $config['file'], $config['source']));
-        }
-
-        $output->writeln('');
-        $output->writeln('<info>Composer plugins</info>');
-
-        foreach ($diagnostics['plugins'] as $plugin => $enabled) {
-            $output->writeln(sprintf('  %-24s %s', $plugin, $enabled ? 'enabled' : 'not enabled'));
-        }
-
-        $output->writeln('');
-        $output->writeln('Pre-commit hook: ' . ($diagnostics['pre_commit_hook'] ? 'installed' : 'not installed'));
-        $output->writeln('');
-        $output->writeln('<info>Workflow wrapper</info>');
-        $output->writeln('Path:   ' . $diagnostics['workflow']['path']);
-        $output->writeln('Status: ' . ($diagnostics['workflow']['exists'] ? 'found' : 'not found'));
-
-        if ($diagnostics['workflow']['exists']) {
-            $output->writeln('Ref:    ' . ($diagnostics['workflow']['ref'] !== '' ? $diagnostics['workflow']['ref'] : '(unknown)'));
-
-            if ($diagnostics['workflow']['warnings'] === []) {
-                $output->writeln('Validation: OK');
-            } else {
-                $output->writeln('Validation warnings:');
-
-                foreach ($diagnostics['workflow']['warnings'] as $warning) {
-                    $output->writeln('  - ' . $warning);
-                }
-            }
-        }
+        $this->renderDiagnostics($output, $diagnostics);
 
         return 0;
     }
@@ -114,7 +78,20 @@ final class DoctorCommand extends Command
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{
+     *     project_root: string,
+     *     vendor_dir: string,
+     *     configs: list<array{file: string, source: string, path: string}>,
+     *     plugins: array<string, bool>,
+     *     pre_commit_hook: bool,
+     *     workflow: array{
+     *         path: string,
+     *         exists: bool,
+     *         ref: string,
+     *         inputs: array<string, string>,
+     *         warnings: list<string>
+     *     }
+     * }
      */
     private function diagnostics(): array
     {
@@ -193,16 +170,11 @@ final class DoctorCommand extends Command
         $withIndent = -1;
 
         foreach ($lines as $line) {
-            if (
-                $ref === ''
-                && preg_match('/^\s*uses:\s*infocyph\/phpforge\/\.github\/workflows\/security-standards\.yml@([^\s#]+)\s*$/', $line, $matches) === 1
-            ) {
-                $ref = (string) ($matches[1] ?? '');
-            }
+            $ref = $ref !== '' ? $ref : $this->workflowRefFromLine($line);
 
             if (preg_match('/^(\s*)with:\s*$/', $line, $withMatches) === 1) {
                 $collectInputs = true;
-                $withIndent = strlen((string) ($withMatches[1] ?? ''));
+                $withIndent = strlen($withMatches[1]);
 
                 continue;
             }
@@ -215,30 +187,98 @@ final class DoctorCommand extends Command
                 continue;
             }
 
-            if (preg_match('/^(\s*)([a-z_][a-z0-9_]*):\s*(.*?)\s*$/i', $line, $matches) !== 1) {
-                $indent = strlen($line) - strlen(ltrim($line, ' '));
+            $input = $this->workflowInputFromLine($line, $withIndent);
 
-                if ($indent <= $withIndent) {
-                    $collectInputs = false;
-                }
+            if ($input === null) {
+                $collectInputs = strlen($line) - strlen(ltrim($line, ' ')) > $withIndent;
 
                 continue;
             }
 
-            $indent = strlen((string) ($matches[1] ?? ''));
-
-            if ($indent <= $withIndent) {
-                $collectInputs = false;
-
-                continue;
-            }
-
-            $key = (string) ($matches[2] ?? '');
-            $value = $this->normalizeYamlScalar((string) ($matches[3] ?? ''));
-            $inputs[$key] = $value;
+            $inputs[$input['key']] = $input['value'];
         }
 
         return ['ref' => $ref, 'inputs' => $inputs];
+    }
+
+    /**
+     * @param array{
+     *     project_root: string,
+     *     vendor_dir: string,
+     *     configs: list<array{file: string, source: string, path: string}>,
+     *     plugins: array<string, bool>,
+     *     pre_commit_hook: bool,
+     *     workflow: array{
+     *         path: string,
+     *         exists: bool,
+     *         ref: string,
+     *         inputs: array<string, string>,
+     *         warnings: list<string>
+     *     }
+     * } $diagnostics
+     */
+    private function renderDiagnostics(OutputInterface $output, array $diagnostics): void
+    {
+        $output->writeln('<info>PHPForge Doctor</info>');
+        $output->writeln('Project root: ' . $diagnostics['project_root']);
+        $output->writeln('Vendor dir:   ' . $diagnostics['vendor_dir']);
+        $output->writeln('');
+        $output->writeln('<info>Config files</info>');
+
+        foreach ($diagnostics['configs'] as $config) {
+            $output->writeln(sprintf('  %-18s %s', $config['file'], $config['source']));
+        }
+
+        $output->writeln('');
+        $output->writeln('<info>Composer plugins</info>');
+
+        foreach ($diagnostics['plugins'] as $plugin => $enabled) {
+            $output->writeln(sprintf('  %-24s %s', $plugin, $enabled ? 'enabled' : 'not enabled'));
+        }
+
+        $this->renderWorkflowDiagnostics($output, $diagnostics);
+    }
+
+    /**
+     * @param array{
+     *     pre_commit_hook: bool,
+     *     workflow: array{
+     *         path: string,
+     *         exists: bool,
+     *         ref: string,
+     *         inputs: array<string, string>,
+     *         warnings: list<string>
+     *     }
+     * } $diagnostics
+     */
+    private function renderWorkflowDiagnostics(OutputInterface $output, array $diagnostics): void
+    {
+        $workflow = $diagnostics['workflow'];
+
+        $output->writeln('');
+        $output->writeln('Pre-commit hook: ' . ($diagnostics['pre_commit_hook'] ? 'installed' : 'not installed'));
+        $output->writeln('');
+        $output->writeln('<info>Workflow wrapper</info>');
+        $output->writeln('Path:   ' . $workflow['path']);
+        $output->writeln('Status: ' . ($workflow['exists'] ? 'found' : 'not found'));
+
+        if (!$workflow['exists']) {
+            return;
+        }
+
+        $output->writeln('Ref:    ' . ($workflow['ref'] !== '' ? $workflow['ref'] : '(unknown)'));
+
+        if ($workflow['warnings'] === []) {
+            $output->writeln('Validation: OK');
+
+            return;
+        }
+
+        $output->writeln('Validation warnings:');
+
+        foreach ($workflow['warnings'] as $warning) {
+            $output->writeln('  - ' . $warning);
+        }
     }
 
     private function validateComposerFlags(string $value): ?string
@@ -251,12 +291,12 @@ final class DoctorCommand extends Command
 
         $tokens = preg_split('/\s+/', $flags);
 
-        if (!is_array($tokens) || $tokens === []) {
+        if (!is_array($tokens)) {
             return null;
         }
 
         foreach ($tokens as $token) {
-            if (!is_string($token) || $token === '') {
+            if ($token === '') {
                 continue;
             }
 
@@ -342,5 +382,33 @@ final class DoctorCommand extends Command
         }
 
         return $result;
+    }
+
+    /**
+     * @return array{key: string, value: string}|null
+     */
+    private function workflowInputFromLine(string $line, int $withIndent): ?array
+    {
+        if (preg_match('/^(\s*)([a-z_][a-z0-9_]*):\s*(.*?)\s*$/i', $line, $matches) !== 1) {
+            return null;
+        }
+
+        if (strlen($matches[1]) <= $withIndent) {
+            return null;
+        }
+
+        return [
+            'key' => $matches[2],
+            'value' => $this->normalizeYamlScalar($matches[3]),
+        ];
+    }
+
+    private function workflowRefFromLine(string $line): string
+    {
+        if (preg_match('/^\s*uses:\s*infocyph\/phpforge\/\.github\/workflows\/security-standards\.yml@([^\s#]+)\s*$/', $line, $matches) !== 1) {
+            return '';
+        }
+
+        return $matches[1];
     }
 }
