@@ -97,7 +97,11 @@ jobs:
           if [ "${{ matrix.dependency-version }}" != "prefer-lowest" ]; then
             composer ic:ci
           else
-            composer ic:ci -- --prefer-lowest
+            if composer run-script --list 2>/dev/null | grep -qE '^[[:space:]]*ic:ci[[:space:]]'; then
+              composer ic:ci -- --prefer-lowest
+            else
+              composer ic:ci --prefer-lowest
+            fi
           fi
 
   analyze:
