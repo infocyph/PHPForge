@@ -311,6 +311,7 @@ jobs:
           benchmark_command="${{ steps.benchmark.outputs.benchmark_command }}"
           benchmark_php_version="${{ steps.report_php.outputs.php_version }}"
           generated_at="$(date -u +"%Y-%m-%d %H:%M UTC")"
+          jobs_api_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100"
 
           overall_state="failing"
 
@@ -320,22 +321,106 @@ jobs:
             overall_state="partial"
           fi
 
+          php_versions_input='${{ inputs.php_versions }}'
+
+          if ! jq -e 'type == "array"' >/dev/null 2>&1 <<< "$php_versions_input"; then
+            php_versions_input='[]'
+          fi
+
+          jobs_json="$(curl -fsSL \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "$jobs_api_url" || echo '{"jobs":[]}'
+          )"
+
+          version_matrix_file=".phpforge-report/out/version-matrix.ndjson"
+          : > "$version_matrix_file"
+
+          while IFS= read -r php_version; do
+            [ -z "$php_version" ] && continue
+
+            code_analysis_prefer_lowest="$(jq -r --arg name "Code Analysis - PHP ${php_version} - prefer-lowest" '.jobs // [] | map(select(.name == $name)) | first | .conclusion // "missing"' <<< "$jobs_json")"
+            code_analysis_prefer_stable="$(jq -r --arg name "Code Analysis - PHP ${php_version} - prefer-stable" '.jobs // [] | map(select(.name == $name)) | first | .conclusion // "missing"' <<< "$jobs_json")"
+            security_analysis="$(jq -r --arg name "Security Analysis - PHP ${php_version}" '.jobs // [] | map(select(.name == $name)) | first | .conclusion // "missing"' <<< "$jobs_json")"
+
+            if [ "$analyze_result" = "skipped" ] && [ "$security_analysis" = "missing" ]; then
+              security_analysis="skipped"
+            fi
+
+            jq -nc \
+              --arg php_version "$php_version" \
+              --arg code_analysis_prefer_lowest "$code_analysis_prefer_lowest" \
+              --arg code_analysis_prefer_stable "$code_analysis_prefer_stable" \
+              --arg security_analysis "$security_analysis" \
+              '{
+                php_version: $php_version,
+                code_analysis_prefer_lowest: $code_analysis_prefer_lowest,
+                code_analysis_prefer_stable: $code_analysis_prefer_stable,
+                security_analysis: $security_analysis
+              }' >> "$version_matrix_file"
+          done < <(jq -r '.[]' <<< "$php_versions_input")
+
+          matrix_results_json="$(jq -sc '.' "$version_matrix_file")"
+
+          package_version() {
+            local package_name="$1"
+            local version
+            version="$(composer show "$package_name" --format=json 2>/dev/null | jq -r '.versions[0] // .version // empty' || true)"
+
+            if [ -z "$version" ]; then
+              version="not-installed"
+            fi
+
+            echo "$version"
+          }
+
+          tools_json="$(jq -nc \
+            --arg captainhook "$(package_version 'captainhook/captainhook')" \
+            --arg composer_normalize "$(package_version 'ergebnis/composer-normalize')" \
+            --arg pest "$(package_version 'pestphp/pest')" \
+            --arg pint "$(package_version 'laravel/pint')" \
+            --arg phpcs "$(package_version 'squizlabs/php_codesniffer')" \
+            --arg phpstan "$(package_version 'phpstan/phpstan')" \
+            --arg psalm "$(package_version 'vimeo/psalm')" \
+            --arg rector "$(package_version 'rector/rector')" \
+            --arg phpbench "$(package_version 'phpbench/phpbench')" \
+            '[
+              {name: "CaptainHook", package: "captainhook/captainhook", version: $captainhook},
+              {name: "Composer Normalize", package: "ergebnis/composer-normalize", version: $composer_normalize},
+              {name: "Pest", package: "pestphp/pest", version: $pest},
+              {name: "Pint", package: "laravel/pint", version: $pint},
+              {name: "PHP_CodeSniffer", package: "squizlabs/php_codesniffer", version: $phpcs},
+              {name: "PHPStan", package: "phpstan/phpstan", version: $phpstan},
+              {name: "Psalm", package: "vimeo/psalm", version: $psalm},
+              {name: "Rector", package: "rector/rector", version: $rector},
+              {name: "PHPBench", package: "phpbench/phpbench", version: $phpbench}
+            ]'
+          )"
+
+          echo "$tools_json" > .phpforge-report/out/tool-versions.json
+
           jq -n \
             --arg generated_at "$generated_at" \
             --arg overall_state "$overall_state" \
             --arg run_result "$run_result" \
             --arg analyze_result "$analyze_result" \
+            --argjson tested_php_versions "$php_versions_input" \
+            --argjson matrix_results "$matrix_results_json" \
             --arg benchmark_result "$benchmark_result" \
             --arg benchmark_command "$benchmark_command" \
             --arg benchmark_php_version "$benchmark_php_version" \
+            --argjson tools "$tools_json" \
             '{
               generated_at: $generated_at,
               overall_state: $overall_state,
               run_result: $run_result,
               analyze_result: $analyze_result,
+              tested_php_versions: $tested_php_versions,
+              matrix_results: $matrix_results,
               benchmark_result: $benchmark_result,
               benchmark_command: $benchmark_command,
-              benchmark_php_version: $benchmark_php_version
+              benchmark_php_version: $benchmark_php_version,
+              tools: $tools
             }' > .phpforge-report/out/security-summary.json
 
           status_label() {
@@ -352,6 +437,7 @@ jobs:
             case "$1" in
               success) echo "ok" ;;
               failure|cancelled|timed_out|action_required) echo "fail" ;;
+              info) echo "info" ;;
               *) echo "warn" ;;
             esac
           }
@@ -380,6 +466,16 @@ jobs:
           append_row "Security analysis job" "$(status_label "$analyze_result")" "$(status_class "$analyze_result")"
           append_row "${benchmark_label} (PHP ${benchmark_php_version})" "$(status_label "$benchmark_result")" "$(status_class "$benchmark_result")"
 
+          while IFS=$'\t' read -r php_version lowest stable security; do
+            append_row "PHP ${php_version} CI prefer-lowest" "$(status_label "$lowest")" "$(status_class "$lowest")"
+            append_row "PHP ${php_version} CI prefer-stable" "$(status_label "$stable")" "$(status_class "$stable")"
+            append_row "PHP ${php_version} Security analysis" "$(status_label "$security")" "$(status_class "$security")"
+          done < <(jq -r '.[] | [.php_version, .code_analysis_prefer_lowest, .code_analysis_prefer_stable, .security_analysis] | @tsv' <<< "$matrix_results_json")
+
+          while IFS=$'\t' read -r tool_name tool_version; do
+            append_row "Tool: ${tool_name}" "$tool_version" "info"
+          done < <(jq -r '.[] | [.name, .version] | @tsv' <<< "$tools_json")
+
           total_height=$((y + 24))
 
           cat > .phpforge-report/out/security-report.svg <<SVG
@@ -391,6 +487,7 @@ jobs:
               .ok { font: 700 12px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #166534; }
               .warn { font: 700 12px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #9a6700; }
               .fail { font: 700 12px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #b42318; }
+              .info { font: 700 12px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #1f4e79; }
             </style>
             <rect x="0.5" y="0.5" width="579" height="$((total_height - 1))" rx="10" fill="#f8fafc" stroke="#d0d7de"/>
             <rect x="16" y="16" width="548" height="66" rx="8" fill="#eef2ff"/>
@@ -400,27 +497,25 @@ jobs:
           SVG
 
           {
+            tested_versions="$(jq -r 'if length > 0 then join(", ") else "none" end' <<< "$php_versions_input")"
+            tool_versions="$(jq -r 'map("\(.name) (\(.version))") | join(", ")' <<< "$tools_json")"
             echo "### Security SVG Report"
             echo ""
             echo "- Overall: \`${overall_state}\`"
             echo "- Run matrix: \`${run_result}\`"
             echo "- Analysis job: \`${analyze_result}\`"
+            echo "- Tested PHP versions: \`${tested_versions}\`"
             echo "- Benchmark: \`${benchmark_result}\` (command: ${benchmark_command}, PHP ${benchmark_php_version})"
+            echo "- Tools: ${tool_versions}"
             echo "- Artifacts: \`security-report.svg\`, \`security-summary.json\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload security report SVG
+      - name: Upload security report artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: security-report-svg
-          path: .phpforge-report/out/security-report.svg
-          retention-days: ${{ inputs.artifact_retention_days }}
-          if-no-files-found: error
-
-      - name: Upload security summary JSON
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-summary-json
-          path: .phpforge-report/out/security-summary.json
+          name: security-svg-report
+          path: |
+            .phpforge-report/out/security-report.svg
+            .phpforge-report/out/security-summary.json
           retention-days: ${{ inputs.artifact_retention_days }}
           if-no-files-found: error

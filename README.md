@@ -351,7 +351,7 @@ Workflow inputs:
 | `phpstan_memory_limit` | `1G`                                | PHPStan memory limit used by workflow analysis.                                              |
 | `psalm_threads`        | `1`                                 | Psalm thread count used by workflow analysis.                                                |
 | `run_analysis`         | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.             |
-| `run_svg_report`       | `true`                              | Generates `security-report.svg` and `security-summary.json`, including benchmark status. |
+| `run_svg_report`       | `true`                              | Generates `security-report.svg` and `security-summary.json` with benchmark status, per-version matrix results, and tool versions. |
 | `artifact_retention_days` | `14`                             | Artifact retention days (`actions/upload-artifact`). Wrapper templates can compute this from event/cron. |
 
 ### Workflow Input Details
@@ -463,10 +463,9 @@ with:
 
 Cron-aware retention logic can be set in your repository workflow wrapper (for example in `.github/workflows/phpforge.yml`) by passing a computed value to `artifact_retention_days`.
 
-When enabled, the workflow uploads two artifacts:
+When enabled, the workflow uploads one artifact:
 
-- `security-report-svg` (contains `security-report.svg`)
-- `security-summary-json` (contains `security-summary.json`)
+- `security-svg-report` (contains `security-report.svg` and `security-summary.json`)
 
 Default generated wrapper policy (cron-aware):
 
@@ -475,11 +474,16 @@ Default generated wrapper policy (cron-aware):
 - monthly cron (`0 0 1 * *`): `61` days
 - other schedule crons: `60` days
 
-`security-summary.json` includes benchmark metadata from `composer ic:bench:quick` when available, or `composer ic:test:bench` as fallback:
+`security-summary.json` includes:
 
+- `tested_php_versions`
+- `matrix_results` (per PHP version: `code_analysis_prefer_lowest`, `code_analysis_prefer_stable`, `security_analysis`)
 - `benchmark_result`
 - `benchmark_command`
 - `benchmark_php_version`
+- `tools` (tool `name`, package, resolved version)
+
+`security-report.svg` renders the same high-level status, per-version matrix check results, and resolved tool versions.
 
 ### Workflow Examples
 
@@ -677,7 +681,7 @@ with:
   run_svg_report: true
 ```
 
-Then open the workflow run and download `security-report-svg` and `security-summary-json`.
+Then open the workflow run and download `security-svg-report`.
 
 ### A bundled rule is too strict
 
