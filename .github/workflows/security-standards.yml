@@ -657,7 +657,7 @@ jobs:
             </defs>
             <style>
               :root { max-width: 800px; height: auto; background: transparent; }
-              .panel { fill: url(#panelGlow); stroke: #385274; stroke-width: 1.1; }
+              .panel { fill: transparent; stroke: #385274; stroke-width: 1.1; }
               .divider { stroke: #31445f; stroke-width: 1; opacity: 0.9; }
               .title { font: 700 26px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
               .subtitle { font: 700 18px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #4ade80; }
