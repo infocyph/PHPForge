@@ -91,6 +91,7 @@ Extra Composer flags
 PHPStan memory limit
 Psalm threads
 Enable SARIF code-scanning analysis?
+Generate SVG security report artifacts?
 ```
 
 Selector presets include:
@@ -334,6 +335,7 @@ jobs:
       phpstan_memory_limit: "1G"
       psalm_threads: "1"
       run_analysis: true
+      run_svg_report: true
 ```
 
 Workflow inputs:
@@ -348,6 +350,7 @@ Workflow inputs:
 | `phpstan_memory_limit` | `1G`                                | PHPStan memory limit used by workflow analysis.                                              |
 | `psalm_threads`        | `1`                                 | Psalm thread count used by workflow analysis.                                                |
 | `run_analysis`         | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.             |
+| `run_svg_report`       | `true`                              | Generates SVG report artifacts (`security-status.svg`, `security-report.svg`, JSON summary). |
 
 ### Workflow Input Details
 
@@ -442,6 +445,19 @@ with:
 
 Set it to `false` when the repository does not use GitHub code scanning, does not grant `security-events: write`, or wants CI-only runs.
 
+`run_svg_report` controls the SVG reporting artifact job:
+
+```yaml
+with:
+  run_svg_report: true
+```
+
+When enabled, the workflow uploads a `security-svg-report` artifact containing:
+
+- `security-status.svg` (badge-style status)
+- `security-report.svg` (detailed per-check report)
+- `security-summary.json` (machine-readable summary)
+
 ### Workflow Examples
 
 Fast CI for active development:
@@ -454,6 +470,7 @@ jobs:
       php_versions: '["8.4","8.5"]'
       dependency_versions: '["prefer-stable"]'
       run_analysis: false
+      run_svg_report: true
 ```
 
 Release confidence matrix:
@@ -483,6 +500,7 @@ jobs:
       php_extensions: "mbstring, intl, pdo_mysql"
       composer_flags: "--ignore-platform-req=ext-redis"
       run_analysis: false
+      run_svg_report: true
 ```
 
 Project with extensions, coverage, and larger analysis limits:
@@ -626,6 +644,17 @@ Set `run_analysis: false` in the workflow wrapper if the repository does not hav
 with:
   run_analysis: false
 ```
+
+### SVG report artifact is missing
+
+Ensure `run_svg_report: true` is present in the workflow wrapper:
+
+```yaml
+with:
+  run_svg_report: true
+```
+
+Then open the workflow run and download the `security-svg-report` artifact.
 
 ### A bundled rule is too strict
 

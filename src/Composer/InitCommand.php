@@ -122,6 +122,7 @@ final class InitCommand extends Command
         $settings['phpstan_memory_limit'] = $this->askPhpstanMemoryLimit($helper, $input, $output, (string) $settings['phpstan_memory_limit']);
         $settings['psalm_threads'] = $this->askPsalmThreads($helper, $input, $output, (string) $settings['psalm_threads']);
         $settings['run_analysis'] = $this->askRunAnalysis($helper, $input, $output, (bool) $settings['run_analysis']);
+        $settings['run_svg_report'] = $this->askRunSvgReport($helper, $input, $output, (bool) $settings['run_svg_report']);
 
         return $settings;
     }
@@ -357,6 +358,15 @@ final class InitCommand extends Command
         return (bool) $helper->ask($input, $output, new ConfirmationQuestion('Enable SARIF code-scanning analysis? [Y/n] ', $defaultRunAnalysis));
     }
 
+    private function askRunSvgReport(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        bool $defaultRunSvgReport,
+    ): bool {
+        return (bool) $helper->ask($input, $output, new ConfirmationQuestion('Generate SVG security report artifacts? [Y/n] ', $defaultRunSvgReport));
+    }
+
     private function askWorkflowRef(
         QuestionHelper $helper,
         InputInterface $input,
@@ -433,6 +443,7 @@ final class InitCommand extends Command
         $contents = str_replace('phpstan_memory_limit: "1G"', 'phpstan_memory_limit: "' . $settings['phpstan_memory_limit'] . '"', $contents);
         $contents = str_replace('psalm_threads: "1"', 'psalm_threads: "' . $settings['psalm_threads'] . '"', $contents);
         $contents = str_replace('run_analysis: true', 'run_analysis: ' . ($settings['run_analysis'] ? 'true' : 'false'), $contents);
+        $contents = str_replace('run_svg_report: true', 'run_svg_report: ' . ($settings['run_svg_report'] ? 'true' : 'false'), $contents);
 
         return $this->write($contents, $target, $force, $output);
     }
@@ -449,7 +460,8 @@ final class InitCommand extends Command
      *     composer_flags: string,
      *     phpstan_memory_limit: string,
      *     psalm_threads: string,
-     *     run_analysis: bool
+     *     run_analysis: bool,
+     *     run_svg_report: bool
      * }
      */
     private function defaultSettings(string $workflowRef): array
@@ -466,6 +478,7 @@ final class InitCommand extends Command
             'phpstan_memory_limit' => '1G',
             'psalm_threads' => '1',
             'run_analysis' => true,
+            'run_svg_report' => true,
         ];
     }
 
