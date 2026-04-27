@@ -748,7 +748,7 @@ jobs:
       - name: Upload security report artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: security-svg-report
+          name: security-report
           path: |
             .phpforge-report/out/security-report.svg
             .phpforge-report/out/security-summary.json
