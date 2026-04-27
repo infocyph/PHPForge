@@ -350,7 +350,7 @@ Workflow inputs:
 | `phpstan_memory_limit` | `1G`                                | PHPStan memory limit used by workflow analysis.                                              |
 | `psalm_threads`        | `1`                                 | Psalm thread count used by workflow analysis.                                                |
 | `run_analysis`         | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.             |
-| `run_svg_report`       | `true`                              | Generates SVG report artifacts (`security-status.svg`, `security-report.svg`, JSON summary). |
+| `run_svg_report`       | `true`                              | Generates report artifacts (`security-report.svg`, `security-summary.json`). |
 
 ### Workflow Input Details
 
@@ -454,7 +454,6 @@ with:
 
 When enabled, the workflow uploads a `security-svg-report` artifact containing:
 
-- `security-status.svg` (badge-style status)
 - `security-report.svg` (detailed per-check report)
 - `security-summary.json` (machine-readable summary)
 
