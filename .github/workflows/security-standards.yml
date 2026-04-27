@@ -221,7 +221,7 @@ jobs:
           JSON
 
       - name: Upload analysis summary
-        if: always()
+        if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         uses: actions/upload-artifact@v4
         with:
           name: "security-analysis-summary-${{ matrix.php-versions }}"
@@ -255,7 +255,7 @@ jobs:
     needs:
       - run
       - analyze
-    if: always() && inputs.run_svg_report
+    if: always() && inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     name: Security SVG Report
     runs-on: ubuntu-latest
 
