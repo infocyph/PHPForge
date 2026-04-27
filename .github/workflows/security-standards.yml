@@ -314,6 +314,7 @@ jobs:
           benchmark_php_version="${{ steps.report_php.outputs.php_version }}"
           generated_at="$(date -u +"%Y-%m-%d %H:%M UTC")"
           jobs_api_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100"
+          short_sha="${GITHUB_SHA::7}"
 
           overall_state="failing"
 
@@ -623,10 +624,10 @@ jobs:
             tools_svg="${tools_svg}  <text x=\"92\" y=\"${tool_line_y}\" class=\"tools-value\">${tool_line}</text>"$'\n'
           fi
 
-          generated_y=$((tool_line_y + 26))
-          total_height=$((generated_y + 28))
+          total_height=$((tool_line_y + 40))
           panel_height=$((total_height - 26))
           tools_label_y=$((footer_y + 34))
+          run_meta="$(xml_escape "Generated: ${generated_at} | Commit: ${short_sha} | Run: #${GITHUB_RUN_NUMBER} | Worker: ${GITHUB_RUN_ID}")"
           overall_status_label="$(status_label "$overall_state")"
 
           if [ "$overall_state" = "passing" ]; then
@@ -673,7 +674,7 @@ jobs:
               .badge-text { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
               .tools-label { font: 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #94a3b8; }
               .tools-value { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #4ade80; }
-              .generated { font: 14px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #a8b4c7; }
+              .meta { font: 13px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #a8b4c7; }
               .ok { fill: #22c55e; }
               .warn { fill: #facc15; }
               .fail { fill: #f87171; }
@@ -688,6 +689,7 @@ jobs:
             <path d="M78 79 l11 11 l22 -25" fill="none" stroke="#86efac" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
             <text x="140" y="70" class="title">Security &amp; Standards Report</text>
             <text x="140" y="101" class="subtitle">${security_status}</text>
+            <text x="140" y="124" class="meta">${run_meta}</text>
             <rect x="620" y="46" width="126" height="34" rx="17" class="badge"/>
             <circle cx="642" cy="63" r="8" fill="#22c55e"/>
             <path d="M638 62 l3 3 l6 -7" fill="none" stroke="#062214" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -715,7 +717,6 @@ jobs:
             <line x1="44" y1="${footer_y}" x2="756" y2="${footer_y}" class="divider"/>
             <text x="44" y="${tools_label_y}" class="tools-label">Tools:</text>
           ${tools_svg}
-            <text x="44" y="${generated_y}" class="generated">Generated: ${generated_at}</text>
           </svg>
           SVG
 
