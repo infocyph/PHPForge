@@ -336,6 +336,7 @@ jobs:
       psalm_threads: "1"
       run_analysis: true
       run_svg_report: true
+      artifact_retention_days: 60
 ```
 
 Workflow inputs:
@@ -351,6 +352,7 @@ Workflow inputs:
 | `psalm_threads`        | `1`                                 | Psalm thread count used by workflow analysis.                                                |
 | `run_analysis`         | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.             |
 | `run_svg_report`       | `true`                              | Generates `security-report.svg` and `security-summary.json`, including benchmark status. |
+| `artifact_retention_days` | `14`                             | Artifact retention days (`actions/upload-artifact`). Wrapper templates can compute this from event/cron. |
 
 ### Workflow Input Details
 
@@ -452,10 +454,26 @@ with:
   run_svg_report: true
 ```
 
+`artifact_retention_days` controls how long uploaded report artifacts are kept:
+
+```yaml
+with:
+  artifact_retention_days: 14
+```
+
+Cron-aware retention logic can be set in your repository workflow wrapper (for example in `.github/workflows/phpforge.yml`) by passing a computed value to `artifact_retention_days`.
+
 When enabled, the workflow uploads two artifacts:
 
 - `security-report-svg` (contains `security-report.svg`)
 - `security-summary-json` (contains `security-summary.json`)
+
+Default generated wrapper policy (cron-aware):
+
+- non-schedule events: `14` days
+- weekly cron (`0 0 * * 0`): `15` days
+- monthly cron (`0 0 1 * *`): `61` days
+- other schedule crons: `60` days
 
 `security-summary.json` includes benchmark metadata from `composer ic:bench:quick`:
 

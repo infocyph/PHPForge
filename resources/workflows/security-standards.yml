@@ -25,3 +25,4 @@ jobs:
       psalm_threads: "1"
       run_analysis: true
       run_svg_report: true
+      artifact_retention_days: 15
