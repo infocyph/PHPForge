@@ -48,6 +48,11 @@ on:
         required: false
         type: boolean
         default: true
+      artifact_retention_days:
+        description: "Retention days for uploaded report artifacts."
+        required: false
+        type: number
+        default: 61
 
 jobs:
   prepare:
@@ -376,6 +381,7 @@ jobs:
         with:
           name: security-report-svg
           path: .phpforge-report/out/security-report.svg
+          retention-days: ${{ inputs.artifact_retention_days }}
           if-no-files-found: error
 
       - name: Upload security summary JSON
@@ -383,4 +389,5 @@ jobs:
         with:
           name: security-summary-json
           path: .phpforge-report/out/security-summary.json
+          retention-days: ${{ inputs.artifact_retention_days }}
           if-no-files-found: error

@@ -23,6 +23,7 @@ final class DoctorCommand extends Command
         'psalm_threads',
         'run_analysis',
         'run_svg_report',
+        'artifact_retention_days',
     ];
 
     private const PLUGINS = [
