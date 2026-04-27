@@ -475,9 +475,10 @@ Default generated wrapper policy (cron-aware):
 - monthly cron (`0 0 1 * *`): `61` days
 - other schedule crons: `60` days
 
-`security-summary.json` includes benchmark metadata from `composer ic:bench:quick`:
+`security-summary.json` includes benchmark metadata from `composer ic:bench:quick` when available, or `composer ic:test:bench` as fallback:
 
 - `benchmark_result`
+- `benchmark_command`
 - `benchmark_php_version`
 
 ### Workflow Examples

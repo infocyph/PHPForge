@@ -268,12 +268,35 @@ jobs:
 
       - name: Run benchmark
         id: benchmark
-        continue-on-error: true
         shell: bash
         run: |
           mkdir -p .phpforge-report/out
-          set -o pipefail
-          composer ic:bench:quick | tee .phpforge-report/out/benchmark.log
+          benchmark_result="skipped"
+          benchmark_command="none"
+
+          if composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:bench:quick$'; then
+            benchmark_command="ic:bench:quick"
+          elif composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:test:bench$'; then
+            benchmark_command="ic:test:bench"
+          fi
+
+          if [ "$benchmark_command" = "none" ]; then
+            echo "No benchmark command found (expected ic:bench:quick or ic:test:bench)." | tee .phpforge-report/out/benchmark.log
+          else
+            set +e
+            composer "$benchmark_command" | tee .phpforge-report/out/benchmark.log
+            command_exit_code=$?
+            set -e
+
+            if [ "$command_exit_code" -eq 0 ]; then
+              benchmark_result="success"
+            else
+              benchmark_result="failure"
+            fi
+          fi
+
+          echo "benchmark_result=${benchmark_result}" >> "$GITHUB_OUTPUT"
+          echo "benchmark_command=${benchmark_command}" >> "$GITHUB_OUTPUT"
 
       - name: Build SVG report artifacts
         shell: bash
@@ -284,7 +307,8 @@ jobs:
 
           run_result="${{ needs.run.result }}"
           analyze_result="${{ needs.analyze.result }}"
-          benchmark_result="${{ steps.benchmark.outcome }}"
+          benchmark_result="${{ steps.benchmark.outputs.benchmark_result }}"
+          benchmark_command="${{ steps.benchmark.outputs.benchmark_command }}"
           benchmark_php_version="${{ steps.report_php.outputs.php_version }}"
           generated_at="$(date -u +"%Y-%m-%d %H:%M UTC")"
 
@@ -302,6 +326,7 @@ jobs:
             --arg run_result "$run_result" \
             --arg analyze_result "$analyze_result" \
             --arg benchmark_result "$benchmark_result" \
+            --arg benchmark_command "$benchmark_command" \
             --arg benchmark_php_version "$benchmark_php_version" \
             '{
               generated_at: $generated_at,
@@ -309,6 +334,7 @@ jobs:
               run_result: $run_result,
               analyze_result: $analyze_result,
               benchmark_result: $benchmark_result,
+              benchmark_command: $benchmark_command,
               benchmark_php_version: $benchmark_php_version
             }' > .phpforge-report/out/security-summary.json
 
@@ -332,6 +358,13 @@ jobs:
 
           rows_svg=""
           y=118
+          benchmark_label="Benchmark quick pass"
+
+          if [ "$benchmark_command" = "ic:test:bench" ]; then
+            benchmark_label="Benchmark aggregate pass"
+          elif [ "$benchmark_command" = "none" ]; then
+            benchmark_label="Benchmark unavailable"
+          fi
 
           append_row() {
             local label="$1"
@@ -345,7 +378,7 @@ jobs:
 
           append_row "Pipeline matrix checks" "$(status_label "$run_result")" "$(status_class "$run_result")"
           append_row "Security analysis job" "$(status_label "$analyze_result")" "$(status_class "$analyze_result")"
-          append_row "Benchmark quick pass (PHP ${benchmark_php_version})" "$(status_label "$benchmark_result")" "$(status_class "$benchmark_result")"
+          append_row "${benchmark_label} (PHP ${benchmark_php_version})" "$(status_label "$benchmark_result")" "$(status_class "$benchmark_result")"
 
           total_height=$((y + 24))
 
@@ -372,7 +405,7 @@ jobs:
             echo "- Overall: \`${overall_state}\`"
             echo "- Run matrix: \`${run_result}\`"
             echo "- Analysis job: \`${analyze_result}\`"
-            echo "- Benchmark quick pass: \`${benchmark_result}\` (PHP ${benchmark_php_version})"
+            echo "- Benchmark: \`${benchmark_result}\` (command: ${benchmark_command}, PHP ${benchmark_php_version})"
             echo "- Artifacts: \`security-report.svg\`, \`security-summary.json\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
