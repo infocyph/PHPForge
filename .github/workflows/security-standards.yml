@@ -538,7 +538,7 @@ jobs:
             text_x=$((icon_x + 20))
             text_y=$((line_y + 5))
             matrix_cards_svg="${matrix_cards_svg}    $(status_icon_svg "$status" "$icon_x" "$line_y")"$'\n'
-            matrix_cards_svg="${matrix_cards_svg}    <text x=\"${text_x}\" y=\"${text_y}\" class=\"matrix-line\">${escaped_label}</text>"$'\n'
+            matrix_cards_svg="${matrix_cards_svg}    <text x=\"${text_x}\" y=\"${text_y}\" class=\"matrix-line small-text\">${escaped_label}</text>"$'\n'
           }
 
           while IFS=$'\t' read -r php_version lowest stable security; do
@@ -548,7 +548,7 @@ jobs:
             status_line_y=$((card_y + 32))
 
             matrix_cards_svg="${matrix_cards_svg}  <rect x=\"44\" y=\"${card_y}\" width=\"712\" height=\"62\" rx=\"12\" class=\"section-card\"/>"$'\n'
-            matrix_cards_svg="${matrix_cards_svg}  <text x=\"64\" y=\"${php_title_y}\" class=\"php-title\">PHP <tspan class=\"accent\">${php_version}</tspan></text>"$'\n'
+            matrix_cards_svg="${matrix_cards_svg}  <text x=\"64\" y=\"${php_title_y}\" class=\"php-title small-text\">PHP <tspan class=\"accent\">${php_version}</tspan></text>"$'\n'
 
             append_matrix_line "$ci_status" "CI" 178 "$status_line_y"
             append_matrix_line "$security" "Security" 286 "$status_line_y"
@@ -589,7 +589,7 @@ jobs:
             text_y=$((chip_y + 20))
             quality_chips_svg="${quality_chips_svg}  <rect x=\"${chip_x}\" y=\"${chip_y}\" width=\"${width}\" height=\"30\" rx=\"15\" class=\"chip\"/>"$'\n'
             quality_chips_svg="${quality_chips_svg}  <circle cx=\"${dot_x}\" cy=\"${dot_y}\" r=\"8\" fill=\"${fill}\"/>"$'\n'
-            quality_chips_svg="${quality_chips_svg}  <text x=\"${text_x}\" y=\"${text_y}\" class=\"chip-text\">${escaped_label}</text>"$'\n'
+            quality_chips_svg="${quality_chips_svg}  <text x=\"${text_x}\" y=\"${text_y}\" class=\"chip-text small-text\">${escaped_label}</text>"$'\n'
             chip_x=$((chip_x + width + 14))
           }
 
@@ -612,7 +612,7 @@ jobs:
             if [ -z "$tool_line" ]; then
               tool_line="$tool_item"
             elif [ $((${#tool_line} + ${#tool_item})) -gt 86 ]; then
-              tools_svg="${tools_svg}  <text x=\"92\" y=\"${tool_line_y}\" class=\"tools-value\">${tool_line}</text>"$'\n'
+              tools_svg="${tools_svg}  <text x=\"92\" y=\"${tool_line_y}\" class=\"tools-value small-text\">${tool_line}</text>"$'\n'
               tool_line="$tool_item"
               tool_line_y=$((tool_line_y + 22))
             else
@@ -621,7 +621,7 @@ jobs:
           done < <(jq -r '.[] | [.name, .version] | @tsv' <<< "$tools_json")
 
           if [ -n "$tool_line" ]; then
-            tools_svg="${tools_svg}  <text x=\"92\" y=\"${tool_line_y}\" class=\"tools-value\">${tool_line}</text>"$'\n'
+            tools_svg="${tools_svg}  <text x=\"92\" y=\"${tool_line_y}\" class=\"tools-value small-text\">${tool_line}</text>"$'\n'
           fi
 
           total_height=$((tool_line_y + 40))
@@ -658,25 +658,27 @@ jobs:
             <style>
               :root { max-width: 800px; height: auto; background: transparent; }
               .panel { fill: transparent; stroke: #385274; stroke-width: 1.1; }
-              .divider { stroke: #31445f; stroke-width: 1; opacity: 0.9; }
-              .title { font: 700 26px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
-              .subtitle { font: 700 18px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #4ade80; }
-              .repo { font: 700 14px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #cbd5e1; }
-              .section-title { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; letter-spacing: 2px; fill: #94a3b8; }
-              .section-card { fill: #051220; fill-opacity: 0.56; stroke: #334862; stroke-width: 1; }
-              .tile-label { font: 700 18px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
+              .divider { stroke: #475569; stroke-width: 1; opacity: 0.9; }
+              .text { paint-order: stroke fill; stroke: #020617; stroke-width: 3px; stroke-linejoin: round; }
+              .small-text { paint-order: stroke fill; stroke: #020617; stroke-width: 2px; stroke-linejoin: round; }
+              .title { font: 700 26px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #ffffff; }
+              .subtitle { font: 700 18px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #22c55e; }
+              .repo { font: 700 14px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #e2e8f0; }
+              .section-title { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; letter-spacing: 2px; fill: #dbeafe; }
+              .section-card { fill: #0f172a; fill-opacity: 0.72; stroke: #334862; stroke-width: 1; }
+              .tile-label { font: 700 18px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #ffffff; }
               .tile-value { font: 800 34px "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
-              .php-title { font: 700 19px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
+              .php-title { font: 700 19px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #ffffff; }
               .accent { fill: #4ade80; }
-              .matrix-line { font: 16px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
+              .matrix-line { font: 16px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #ffffff; }
               .icon-glyph { font: 800 12px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #08111f; }
-              .chip { fill: #0a192c; fill-opacity: 0.62; stroke: #334862; stroke-width: 1; }
-              .chip-text { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
+              .chip { fill: #0f172a; fill-opacity: 0.72; stroke: #334862; stroke-width: 1; }
+              .chip-text { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #ffffff; }
               .badge { fill: #166534; fill-opacity: 0.48; stroke: #22c55e; stroke-width: 1.2; }
-              .badge-text { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
-              .tools-label { font: 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #94a3b8; }
-              .tools-value { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #4ade80; }
-              .meta { font: 13px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #a8b4c7; }
+              .badge-text { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #ffffff; }
+              .tools-label { font: 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #dbeafe; }
+              .tools-value { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #22c55e; }
+              .meta { font: 13px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #dbeafe; }
               .ok { fill: #22c55e; }
               .warn { fill: #facc15; }
               .fail { fill: #f87171; }
@@ -689,36 +691,36 @@ jobs:
 
             <path d="M64 48 L92 38 L120 48 L118 80 C115 104 98 118 92 121 C86 118 69 104 66 80 Z" fill="#22c55e" fill-opacity="0.16" stroke="url(#shieldGradient)" stroke-width="2.6"/>
             <path d="M78 79 l11 11 l22 -25" fill="none" stroke="#86efac" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <text x="140" y="70" class="title">Security &amp; Standards Report</text>
-            <text x="140" y="101" class="subtitle">${security_status}</text>
-            <text x="140" y="123" class="repo">${repository_label}</text>
-            <text x="140" y="143" class="meta">${run_meta}</text>
+            <text x="140" y="70" class="title text">Security &amp; Standards Report</text>
+            <text x="140" y="101" class="subtitle text">${security_status}</text>
+            <text x="140" y="123" class="repo small-text">${repository_label}</text>
+            <text x="140" y="143" class="meta small-text">${run_meta}</text>
             <rect x="620" y="46" width="126" height="34" rx="17" class="badge"/>
             <circle cx="642" cy="63" r="8" fill="#22c55e"/>
             <path d="M638 62 l3 3 l6 -7" fill="none" stroke="#062214" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <text x="660" y="69" class="badge-text">${overall_status_label}</text>
+            <text x="660" y="69" class="badge-text small-text">${overall_status_label}</text>
             <line x1="44" y1="158" x2="756" y2="158" class="divider"/>
 
-            <text x="44" y="194" class="section-title">VULNERABILITY SUMMARY</text>
+            <text x="44" y="194" class="section-title small-text">VULNERABILITY SUMMARY</text>
             <rect x="44" y="210" width="167" height="62" rx="10" class="section-card"/>
-            <text x="62" y="249" class="tile-label">Critical</text>
+            <text x="62" y="249" class="tile-label small-text">Critical</text>
             <text x="184" y="254" text-anchor="end" class="tile-value critical">0</text>
             <rect x="226" y="210" width="167" height="62" rx="10" class="section-card"/>
-            <text x="244" y="249" class="tile-label">High</text>
+            <text x="244" y="249" class="tile-label small-text">High</text>
             <text x="366" y="254" text-anchor="end" class="tile-value high">0</text>
             <rect x="408" y="210" width="167" height="62" rx="10" class="section-card"/>
-            <text x="426" y="249" class="tile-label">Medium</text>
+            <text x="426" y="249" class="tile-label small-text">Medium</text>
             <text x="548" y="254" text-anchor="end" class="tile-value medium">0</text>
             <rect x="590" y="210" width="167" height="62" rx="10" class="section-card"/>
-            <text x="608" y="249" class="tile-label">Low</text>
+            <text x="608" y="249" class="tile-label small-text">Low</text>
             <text x="730" y="254" text-anchor="end" class="tile-value low">0</text>
 
-            <text x="44" y="306" class="section-title">PHP MATRIX</text>
+            <text x="44" y="306" class="section-title small-text">PHP MATRIX</text>
           ${matrix_cards_svg}
-            <text x="44" y="${quality_title_y}" class="section-title">QUALITY GATES</text>
+            <text x="44" y="${quality_title_y}" class="section-title small-text">QUALITY GATES</text>
           ${quality_chips_svg}
             <line x1="44" y1="${footer_y}" x2="756" y2="${footer_y}" class="divider"/>
-            <text x="44" y="${tools_label_y}" class="tools-label">Tools:</text>
+            <text x="44" y="${tools_label_y}" class="tools-label small-text">Tools:</text>
           ${tools_svg}
           </svg>
           SVG
