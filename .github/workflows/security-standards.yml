@@ -523,7 +523,7 @@ jobs:
           }
 
           matrix_cards_svg=""
-          card_y=304
+          card_y=324
 
           append_matrix_line() {
             local status="$1"
@@ -627,6 +627,7 @@ jobs:
           total_height=$((tool_line_y + 40))
           panel_height=$((total_height - 26))
           tools_label_y=$((footer_y + 34))
+          repository_label="$(xml_escape "Project: ${GITHUB_REPOSITORY}")"
           run_meta="$(xml_escape "Generated: ${generated_at} | Commit: ${short_sha} | Run: #${GITHUB_RUN_NUMBER} | Worker: ${GITHUB_RUN_ID}")"
           overall_status_label="$(status_label "$overall_state")"
 
@@ -660,6 +661,7 @@ jobs:
               .divider { stroke: #31445f; stroke-width: 1; opacity: 0.9; }
               .title { font: 700 26px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
               .subtitle { font: 700 18px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #4ade80; }
+              .repo { font: 700 14px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #cbd5e1; }
               .section-title { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; letter-spacing: 2px; fill: #94a3b8; }
               .section-card { fill: #051220; fill-opacity: 0.56; stroke: #334862; stroke-width: 1; }
               .tile-label { font: 700 18px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
@@ -689,28 +691,29 @@ jobs:
             <path d="M78 79 l11 11 l22 -25" fill="none" stroke="#86efac" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
             <text x="140" y="70" class="title">Security &amp; Standards Report</text>
             <text x="140" y="101" class="subtitle">${security_status}</text>
-            <text x="140" y="124" class="meta">${run_meta}</text>
+            <text x="140" y="123" class="repo">${repository_label}</text>
+            <text x="140" y="143" class="meta">${run_meta}</text>
             <rect x="620" y="46" width="126" height="34" rx="17" class="badge"/>
             <circle cx="642" cy="63" r="8" fill="#22c55e"/>
             <path d="M638 62 l3 3 l6 -7" fill="none" stroke="#062214" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <text x="660" y="69" class="badge-text">${overall_status_label}</text>
-            <line x1="44" y1="138" x2="756" y2="138" class="divider"/>
+            <line x1="44" y1="158" x2="756" y2="158" class="divider"/>
 
-            <text x="44" y="174" class="section-title">VULNERABILITY SUMMARY</text>
-            <rect x="44" y="190" width="167" height="62" rx="10" class="section-card"/>
-            <text x="62" y="229" class="tile-label">Critical</text>
-            <text x="184" y="234" text-anchor="end" class="tile-value critical">0</text>
-            <rect x="226" y="190" width="167" height="62" rx="10" class="section-card"/>
-            <text x="244" y="229" class="tile-label">High</text>
-            <text x="366" y="234" text-anchor="end" class="tile-value high">0</text>
-            <rect x="408" y="190" width="167" height="62" rx="10" class="section-card"/>
-            <text x="426" y="229" class="tile-label">Medium</text>
-            <text x="548" y="234" text-anchor="end" class="tile-value medium">0</text>
-            <rect x="590" y="190" width="167" height="62" rx="10" class="section-card"/>
-            <text x="608" y="229" class="tile-label">Low</text>
-            <text x="730" y="234" text-anchor="end" class="tile-value low">0</text>
+            <text x="44" y="194" class="section-title">VULNERABILITY SUMMARY</text>
+            <rect x="44" y="210" width="167" height="62" rx="10" class="section-card"/>
+            <text x="62" y="249" class="tile-label">Critical</text>
+            <text x="184" y="254" text-anchor="end" class="tile-value critical">0</text>
+            <rect x="226" y="210" width="167" height="62" rx="10" class="section-card"/>
+            <text x="244" y="249" class="tile-label">High</text>
+            <text x="366" y="254" text-anchor="end" class="tile-value high">0</text>
+            <rect x="408" y="210" width="167" height="62" rx="10" class="section-card"/>
+            <text x="426" y="249" class="tile-label">Medium</text>
+            <text x="548" y="254" text-anchor="end" class="tile-value medium">0</text>
+            <rect x="590" y="210" width="167" height="62" rx="10" class="section-card"/>
+            <text x="608" y="249" class="tile-label">Low</text>
+            <text x="730" y="254" text-anchor="end" class="tile-value low">0</text>
 
-            <text x="44" y="286" class="section-title">PHP MATRIX</text>
+            <text x="44" y="306" class="section-title">PHP MATRIX</text>
           ${matrix_cards_svg}
             <text x="44" y="${quality_title_y}" class="section-title">QUALITY GATES</text>
           ${quality_chips_svg}
