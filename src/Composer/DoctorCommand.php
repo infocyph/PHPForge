@@ -22,6 +22,7 @@ final class DoctorCommand extends Command
         'phpstan_memory_limit',
         'psalm_threads',
         'run_analysis',
+        'run_svg_report',
     ];
 
     private const PLUGINS = [

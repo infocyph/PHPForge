@@ -30,4 +30,4 @@
 - Pre-commit runs `composer validate --strict`, `composer normalize --dry-run`, `composer ic:release:audit`, `composer ic:tests`.
 - `IC_HOOKS_STRICT=1` is default; use `IC_HOOKS_STRICT=0 composer install` only for best-effort hook install.
 - Workflow: `infocyph/phpforge/.github/workflows/security-standards.yml@main`.
-- Workflow inputs: `php_versions`, `dependency_versions`, `php_extensions`, `coverage`, `composer_flags`, `phpstan_memory_limit`, `psalm_threads`, `run_analysis`.
+- Workflow inputs: `php_versions`, `dependency_versions`, `php_extensions`, `coverage`, `composer_flags`, `phpstan_memory_limit`, `psalm_threads`, `run_analysis`, `run_svg_report`.

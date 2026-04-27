@@ -24,3 +24,4 @@ jobs:
       phpstan_memory_limit: "1G"
       psalm_threads: "1"
       run_analysis: true
+      run_svg_report: true
