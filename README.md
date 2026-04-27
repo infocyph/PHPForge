@@ -350,7 +350,7 @@ Workflow inputs:
 | `phpstan_memory_limit` | `1G`                                | PHPStan memory limit used by workflow analysis.                                              |
 | `psalm_threads`        | `1`                                 | Psalm thread count used by workflow analysis.                                                |
 | `run_analysis`         | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.             |
-| `run_svg_report`       | `true`                              | Generates SVG report artifacts (`security-status.svg`, `security-report.svg`, JSON summary). |
+| `run_svg_report`       | `true`                              | Generates `security-report.svg` and `security-summary.json`, including benchmark status. |
 
 ### Workflow Input Details
 
@@ -452,11 +452,15 @@ with:
   run_svg_report: true
 ```
 
-When enabled, the workflow uploads a `security-svg-report` artifact containing:
+When enabled, the workflow uploads two artifacts:
 
-- `security-status.svg` (badge-style status)
-- `security-report.svg` (detailed per-check report)
-- `security-summary.json` (machine-readable summary)
+- `security-report-svg` (contains `security-report.svg`)
+- `security-summary-json` (contains `security-summary.json`)
+
+`security-summary.json` includes benchmark metadata from `composer ic:bench:quick`:
+
+- `benchmark_result`
+- `benchmark_php_version`
 
 ### Workflow Examples
 
@@ -654,7 +658,7 @@ with:
   run_svg_report: true
 ```
 
-Then open the workflow run and download the `security-svg-report` artifact.
+Then open the workflow run and download `security-report-svg` and `security-summary-json`.
 
 ### A bundled rule is too strict
 

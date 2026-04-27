@@ -203,31 +203,6 @@ jobs:
           category: "psalm-${{ matrix.php-versions }}"
         if: always() && hashFiles('psalm-results.sarif') != ''
 
-      - name: Build analysis summary
-        if: always()
-        run: |
-          mkdir -p .phpforge-report
-          cat > ".phpforge-report/security-analysis-summary-${{ matrix.php-versions }}.json" <<JSON
-          {
-            "php_version": "${{ matrix.php-versions }}",
-            "composer_audit": "${{ steps.composer_audit.outcome }}",
-            "quality_gate": "${{ steps.quality_gate.outcome }}",
-            "security_gate": "${{ steps.security_gate.outcome }}",
-            "phpstan_scan": "${{ steps.phpstan_scan.outcome }}",
-            "upload_phpstan": "${{ steps.upload_phpstan.outcome }}",
-            "psalm_scan": "${{ steps.psalm_scan.outcome }}",
-            "upload_psalm": "${{ steps.upload_psalm.outcome }}"
-          }
-          JSON
-
-      - name: Upload analysis summary
-        if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-        uses: actions/upload-artifact@v4
-        with:
-          name: "security-analysis-summary-${{ matrix.php-versions }}"
-          path: ".phpforge-report/security-analysis-summary-${{ matrix.php-versions }}.json"
-          if-no-files-found: error
-
       - name: Enforce analysis gates
         if: always()
         shell: bash
@@ -260,13 +235,40 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download analysis summaries
-        uses: actions/download-artifact@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve report PHP version
+        id: report_php
+        shell: bash
+        run: |
+          php_version="$(jq -r 'if type == "array" and length > 0 then .[-1] else empty end' <<< '${{ inputs.php_versions }}')"
+
+          if [ -z "$php_version" ] || [ "$php_version" = "null" ]; then
+            php_version="8.5"
+          fi
+
+          echo "php_version=${php_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
         with:
-          pattern: security-analysis-summary-*
-          path: .phpforge-report/summaries
-          merge-multiple: true
+          php-version: ${{ steps.report_php.outputs.php_version }}
+          tools: composer:v2
+          extensions: ${{ inputs.php_extensions }}
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress ${{ inputs.composer_flags }}
+
+      - name: Run benchmark
+        id: benchmark
         continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p .phpforge-report/out
+          set -o pipefail
+          composer ic:bench:quick | tee .phpforge-report/out/benchmark.log
 
       - name: Build SVG report artifacts
         shell: bash
@@ -277,26 +279,16 @@ jobs:
 
           run_result="${{ needs.run.result }}"
           analyze_result="${{ needs.analyze.result }}"
+          benchmark_result="${{ steps.benchmark.outcome }}"
+          benchmark_php_version="${{ steps.report_php.outputs.php_version }}"
           generated_at="$(date -u +"%Y-%m-%d %H:%M UTC")"
 
           overall_state="failing"
-          overall_label="failing"
-          badge_color="#d1242f"
 
           if [ "$run_result" = "success" ] && [ "$analyze_result" = "success" ]; then
             overall_state="passing"
-            overall_label="passing"
-            badge_color="#2ea043"
           elif [ "$run_result" = "success" ] && [ "$analyze_result" = "skipped" ]; then
             overall_state="partial"
-            overall_label="partial"
-            badge_color="#9a6700"
-          fi
-
-          if compgen -G ".phpforge-report/summaries/*.json" > /dev/null; then
-            entries_json="$(jq -s 'sort_by(.php_version)' .phpforge-report/summaries/*.json)"
-          else
-            entries_json='[]'
           fi
 
           jq -n \
@@ -304,39 +296,16 @@ jobs:
             --arg overall_state "$overall_state" \
             --arg run_result "$run_result" \
             --arg analyze_result "$analyze_result" \
-            --argjson entries "$entries_json" \
+            --arg benchmark_result "$benchmark_result" \
+            --arg benchmark_php_version "$benchmark_php_version" \
             '{
               generated_at: $generated_at,
               overall_state: $overall_state,
               run_result: $run_result,
               analyze_result: $analyze_result,
-              entries: $entries
+              benchmark_result: $benchmark_result,
+              benchmark_php_version: $benchmark_php_version
             }' > .phpforge-report/out/security-summary.json
-
-          cat > .phpforge-report/out/security-status.svg <<SVG
-          <svg xmlns="http://www.w3.org/2000/svg" width="240" height="20" role="img" aria-label="security report: ${overall_label}">
-            <linearGradient id="g" x2="0" y2="100%">
-              <stop offset="0" stop-color="#fff" stop-opacity=".7"/>
-              <stop offset=".1" stop-color="#aaa" stop-opacity=".1"/>
-              <stop offset=".9" stop-opacity=".3"/>
-              <stop offset="1" stop-opacity=".5"/>
-            </linearGradient>
-            <mask id="m">
-              <rect width="240" height="20" rx="3" fill="#fff"/>
-            </mask>
-            <g mask="url(#m)">
-              <rect width="145" height="20" fill="#555"/>
-              <rect x="145" width="95" height="20" fill="${badge_color}"/>
-              <rect width="240" height="20" fill="url(#g)"/>
-            </g>
-            <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
-              <text x="73.5" y="15" fill="#010101" fill-opacity=".3">security report</text>
-              <text x="73.5" y="14">security report</text>
-              <text x="192.5" y="15" fill="#010101" fill-opacity=".3">${overall_label}</text>
-              <text x="192.5" y="14">${overall_label}</text>
-            </g>
-          </svg>
-          SVG
 
           status_label() {
             case "$1" in
@@ -371,14 +340,7 @@ jobs:
 
           append_row "Pipeline matrix checks" "$(status_label "$run_result")" "$(status_class "$run_result")"
           append_row "Security analysis job" "$(status_label "$analyze_result")" "$(status_class "$analyze_result")"
-
-          while IFS=$'\t' read -r php_version composer_audit quality_gate security_gate phpstan_scan psalm_scan; do
-            append_row "PHP ${php_version} - Composer audit" "$(status_label "$composer_audit")" "$(status_class "$composer_audit")"
-            append_row "PHP ${php_version} - PHPStan quality gate" "$(status_label "$quality_gate")" "$(status_class "$quality_gate")"
-            append_row "PHP ${php_version} - Psalm security gate" "$(status_label "$security_gate")" "$(status_class "$security_gate")"
-            append_row "PHP ${php_version} - PHPStan SARIF scan" "$(status_label "$phpstan_scan")" "$(status_class "$phpstan_scan")"
-            append_row "PHP ${php_version} - Psalm SARIF scan" "$(status_label "$psalm_scan")" "$(status_class "$psalm_scan")"
-          done < <(jq -r '.entries[]? | [.php_version, .composer_audit, .quality_gate, .security_gate, .phpstan_scan, .psalm_scan] | @tsv' .phpforge-report/out/security-summary.json)
+          append_row "Benchmark quick pass (PHP ${benchmark_php_version})" "$(status_label "$benchmark_result")" "$(status_class "$benchmark_result")"
 
           total_height=$((y + 24))
 
@@ -405,12 +367,20 @@ jobs:
             echo "- Overall: \`${overall_state}\`"
             echo "- Run matrix: \`${run_result}\`"
             echo "- Analysis job: \`${analyze_result}\`"
-            echo "- Artifacts: \`security-status.svg\`, \`security-report.svg\`, \`security-summary.json\`"
+            echo "- Benchmark quick pass: \`${benchmark_result}\` (PHP ${benchmark_php_version})"
+            echo "- Artifacts: \`security-report.svg\`, \`security-summary.json\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload SVG report artifacts
+      - name: Upload security report SVG
         uses: actions/upload-artifact@v4
         with:
-          name: security-svg-report
-          path: .phpforge-report/out/
+          name: security-report-svg
+          path: .phpforge-report/out/security-report.svg
+          if-no-files-found: error
+
+      - name: Upload security summary JSON
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-summary-json
+          path: .phpforge-report/out/security-summary.json
           if-no-files-found: error
