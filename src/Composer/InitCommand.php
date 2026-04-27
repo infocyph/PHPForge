@@ -16,7 +16,7 @@ use Symfony\Component\Console\Question\Question;
 
 final class InitCommand extends Command
 {
-    private const END_OF_LIFE_PHP_API = 'https://endoflife.date/api/php.json';
+    private const string END_OF_LIFE_PHP_API = 'https://endoflife.date/api/php.json';
 
     /**
      * @var array<string, string>|null

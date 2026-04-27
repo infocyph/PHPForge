@@ -11,7 +11,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 final class CleanCommand extends Command
 {
-    private const PATHS = [
+    private const array PATHS = [
         '.phpunit.cache',
         '.psalm-cache',
         'phpstan-results.json',
