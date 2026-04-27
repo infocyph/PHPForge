@@ -438,6 +438,9 @@ jobs:
 
           status_label() {
             case "$1" in
+              passing) echo "PASSING" ;;
+              failing) echo "FAILING" ;;
+              partial) echo "PARTIAL" ;;
               success) echo "PASS" ;;
               failure) echo "FAIL" ;;
               cancelled) echo "CANCELLED" ;;
@@ -448,65 +451,255 @@ jobs:
 
           status_class() {
             case "$1" in
-              success) echo "ok" ;;
-              failure|cancelled|timed_out|action_required) echo "fail" ;;
+              passing|success) echo "ok" ;;
+              failing|failure|cancelled|timed_out|action_required) echo "fail" ;;
+              partial|skipped|missing) echo "warn" ;;
               info) echo "info" ;;
               *) echo "warn" ;;
             esac
           }
 
-          rows_svg=""
-          y=118
-          benchmark_label="Benchmark quick pass"
-
-          if [ "$benchmark_command" = "ic:test:bench" ]; then
-            benchmark_label="Benchmark aggregate pass"
-          elif [ "$benchmark_command" = "none" ]; then
-            benchmark_label="Benchmark unavailable"
-          fi
-
-          append_row() {
-            local label="$1"
-            local status="$2"
-            local css_class="$3"
-
-            rows_svg="${rows_svg}  <text x=\"28\" y=\"${y}\" class=\"label\">${label}</text>"$'\n'
-            rows_svg="${rows_svg}  <text x=\"542\" y=\"${y}\" text-anchor=\"end\" class=\"${css_class}\">${status}</text>"$'\n'
-            y=$((y + 22))
+          status_fill() {
+            case "$1" in
+              passing|success) echo "#22c55e" ;;
+              failing|failure|cancelled|timed_out|action_required) echo "#f87171" ;;
+              skipped|partial) echo "#facc15" ;;
+              missing) echo "#fb923c" ;;
+              *) echo "#94a3b8" ;;
+            esac
           }
 
-          append_row "Pipeline matrix checks" "$(status_label "$run_result")" "$(status_class "$run_result")"
-          append_row "Security analysis job" "$(status_label "$analyze_result")" "$(status_class "$analyze_result")"
-          append_row "${benchmark_label} (PHP ${benchmark_php_version})" "$(status_label "$benchmark_result")" "$(status_class "$benchmark_result")"
+          xml_escape() {
+            sed \
+              -e 's/&/\&amp;/g' \
+              -e 's/</\&lt;/g' \
+              -e 's/>/\&gt;/g' \
+              -e 's/"/\&quot;/g' \
+              -e "s/'/\&apos;/g" <<< "$1"
+          }
+
+          combined_status() {
+            local first="$1"
+            local second="$2"
+
+            if [ "$first" = "success" ] && [ "$second" = "success" ]; then
+              echo "success"
+            elif [ "$first" = "failure" ] || [ "$second" = "failure" ]; then
+              echo "failure"
+            elif [ "$first" = "cancelled" ] || [ "$second" = "cancelled" ]; then
+              echo "cancelled"
+            elif [ "$first" = "missing" ] || [ "$second" = "missing" ]; then
+              echo "missing"
+            elif [ "$first" = "skipped" ] || [ "$second" = "skipped" ]; then
+              echo "skipped"
+            else
+              echo "partial"
+            fi
+          }
+
+          status_icon_svg() {
+            local status="$1"
+            local x="$2"
+            local y="$3"
+            local fill
+            local glyph
+
+            fill="$(status_fill "$status")"
+
+            if [ "$status" = "success" ]; then
+              printf '<circle cx="%s" cy="%s" r="8" fill="%s"/><path d="M%s %s l4 4 l8 -9" fill="none" stroke="#062214" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' \
+                "$x" "$y" "$fill" "$((x - 5))" "$((y - 1))"
+            else
+              case "$status" in
+                failure|cancelled|timed_out|action_required) glyph="!" ;;
+                skipped) glyph="-" ;;
+                *) glyph="?" ;;
+              esac
+
+              printf '<circle cx="%s" cy="%s" r="8" fill="%s"/><text x="%s" y="%s" text-anchor="middle" class="icon-glyph">%s</text>' \
+                "$x" "$y" "$fill" "$x" "$((y + 4))" "$glyph"
+            fi
+          }
+
+          matrix_cards_svg=""
+          card_y=342
+
+          append_matrix_line() {
+            local status="$1"
+            local label="$2"
+            local line_y="$3"
+            local escaped_label
+
+            escaped_label="$(xml_escape "$label")"
+            matrix_cards_svg="${matrix_cards_svg}    $(status_icon_svg "$status" 68 "$line_y")"$'\n'
+            matrix_cards_svg="${matrix_cards_svg}    <text x=\"86\" y=\"$((line_y + 5))\" class=\"matrix-line\">${escaped_label}</text>"$'\n'
+          }
 
           while IFS=$'\t' read -r php_version lowest stable security; do
-            append_row "PHP ${php_version} CI prefer-lowest" "$(status_label "$lowest")" "$(status_class "$lowest")"
-            append_row "PHP ${php_version} CI prefer-stable" "$(status_label "$stable")" "$(status_class "$stable")"
-            append_row "PHP ${php_version} Security analysis" "$(status_label "$security")" "$(status_class "$security")"
+            php_version="$(xml_escape "$php_version")"
+            ci_status="$(combined_status "$lowest" "$stable")"
+
+            matrix_cards_svg="${matrix_cards_svg}  <rect x=\"44\" y=\"${card_y}\" width=\"712\" height=\"126\" rx=\"12\" class=\"section-card\"/>"$'\n'
+            matrix_cards_svg="${matrix_cards_svg}  <text x=\"64\" y=\"$((card_y + 30))\" class=\"php-title\">PHP <tspan class=\"accent\">${php_version}</tspan></text>"$'\n'
+
+            append_matrix_line "$ci_status" "CI" "$((card_y + 55))"
+            append_matrix_line "$security" "Security" "$((card_y + 76))"
+            append_matrix_line "$lowest" "Lowest" "$((card_y + 97))"
+            append_matrix_line "$stable" "Stable" "$((card_y + 118))"
+
+            card_y=$((card_y + 140))
           done < <(jq -r '.[] | [.php_version, .code_analysis_prefer_lowest, .code_analysis_prefer_stable, .security_analysis] | @tsv' <<< "$matrix_results_json")
 
+          quality_title_y=$((card_y + 32))
+          chip_y=$((quality_title_y + 20))
+          chip_x=44
+          quality_chips_svg=""
+
+          append_chip() {
+            local label="$1"
+            local status="$2"
+            local width
+            local fill
+            local escaped_label
+
+            width=$(((${#label} * 8) + 62))
+
+            if [ $((chip_x + width)) -gt 756 ]; then
+              chip_x=44
+              chip_y=$((chip_y + 44))
+            fi
+
+            fill="$(status_fill "$status")"
+            escaped_label="$(xml_escape "$label")"
+            quality_chips_svg="${quality_chips_svg}  <rect x=\"${chip_x}\" y=\"${chip_y}\" width=\"${width}\" height=\"30\" rx=\"15\" class=\"chip\"/>"$'\n'
+            quality_chips_svg="${quality_chips_svg}  <circle cx=\"$((chip_x + 22))\" cy=\"$((chip_y + 15))\" r=\"8\" fill=\"${fill}\"/>"$'\n'
+            quality_chips_svg="${quality_chips_svg}  <text x=\"$((chip_x + 42))\" y=\"$((chip_y + 20))\" class=\"chip-text\">${escaped_label}</text>"$'\n'
+            chip_x=$((chip_x + width + 14))
+          }
+
+          append_chip "Syntax" "$run_result"
+          append_chip "Tests" "$run_result"
+          append_chip "Lint" "$run_result"
+          append_chip "Static" "$analyze_result"
+          append_chip "Security" "$analyze_result"
+          append_chip "Refactor" "$run_result"
+          append_chip "Composer" "$run_result"
+
+          footer_y=$((chip_y + 64))
+          tools_svg=""
+          tool_line=""
+          tool_line_y=$((footer_y + 34))
+
           while IFS=$'\t' read -r tool_name tool_version; do
-            append_row "Tool: ${tool_name}" "$tool_version" "info"
+            tool_item="$(xml_escape "${tool_name} ${tool_version}")"
+
+            if [ -z "$tool_line" ]; then
+              tool_line="$tool_item"
+            elif [ $((${#tool_line} + ${#tool_item})) -gt 86 ]; then
+              tools_svg="${tools_svg}  <text x=\"92\" y=\"${tool_line_y}\" class=\"tools-value\">${tool_line}</text>"$'\n'
+              tool_line="$tool_item"
+              tool_line_y=$((tool_line_y + 22))
+            else
+              tool_line="${tool_line} &#183; ${tool_item}"
+            fi
           done < <(jq -r '.[] | [.name, .version] | @tsv' <<< "$tools_json")
 
-          total_height=$((y + 24))
+          if [ -n "$tool_line" ]; then
+            tools_svg="${tools_svg}  <text x=\"92\" y=\"${tool_line_y}\" class=\"tools-value\">${tool_line}</text>"$'\n'
+          fi
+
+          generated_y=$((tool_line_y + 26))
+          total_height=$((generated_y + 28))
+          panel_height=$((total_height - 26))
+          overall_status_label="$(status_label "$overall_state")"
+
+          if [ "$overall_state" = "passing" ]; then
+            security_status="Security Status: Protected"
+          elif [ "$overall_state" = "partial" ]; then
+            security_status="Security Status: Partially Protected"
+          else
+            security_status="Security Status: Attention Required"
+          fi
 
           cat > .phpforge-report/out/security-report.svg <<SVG
-          <svg xmlns="http://www.w3.org/2000/svg" width="580" height="${total_height}" role="img" aria-label="Security report summary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="800" height="${total_height}" viewBox="0 0 800 ${total_height}" role="img" aria-label="Security and standards report summary">
+            <defs>
+              <radialGradient id="panelGlow" cx="48%" cy="24%" r="72%">
+                <stop offset="0%" stop-color="#17345a" stop-opacity="0.72"/>
+                <stop offset="52%" stop-color="#071827" stop-opacity="0.98"/>
+                <stop offset="100%" stop-color="#030b13" stop-opacity="1"/>
+              </radialGradient>
+              <linearGradient id="shieldGradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#22c55e"/>
+                <stop offset="100%" stop-color="#86efac"/>
+              </linearGradient>
+              <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000814" flood-opacity="0.48"/>
+              </filter>
+            </defs>
             <style>
-              .title { font: 700 20px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #111827; }
-              .meta { font: 12px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #374151; }
-              .label { font: 13px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #111827; }
-              .ok { font: 700 12px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #166534; }
-              .warn { font: 700 12px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #9a6700; }
-              .fail { font: 700 12px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #b42318; }
-              .info { font: 700 12px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #1f4e79; }
+              .panel { fill: url(#panelGlow); stroke: #385274; stroke-width: 1.1; }
+              .divider { stroke: #31445f; stroke-width: 1; opacity: 0.9; }
+              .title { font: 700 26px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
+              .subtitle { font: 700 18px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #4ade80; }
+              .section-title { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; letter-spacing: 2px; fill: #94a3b8; }
+              .section-card { fill: #051220; fill-opacity: 0.56; stroke: #334862; stroke-width: 1; }
+              .tile-label { font: 700 18px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
+              .tile-value { font: 800 34px "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+              .php-title { font: 700 19px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
+              .accent { fill: #4ade80; }
+              .matrix-line { font: 16px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
+              .icon-glyph { font: 800 12px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #08111f; }
+              .chip { fill: #0a192c; fill-opacity: 0.62; stroke: #334862; stroke-width: 1; }
+              .chip-text { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
+              .badge { fill: #166534; fill-opacity: 0.48; stroke: #22c55e; stroke-width: 1.2; }
+              .badge-text { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
+              .tools-label { font: 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #94a3b8; }
+              .tools-value { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #4ade80; }
+              .generated { font: 14px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #a8b4c7; }
+              .ok { fill: #22c55e; }
+              .warn { fill: #facc15; }
+              .fail { fill: #f87171; }
+              .critical { fill: #f87171; }
+              .high { fill: #fb923c; }
+              .medium { fill: #facc15; }
+              .low { fill: #22c55e; }
             </style>
-            <rect x="0.5" y="0.5" width="579" height="$((total_height - 1))" rx="10" fill="#f8fafc" stroke="#d0d7de"/>
-            <rect x="16" y="16" width="548" height="66" rx="8" fill="#eef2ff"/>
-            <text x="28" y="44" class="title">Security &amp; Standards Report</text>
-            <text x="28" y="66" class="meta">Generated: ${generated_at} | Overall: ${overall_state}</text>
-          ${rows_svg}</svg>
+            <rect x="20" y="14" width="760" height="${panel_height}" rx="16" class="panel" filter="url(#softShadow)"/>
+
+            <path d="M64 48 L92 38 L120 48 L118 80 C115 104 98 118 92 121 C86 118 69 104 66 80 Z" fill="#22c55e" fill-opacity="0.16" stroke="url(#shieldGradient)" stroke-width="2.6"/>
+            <path d="M78 79 l11 11 l22 -25" fill="none" stroke="#86efac" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <text x="140" y="70" class="title">Security &amp; Standards Report</text>
+            <text x="140" y="101" class="subtitle">${security_status}</text>
+            <rect x="620" y="46" width="126" height="34" rx="17" class="badge"/>
+            <circle cx="642" cy="63" r="8" fill="#22c55e"/>
+            <path d="M638 62 l3 3 l6 -7" fill="none" stroke="#062214" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <text x="660" y="69" class="badge-text">${overall_status_label}</text>
+            <line x1="44" y1="138" x2="756" y2="138" class="divider"/>
+
+            <text x="44" y="174" class="section-title">VULNERABILITY SUMMARY</text>
+            <rect x="44" y="190" width="342" height="62" rx="10" class="section-card"/>
+            <text x="68" y="229" class="tile-label">Critical</text>
+            <text x="354" y="234" text-anchor="end" class="tile-value critical">0</text>
+            <rect x="414" y="190" width="342" height="62" rx="10" class="section-card"/>
+            <text x="438" y="229" class="tile-label">High</text>
+            <text x="724" y="234" text-anchor="end" class="tile-value high">0</text>
+            <rect x="44" y="266" width="342" height="62" rx="10" class="section-card"/>
+            <text x="68" y="305" class="tile-label">Medium</text>
+            <text x="354" y="310" text-anchor="end" class="tile-value medium">0</text>
+            <rect x="414" y="266" width="342" height="62" rx="10" class="section-card"/>
+            <text x="438" y="305" class="tile-label">Low</text>
+            <text x="724" y="310" text-anchor="end" class="tile-value low">0</text>
+
+            <text x="44" y="332" class="section-title">PHP MATRIX</text>
+          ${matrix_cards_svg}
+            <text x="44" y="${quality_title_y}" class="section-title">QUALITY GATES</text>
+          ${quality_chips_svg}
+            <line x1="44" y="${footer_y}" x2="756" y="${footer_y}" class="divider"/>
+            <text x="44" y="$((footer_y + 34))" class="tools-label">Tools:</text>
+          ${tools_svg}
+            <text x="44" y="${generated_y}" class="generated">Generated: ${generated_at}</text>
+          </svg>
           SVG
 
           {
