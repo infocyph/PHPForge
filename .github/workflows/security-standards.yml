@@ -522,32 +522,39 @@ jobs:
           }
 
           matrix_cards_svg=""
-          card_y=342
+          card_y=304
 
           append_matrix_line() {
             local status="$1"
             local label="$2"
-            local line_y="$3"
+            local icon_x="$3"
+            local line_y="$4"
             local escaped_label
+            local text_x
+            local text_y
 
             escaped_label="$(xml_escape "$label")"
-            matrix_cards_svg="${matrix_cards_svg}    $(status_icon_svg "$status" 68 "$line_y")"$'\n'
-            matrix_cards_svg="${matrix_cards_svg}    <text x=\"86\" y=\"$((line_y + 5))\" class=\"matrix-line\">${escaped_label}</text>"$'\n'
+            text_x=$((icon_x + 20))
+            text_y=$((line_y + 5))
+            matrix_cards_svg="${matrix_cards_svg}    $(status_icon_svg "$status" "$icon_x" "$line_y")"$'\n'
+            matrix_cards_svg="${matrix_cards_svg}    <text x=\"${text_x}\" y=\"${text_y}\" class=\"matrix-line\">${escaped_label}</text>"$'\n'
           }
 
           while IFS=$'\t' read -r php_version lowest stable security; do
             php_version="$(xml_escape "$php_version")"
             ci_status="$(combined_status "$lowest" "$stable")"
+            php_title_y=$((card_y + 38))
+            status_line_y=$((card_y + 32))
 
-            matrix_cards_svg="${matrix_cards_svg}  <rect x=\"44\" y=\"${card_y}\" width=\"712\" height=\"126\" rx=\"12\" class=\"section-card\"/>"$'\n'
-            matrix_cards_svg="${matrix_cards_svg}  <text x=\"64\" y=\"$((card_y + 30))\" class=\"php-title\">PHP <tspan class=\"accent\">${php_version}</tspan></text>"$'\n'
+            matrix_cards_svg="${matrix_cards_svg}  <rect x=\"44\" y=\"${card_y}\" width=\"712\" height=\"62\" rx=\"12\" class=\"section-card\"/>"$'\n'
+            matrix_cards_svg="${matrix_cards_svg}  <text x=\"64\" y=\"${php_title_y}\" class=\"php-title\">PHP <tspan class=\"accent\">${php_version}</tspan></text>"$'\n'
 
-            append_matrix_line "$ci_status" "CI" "$((card_y + 55))"
-            append_matrix_line "$security" "Security" "$((card_y + 76))"
-            append_matrix_line "$lowest" "Lowest" "$((card_y + 97))"
-            append_matrix_line "$stable" "Stable" "$((card_y + 118))"
+            append_matrix_line "$ci_status" "CI" 178 "$status_line_y"
+            append_matrix_line "$security" "Security" 286 "$status_line_y"
+            append_matrix_line "$lowest" "Lowest" 430 "$status_line_y"
+            append_matrix_line "$stable" "Stable" 572 "$status_line_y"
 
-            card_y=$((card_y + 140))
+            card_y=$((card_y + 76))
           done < <(jq -r '.[] | [.php_version, .code_analysis_prefer_lowest, .code_analysis_prefer_stable, .security_analysis] | @tsv' <<< "$matrix_results_json")
 
           quality_title_y=$((card_y + 32))
@@ -561,6 +568,10 @@ jobs:
             local width
             local fill
             local escaped_label
+            local dot_x
+            local dot_y
+            local text_x
+            local text_y
 
             width=$(((${#label} * 8) + 62))
 
@@ -571,9 +582,13 @@ jobs:
 
             fill="$(status_fill "$status")"
             escaped_label="$(xml_escape "$label")"
+            dot_x=$((chip_x + 22))
+            dot_y=$((chip_y + 15))
+            text_x=$((chip_x + 42))
+            text_y=$((chip_y + 20))
             quality_chips_svg="${quality_chips_svg}  <rect x=\"${chip_x}\" y=\"${chip_y}\" width=\"${width}\" height=\"30\" rx=\"15\" class=\"chip\"/>"$'\n'
-            quality_chips_svg="${quality_chips_svg}  <circle cx=\"$((chip_x + 22))\" cy=\"$((chip_y + 15))\" r=\"8\" fill=\"${fill}\"/>"$'\n'
-            quality_chips_svg="${quality_chips_svg}  <text x=\"$((chip_x + 42))\" y=\"$((chip_y + 20))\" class=\"chip-text\">${escaped_label}</text>"$'\n'
+            quality_chips_svg="${quality_chips_svg}  <circle cx=\"${dot_x}\" cy=\"${dot_y}\" r=\"8\" fill=\"${fill}\"/>"$'\n'
+            quality_chips_svg="${quality_chips_svg}  <text x=\"${text_x}\" y=\"${text_y}\" class=\"chip-text\">${escaped_label}</text>"$'\n'
             chip_x=$((chip_x + width + 14))
           }
 
@@ -611,6 +626,7 @@ jobs:
           generated_y=$((tool_line_y + 26))
           total_height=$((generated_y + 28))
           panel_height=$((total_height - 26))
+          tools_label_y=$((footer_y + 34))
           overall_status_label="$(status_label "$overall_state")"
 
           if [ "$overall_state" = "passing" ]; then
@@ -622,7 +638,7 @@ jobs:
           fi
 
           cat > .phpforge-report/out/security-report.svg <<SVG
-          <svg xmlns="http://www.w3.org/2000/svg" width="800" height="${total_height}" viewBox="0 0 800 ${total_height}" role="img" aria-label="Security and standards report summary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 800 ${total_height}" preserveAspectRatio="xMidYMin meet" role="img" aria-label="Security and standards report summary">
             <defs>
               <radialGradient id="panelGlow" cx="48%" cy="24%" r="72%">
                 <stop offset="0%" stop-color="#17345a" stop-opacity="0.72"/>
@@ -638,6 +654,7 @@ jobs:
               </filter>
             </defs>
             <style>
+              :root { max-width: 800px; height: auto; background: transparent; }
               .panel { fill: url(#panelGlow); stroke: #385274; stroke-width: 1.1; }
               .divider { stroke: #31445f; stroke-width: 1; opacity: 0.9; }
               .title { font: 700 26px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #f8fafc; }
@@ -678,29 +695,35 @@ jobs:
             <line x1="44" y1="138" x2="756" y2="138" class="divider"/>
 
             <text x="44" y="174" class="section-title">VULNERABILITY SUMMARY</text>
-            <rect x="44" y="190" width="342" height="62" rx="10" class="section-card"/>
-            <text x="68" y="229" class="tile-label">Critical</text>
-            <text x="354" y="234" text-anchor="end" class="tile-value critical">0</text>
-            <rect x="414" y="190" width="342" height="62" rx="10" class="section-card"/>
-            <text x="438" y="229" class="tile-label">High</text>
-            <text x="724" y="234" text-anchor="end" class="tile-value high">0</text>
-            <rect x="44" y="266" width="342" height="62" rx="10" class="section-card"/>
-            <text x="68" y="305" class="tile-label">Medium</text>
-            <text x="354" y="310" text-anchor="end" class="tile-value medium">0</text>
-            <rect x="414" y="266" width="342" height="62" rx="10" class="section-card"/>
-            <text x="438" y="305" class="tile-label">Low</text>
-            <text x="724" y="310" text-anchor="end" class="tile-value low">0</text>
+            <rect x="44" y="190" width="167" height="62" rx="10" class="section-card"/>
+            <text x="62" y="229" class="tile-label">Critical</text>
+            <text x="184" y="234" text-anchor="end" class="tile-value critical">0</text>
+            <rect x="226" y="190" width="167" height="62" rx="10" class="section-card"/>
+            <text x="244" y="229" class="tile-label">High</text>
+            <text x="366" y="234" text-anchor="end" class="tile-value high">0</text>
+            <rect x="408" y="190" width="167" height="62" rx="10" class="section-card"/>
+            <text x="426" y="229" class="tile-label">Medium</text>
+            <text x="548" y="234" text-anchor="end" class="tile-value medium">0</text>
+            <rect x="590" y="190" width="167" height="62" rx="10" class="section-card"/>
+            <text x="608" y="229" class="tile-label">Low</text>
+            <text x="730" y="234" text-anchor="end" class="tile-value low">0</text>
 
-            <text x="44" y="332" class="section-title">PHP MATRIX</text>
+            <text x="44" y="286" class="section-title">PHP MATRIX</text>
           ${matrix_cards_svg}
             <text x="44" y="${quality_title_y}" class="section-title">QUALITY GATES</text>
           ${quality_chips_svg}
-            <line x1="44" y="${footer_y}" x2="756" y="${footer_y}" class="divider"/>
-            <text x="44" y="$((footer_y + 34))" class="tools-label">Tools:</text>
+            <line x1="44" y1="${footer_y}" x2="756" y2="${footer_y}" class="divider"/>
+            <text x="44" y="${tools_label_y}" class="tools-label">Tools:</text>
           ${tools_svg}
             <text x="44" y="${generated_y}" class="generated">Generated: ${generated_at}</text>
           </svg>
           SVG
+
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          ET.parse(".phpforge-report/out/security-report.svg")
+          PY
 
           {
             tested_versions="$(jq -r 'if length > 0 then join(", ") else "none" end' <<< "$php_versions_input")"
