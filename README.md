@@ -281,10 +281,10 @@ composer ic:tests
 This package also has a root `post-autoload-dump` script:
 
 ```json
-"post-autoload-dump": "captainhook install --configuration=resources/captainhook.json --only-enabled -nf"
+"post-autoload-dump": "@php bin/install-captainhook.php"
 ```
 
-That keeps hooks installed for this repository. Consuming projects get automatic hook installation from the PHPForge Composer plugin with project `captainhook.json` when present, otherwise with the bundled PHPForge `captainhook.json`.
+That keeps hooks installed for this repository while honoring project-first config resolution. Consuming projects get automatic hook installation from the PHPForge Composer plugin with project `captainhook.json` when present, otherwise with the bundled PHPForge `resources/captainhook.json`.
 
 ## GitHub Actions
 

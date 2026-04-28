@@ -65,7 +65,7 @@
         "class": "Infocyph\\PHPForge\\Composer\\Plugin"
     },
     "scripts": {
-        "post-autoload-dump": "captainhook install --configuration=resources/captainhook.json --only-enabled -nf",
+        "post-autoload-dump": "@php bin/install-captainhook.php",
         "ic:ci": "@php bin/phpforge ci",
         "ic:phpstan:sarif": "@php bin/phpforge phpstan-sarif",
         "ic:process": [
