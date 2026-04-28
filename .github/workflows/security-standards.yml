@@ -181,6 +181,8 @@ jobs:
           elif [ -f "phpstan.neon.dist" ]; then
             PHPSTAN_CONFIG="phpstan.neon.dist"
             USING_PROJECT_PHPSTAN_CONFIG=1
+          elif [ -f "resources/phpstan.neon.dist" ]; then
+            PHPSTAN_CONFIG="resources/phpstan.neon.dist"
           fi
 
           if [ ! -f "$PHPSTAN_CONFIG" ]; then
@@ -214,6 +216,8 @@ jobs:
             PSALM_CONFIG="psalm.xml"
           elif [ -f "psalm.xml.dist" ]; then
             PSALM_CONFIG="psalm.xml.dist"
+          elif [ -f "resources/psalm.xml" ]; then
+            PSALM_CONFIG="resources/psalm.xml"
           fi
 
           if [ ! -f "$PSALM_CONFIG" ]; then
