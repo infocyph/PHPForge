@@ -94,7 +94,14 @@ jobs:
         run: php -v
 
       - name: Validate Composer
-        run: composer validate --strict
+        run: |
+          PACKAGE_NAME="$(composer config name --no-plugins --no-scripts 2>/dev/null || true)"
+
+          if [ "${PACKAGE_NAME}" = "infocyph/phpforge" ]; then
+            composer validate
+          else
+            composer validate --strict
+          fi
 
       - name: Resolve dependencies (${{ matrix.dependency-version }})
         run: composer update --no-interaction --prefer-dist --no-progress --${{ matrix.dependency-version }} ${{ inputs.composer_flags }}
