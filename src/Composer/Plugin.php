@@ -12,6 +12,7 @@ use Composer\Plugin\Capable;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
 use Composer\Script\ScriptEvents;
+use Infocyph\PHPForge\Support\CaptainHook;
 use Infocyph\PHPForge\Support\Paths;
 use Symfony\Component\Process\Process;
 
@@ -57,7 +58,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
             return;
         }
 
-        $process = new Process([Paths::php(), Paths::bin('captainhook'), 'install', '--configuration=' . $configPath, '--only-enabled', '-nf'], getcwd() ?: null);
+        $process = new Process(CaptainHook::installCommand($configPath), getcwd() ?: null);
         $process->setTimeout(null);
         $process->run();
 

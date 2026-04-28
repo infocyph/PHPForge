@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\PHPForge\Composer;
 
+use Infocyph\PHPForge\Support\CaptainHook;
 use Infocyph\PHPForge\Support\Paths;
 
 final class TaskCatalog
@@ -61,7 +62,7 @@ final class TaskCatalog
      */
     public static function hooks(): array
     {
-        return [[Paths::php(), Paths::bin('captainhook'), 'install', '--configuration=' . Paths::config('captainhook.json'), '--only-enabled', '-nf']];
+        return [CaptainHook::installCommand(Paths::config('captainhook.json'))];
     }
 
     /**
