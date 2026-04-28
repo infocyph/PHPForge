@@ -27,7 +27,12 @@ final class Cli
      */
     private function ci(array $args): int
     {
-        $commands = ['composer ic:tests'];
+        $commands = [
+            'composer ic:test:syntax',
+            'composer ic:test:code',
+            'composer ic:test:lint',
+            'composer ic:test:sniff',
+        ];
 
         if (!in_array('--prefer-lowest', $args, true)) {
             $commands[] = 'composer ic:test:static';
