@@ -11,7 +11,7 @@
         "enabled": true,
         "actions": [
             {
-                "action": "composer validate",
+                "action": "composer validate --strict",
                 "options": []
             },
             {

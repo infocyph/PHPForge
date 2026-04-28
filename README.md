@@ -211,7 +211,7 @@ composer ic:init --force
 ## Configuration
 
 Project config files always have priority over PHPForge bundled defaults.
-PHPForge keeps its own active config files at the package root so the package can test itself with the same defaults it ships; `resources/` is reserved for distributable templates that should not affect editor or agent auto-discovery.
+PHPForge keeps its bundled defaults in `resources/` and resolves them automatically when project-local config files are missing.
 
 | Tool           | Lookup Order                                                  |
 | -------------- | ------------------------------------------------------------- |
@@ -281,7 +281,7 @@ composer ic:tests
 This package also has a root `post-autoload-dump` script:
 
 ```json
-"post-autoload-dump": "captainhook install --only-enabled -nf"
+"post-autoload-dump": "captainhook install --configuration=resources/captainhook.json --only-enabled -nf"
 ```
 
 That keeps hooks installed for this repository. Consuming projects get automatic hook installation from the PHPForge Composer plugin with project `captainhook.json` when present, otherwise with the bundled PHPForge `captainhook.json`.

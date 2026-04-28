@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 use Infocyph\PHPForge\Support\Paths;
 
-it('prefers project config files over bundled defaults', function (): void {
+it('falls back to bundled defaults when project config is missing', function (): void {
     expect(Paths::config('pint.json'))
-        ->toBe(getcwd() . DIRECTORY_SEPARATOR . 'pint.json');
+        ->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'pint.json');
 });
 
-it('uses the first available project config from a list', function (): void {
+it('uses bundled config when project config from list is missing', function (): void {
     expect(Paths::firstConfig(['pest.xml', 'phpunit.xml']))
-        ->toBe(getcwd() . DIRECTORY_SEPARATOR . 'pest.xml');
+        ->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'pest.xml');
 });
 
-it('returns the first available project-only config from a list', function (): void {
+it('returns null when project config from a list does not exist', function (): void {
     expect(Paths::firstProjectConfig(['pest.xml', 'phpunit.xml']))
-        ->toBe(getcwd() . DIRECTORY_SEPARATOR . 'pest.xml');
+        ->toBeNull();
 });
 
 it('returns null when no project-only config exists', function (): void {

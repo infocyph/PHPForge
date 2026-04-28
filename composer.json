@@ -14,27 +14,31 @@
     ],
     "authors": [
         {
+            "name": "infocyph",
+            "email": "infocyph@gmail.com"
+        },
+        {
             "name": "abmmhasan",
             "email": "abmmhasan@gmail.com"
         }
     ],
     "require": {
-        "php": ">=8.3",
+        "php": ">=8.0",
         "composer-plugin-api": "^2.6",
-        "captainhook/captainhook": "^5.29.2",
-        "ergebnis/composer-normalize": "^2.51",
-        "laravel/pint": "^1.29",
-        "pestphp/pest": "^4.6.3",
-        "pestphp/pest-plugin-drift": "^4.1",
-        "phpbench/phpbench": "^1.6.1",
-        "phpstan/phpstan": "^2.1.50",
-        "rector/rector": "^2.4.2",
-        "squizlabs/php_codesniffer": "^4.0.1",
-        "symfony/console": "^7.3 || ^8.0",
-        "symfony/process": "^7.3 || ^8.0",
-        "symfony/var-dumper": "^7.3 || ^8.0.8",
-        "tomasvotruba/cognitive-complexity": "^1.1",
-        "vimeo/psalm": "^6.16.1"
+        "captainhook/captainhook": "*",
+        "ergebnis/composer-normalize": "*",
+        "laravel/pint": "*",
+        "pestphp/pest": "*",
+        "pestphp/pest-plugin-drift": "*",
+        "phpbench/phpbench": "*",
+        "phpstan/phpstan": "*",
+        "rector/rector": "*",
+        "squizlabs/php_codesniffer": "*",
+        "symfony/console": "*",
+        "symfony/process": "*",
+        "symfony/var-dumper": "*",
+        "tomasvotruba/cognitive-complexity": "*",
+        "vimeo/psalm": "*"
     },
     "require-dev": {
         "composer/composer": "^2.9"
@@ -61,22 +65,37 @@
         "class": "Infocyph\\PHPForge\\Composer\\Plugin"
     },
     "scripts": {
-        "post-autoload-dump": "captainhook install --only-enabled -nf",
+        "post-autoload-dump": "captainhook install --configuration=resources/captainhook.json --only-enabled -nf",
         "ic:ci": "@php bin/phpforge ci",
         "ic:phpstan:sarif": "@php bin/phpforge phpstan-sarif",
+        "ic:process": [
+            "@composer normalize",
+            "@ic:process:refactor",
+            "@ic:process:lint",
+            "@ic:process:sniff"
+        ],
+        "ic:process:all": "@ic:process",
+        "ic:process:lint": "@php vendor/bin/pint --config resources/pint.json",
+        "ic:process:refactor": "@php vendor/bin/rector process --config=resources/rector.php",
+        "ic:process:sniff": "@php vendor/bin/phpcbf --standard=resources/phpcs.xml.dist --runtime-set ignore_errors_on_exit 1 src bin",
+        "ic:process:sniff:fix": "@ic:process:sniff",
         "ic:release:audit": "@php bin/phpforge audit",
-        "ic:test:code": "@php vendor/bin/pest --configuration pest.xml",
-        "ic:test:lint": "@php vendor/bin/pint --test --config pint.json",
-        "ic:test:refactor": "@php vendor/bin/rector process --config=rector.php --dry-run --debug",
-        "ic:test:security": "@php vendor/bin/psalm --config=psalm.xml --security-analysis --threads=1 --no-cache",
-        "ic:test:sniff": "@php vendor/bin/phpcs --standard=phpcs.xml.dist --report=full src bin",
-        "ic:test:static": "@php vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --memory-limit=1G --no-progress --debug",
+        "ic:test:code": "@php vendor/bin/pest --configuration resources/pest.xml --bootstrap vendor/autoload.php tests",
+        "ic:test:lint": "@php vendor/bin/pint --test --config resources/pint.json",
+        "ic:test:refactor": "@php vendor/bin/rector process --config=resources/rector.php --dry-run --debug",
+        "ic:test:security": "@php vendor/bin/psalm --config=resources/psalm.xml --security-analysis --threads=1 --no-cache",
+        "ic:test:sniff": "@php vendor/bin/phpcs --standard=resources/phpcs.xml.dist --report=full src bin",
+        "ic:test:static": "@php vendor/bin/phpstan analyse --configuration=resources/phpstan.neon.dist --memory-limit=1G --no-progress --debug",
         "ic:test:syntax": "@php bin/phpforge syntax",
         "ic:tests": [
             "@ic:test:syntax",
-            "@php vendor/bin/pest --configuration pest.xml --parallel --processes=10",
+            "@php vendor/bin/pest --configuration resources/pest.xml --bootstrap vendor/autoload.php tests --parallel --processes=10",
             "@ic:test:lint",
-            "@php vendor/bin/phpcs --standard=phpcs.xml.dist --report=summary src bin"
-        ]
+            "@php vendor/bin/phpcs --standard=resources/phpcs.xml.dist --report=summary src bin",
+            "@ic:test:static",
+            "@ic:test:security",
+            "@ic:test:refactor"
+        ],
+        "ic:tests:all": "@ic:tests"
     }
 }

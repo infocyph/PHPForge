@@ -44,7 +44,7 @@ final class PublishConfigCommand extends Command
                 continue;
             }
 
-            $source = Paths::packageFile($file);
+            $source = Paths::bundledConfigFile($file);
             $target = Paths::projectRootPath() . DIRECTORY_SEPARATOR . $file;
 
             if (!is_file($source)) {

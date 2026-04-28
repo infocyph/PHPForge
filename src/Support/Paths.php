@@ -11,6 +11,18 @@ final class Paths
         return self::binDir() . DIRECTORY_SEPARATOR . $name;
     }
 
+    public static function bundledConfigFile(string $file): string
+    {
+        $resourceFile = self::packageFile('resources/' . ltrim($file, '/'));
+
+        if (is_file($resourceFile)) {
+            return $resourceFile;
+        }
+
+        // Backward compatibility for package trees that still keep configs at root.
+        return self::packageFile($file);
+    }
+
     public static function config(string $file): string
     {
         $projectFile = self::projectRoot() . DIRECTORY_SEPARATOR . $file;
@@ -19,7 +31,7 @@ final class Paths
             return $projectFile;
         }
 
-        return self::packageFile($file);
+        return self::bundledConfigFile($file);
     }
 
     /**
@@ -47,14 +59,14 @@ final class Paths
         }
 
         foreach ($files as $file) {
-            $packageFile = self::packageFile($file);
+            $packageFile = self::bundledConfigFile($file);
 
             if (is_file($packageFile)) {
                 return $packageFile;
             }
         }
 
-        return self::packageFile($files[0]);
+        return self::bundledConfigFile($files[0]);
     }
 
     /**
