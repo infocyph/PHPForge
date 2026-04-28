@@ -20,14 +20,14 @@ final class CaptainHook
             Paths::bin('captainhook'),
             'install',
             '--configuration=' . $configPath,
+            '--no-interaction',
         ];
 
-        if (self::supportsInstallOption('--force')) {
+        if (self::supportsInstallOption('--skip-existing')) {
+            $command[] = '--skip-existing';
+        } else {
+            // Fallback for older CaptainHook variants to avoid interactive overwrite prompts.
             $command[] = '--force';
-        }
-
-        if (self::supportsInstallOption('--no-interaction')) {
-            $command[] = '--no-interaction';
         }
 
         if (self::supportsInstallOption('--only-enabled')) {
