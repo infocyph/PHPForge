@@ -40,24 +40,10 @@ foreach ($tasks as $command) {
         continue;
     }
 
-    $fallbackCommand = perPresetFallbackCommand($command, $process);
+    if (shouldSkipUnavailablePerPreset($command, $process)) {
+        fwrite(STDERR, "Pint preset 'per' is unavailable; skipping this Pint task." . PHP_EOL);
 
-    if ($fallbackCommand !== null) {
-        fwrite(STDERR, "Pint preset 'per' is unavailable; retrying with fallback preset 'psr12'." . PHP_EOL);
-
-        $fallbackProcess = runProcess($fallbackCommand);
-        $originalConfigPath = configuredPintPath($command);
-        $fallbackConfigPath = configuredPintPath($fallbackCommand);
-
-        if (is_string($fallbackConfigPath) && $fallbackConfigPath !== $originalConfigPath && is_file($fallbackConfigPath)) {
-            unlink($fallbackConfigPath);
-        }
-
-        if ($fallbackProcess->isSuccessful()) {
-            continue;
-        }
-
-        throw new RuntimeException(sprintf('Task "%s" failed with exit code %d.', implode(' ', $fallbackCommand), $fallbackProcess->getExitCode() ?? 1));
+        continue;
     }
 
     throw new RuntimeException(sprintf('Task "%s" failed with exit code %d.', implode(' ', $command), $process->getExitCode() ?? 1));
@@ -85,65 +71,44 @@ function runProcess(array $command): Process
 
 /**
  * @param list<string> $command
- * @return list<string>|null
  */
-function perPresetFallbackCommand(array $command, Process $process): ?array
+function shouldSkipUnavailablePerPreset(array $command, Process $process): bool
 {
     if (!isPintCommand($command)) {
-        return null;
+        return false;
     }
 
     $message = $process->getErrorOutput() . PHP_EOL . $process->getOutput();
 
     if (!str_contains($message, 'Preset not found')) {
-        return null;
+        return false;
     }
 
     $configIndex = array_search('--config', $command, true);
 
     if ($configIndex === false || !isset($command[$configIndex + 1])) {
-        return null;
+        return false;
     }
 
     $configPath = $command[$configIndex + 1];
 
     if (!is_file($configPath)) {
-        return null;
+        return false;
     }
 
     $contents = file_get_contents($configPath);
 
     if (!is_string($contents) || $contents === '') {
-        return null;
+        return false;
     }
 
     $config = json_decode($contents, true);
 
-    if (!is_array($config) || ($config['preset'] ?? null) !== 'per') {
-        return null;
+    if (!is_array($config)) {
+        return false;
     }
 
-    $config['preset'] = 'psr12';
-    $fallbackPath = tempnam(sys_get_temp_dir(), 'phpforge-pint-');
-
-    if (!is_string($fallbackPath) || $fallbackPath === '') {
-        return null;
-    }
-
-    $encoded = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-
-    if (!is_string($encoded)) {
-        return null;
-    }
-
-    if (file_put_contents($fallbackPath, $encoded . PHP_EOL) === false) {
-        return null;
-    }
-
-    $fallback = $command;
-    $fallback[$configIndex + 1] = $fallbackPath;
-
-    return $fallback;
+    return ($config['preset'] ?? null) === 'per';
 }
 
 /**
@@ -158,18 +123,4 @@ function isPintCommand(array $command): bool
     }
 
     return false;
-}
-
-/**
- * @param list<string> $command
- */
-function configuredPintPath(array $command): ?string
-{
-    $configIndex = array_search('--config', $command, true);
-
-    if ($configIndex === false || !isset($command[$configIndex + 1])) {
-        return null;
-    }
-
-    return $command[$configIndex + 1];
 }
