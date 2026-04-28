@@ -63,7 +63,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         $process->run();
 
         if (!$process->isSuccessful()) {
-            $message = trim($process->getErrorOutput()) ?: trim($process->getOutput()) ?: 'CaptainHook install failed.';
+            $message = (trim($process->getErrorOutput()) ?: trim($process->getOutput())) ?: 'CaptainHook install failed.';
 
             if (getenv('IC_HOOKS_STRICT') !== '0') {
                 throw new \RuntimeException($message);
