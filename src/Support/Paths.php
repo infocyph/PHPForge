@@ -8,7 +8,29 @@ final class Paths
 {
     public static function bin(string $name): string
     {
-        return self::binDir() . DIRECTORY_SEPARATOR . $name;
+        $vendorBinary = self::binDir() . DIRECTORY_SEPARATOR . $name;
+
+        if (is_file($vendorBinary)) {
+            return $vendorBinary;
+        }
+
+        if (!self::isPhpforgeRootPackage()) {
+            return $vendorBinary;
+        }
+
+        return self::projectRoot() . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . $name;
+    }
+
+    public static function bundledConfigFile(string $file): string
+    {
+        $resourceFile = self::packageFile('resources/' . ltrim($file, '/'));
+
+        if (is_file($resourceFile)) {
+            return $resourceFile;
+        }
+
+        // Backward compatibility for package trees that still keep configs at root.
+        return self::packageFile($file);
     }
 
     public static function config(string $file): string
@@ -19,7 +41,7 @@ final class Paths
             return $projectFile;
         }
 
-        return self::packageFile($file);
+        return self::bundledConfigFile($file);
     }
 
     /**
@@ -47,14 +69,14 @@ final class Paths
         }
 
         foreach ($files as $file) {
-            $packageFile = self::packageFile($file);
+            $packageFile = self::bundledConfigFile($file);
 
             if (is_file($packageFile)) {
                 return $packageFile;
             }
         }
 
-        return self::packageFile($files[0]);
+        return self::bundledConfigFile($files[0]);
     }
 
     /**
@@ -146,6 +168,29 @@ final class Paths
         }
 
         return $config[$key] ?? null;
+    }
+
+    private static function isPhpforgeRootPackage(): bool
+    {
+        $composerJson = self::projectRoot() . DIRECTORY_SEPARATOR . 'composer.json';
+
+        if (!is_file($composerJson) || !is_readable($composerJson)) {
+            return false;
+        }
+
+        $contents = file_get_contents($composerJson);
+
+        if (!is_string($contents)) {
+            return false;
+        }
+
+        $data = json_decode($contents, true);
+
+        if (!is_array($data)) {
+            return false;
+        }
+
+        return ($data['name'] ?? null) === 'infocyph/phpforge';
     }
 
     private static function projectRoot(): string

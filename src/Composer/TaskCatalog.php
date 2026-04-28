@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\PHPForge\Composer;
 
+use Infocyph\PHPForge\Support\CaptainHook;
 use Infocyph\PHPForge\Support\Paths;
 
 final class TaskCatalog
@@ -61,7 +62,7 @@ final class TaskCatalog
      */
     public static function hooks(): array
     {
-        return [[Paths::php(), Paths::bin('captainhook'), 'install', '--configuration=' . Paths::config('captainhook.json'), '--only-enabled', '-nf']];
+        return [CaptainHook::installCommand(Paths::config('captainhook.json'))];
     }
 
     /**
@@ -233,7 +234,6 @@ final class TaskCatalog
 
     /**
      * @param list<string> $options
-     *
      * @return list<string>
      */
     private static function benchCommand(array $options): array
@@ -284,7 +284,7 @@ final class TaskCatalog
      */
     private static function bundledBenchBootstrapArgs(string $configPath): array
     {
-        if (!self::isBundledConfigInConsumingProject($configPath)) {
+        if (!self::isBundledConfig($configPath)) {
             return [];
         }
 
@@ -300,7 +300,7 @@ final class TaskCatalog
      */
     private static function bundledBenchPathArgs(string $configPath): array
     {
-        if (!self::isBundledConfigInConsumingProject($configPath)) {
+        if (!self::isBundledConfig($configPath)) {
             return [];
         }
 
@@ -352,21 +352,28 @@ final class TaskCatalog
         return (string) max($minimum, min($maximum, (int) $value));
     }
 
-    private static function isBundledConfigInConsumingProject(string $configPath): bool
+    private static function isBundledConfig(string $configPath): bool
     {
-        $projectRoot = realpath(Paths::projectRootPath());
         $packageRoot = realpath(dirname(__DIR__, 2));
         $configRealPath = realpath($configPath);
 
-        if (!is_string($projectRoot) || !is_string($packageRoot) || !is_string($configRealPath)) {
-            return false;
-        }
-
-        if ($projectRoot === $packageRoot) {
+        if (!is_string($packageRoot) || !is_string($configRealPath)) {
             return false;
         }
 
         return str_starts_with($configRealPath, $packageRoot . DIRECTORY_SEPARATOR);
+    }
+
+    private static function isBundledConfigInConsumingProject(string $configPath): bool
+    {
+        $projectRoot = realpath(Paths::projectRootPath());
+        $packageRoot = realpath(dirname(__DIR__, 2));
+
+        if (!is_string($projectRoot) || !is_string($packageRoot) || $projectRoot === $packageRoot) {
+            return false;
+        }
+
+        return self::isBundledConfig($configPath);
     }
 
     /**
@@ -377,7 +384,7 @@ final class TaskCatalog
         $configPath = Paths::firstConfig(['pest.xml', 'phpunit.xml', 'pest.xml.dist', 'phpunit.xml.dist']);
         $args = ['--configuration', $configPath];
 
-        if (!self::isBundledConfigInConsumingProject($configPath)) {
+        if (!self::isBundledConfig($configPath)) {
             return $args;
         }
 

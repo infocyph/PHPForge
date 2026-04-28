@@ -34,7 +34,7 @@ it('uses the bundled phpbench config directly for consuming projects', function 
         expect(is_string($configArgument))->toBeTrue();
 
         $configPath = substr((string) $configArgument, strlen('--config='));
-        expect($configPath)->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'phpbench.json');
+        expect($configPath)->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'phpbench.json');
         expect($command)->toContain('--bootstrap');
         expect($command)->toContain($bootstrapPath);
         expect($command)->toContain($benchmarksPath);
@@ -81,7 +81,7 @@ it('uses the bundled pest config directly for consuming projects', function (): 
         $command = TaskCatalog::testCode()[0];
 
         expect($command)->toContain('--configuration');
-        expect($command)->toContain(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'pest.xml');
+        expect($command)->toContain(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'pest.xml');
         expect($command)->toContain('--bootstrap');
         expect($command)->toContain($autoloadPath);
         expect($command)->toContain('tests');
@@ -97,18 +97,17 @@ it('uses the bundled pest config directly for consuming projects', function (): 
     }
 });
 
-it('uses the resolved captainhook config directly', function (): void {
+it('uses the project captainhook config when present', function (): void {
     $command = TaskCatalog::hooks()[0];
-    $packageRoot = realpath(dirname(__DIR__, 2));
 
-    expect($command)->toContain('--configuration=' . $packageRoot . DIRECTORY_SEPARATOR . 'captainhook.json');
+    expect($command)->toContain('--configuration=' . getcwd() . DIRECTORY_SEPARATOR . 'captainhook.json');
 });
 
 it('lets project phpstan config define analysed paths', function (): void {
     $command = TaskCatalog::staticAnalysis()[0];
     $packageRoot = realpath(dirname(__DIR__, 2));
 
-    expect($command)->toContain('--configuration=' . $packageRoot . DIRECTORY_SEPARATOR . 'phpstan.neon.dist');
+    expect($command)->toContain('--configuration=' . $packageRoot . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'phpstan.neon.dist');
     expect($command)->not()->toContain('src');
     expect($command)->not()->toContain('app');
 });
@@ -126,7 +125,7 @@ it('uses the bundled phpstan config directly for consuming projects', function (
     try {
         $command = TaskCatalog::staticAnalysis()[0];
 
-        expect($command)->toContain('--configuration=' . dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'phpstan.neon.dist');
+        expect($command)->toContain('--configuration=' . dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'phpstan.neon.dist');
         expect($command)->toContain('src');
         expect($command)->not()->toContain('app');
     } finally {

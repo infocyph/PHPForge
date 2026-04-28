@@ -71,7 +71,7 @@ final class InitCommand extends Command
 
         if ($copyCaptainHook) {
             $copied += $this->copy(
-                Paths::packageFile('captainhook.json'),
+                Paths::bundledConfigFile('captainhook.json'),
                 Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'captainhook.json',
                 $force,
                 $output,

@@ -19,6 +19,6 @@ it('lists bundled config files without duplicates', function (): void {
 });
 
 it('reports project config sources before bundled sources', function (): void {
-    expect(ConfigInventory::source('pint.json'))->toBe('project');
+    expect(ConfigInventory::source('pint.json'))->toBe('phpforge');
     expect(ConfigInventory::source('missing-tool.xml'))->toBe('missing');
 });

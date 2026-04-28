@@ -14,27 +14,32 @@
     ],
     "authors": [
         {
+            "name": "infocyph",
+            "email": "infocyph@gmail.com"
+        },
+        {
             "name": "abmmhasan",
             "email": "abmmhasan@gmail.com"
         }
     ],
     "require": {
-        "php": ">=8.3",
-        "composer-plugin-api": "^2.6",
-        "captainhook/captainhook": "^5.29.2",
-        "ergebnis/composer-normalize": "^2.51",
-        "laravel/pint": "^1.29",
-        "pestphp/pest": "^4.6.3",
-        "pestphp/pest-plugin-drift": "^4.1",
-        "phpbench/phpbench": "^1.6.1",
-        "phpstan/phpstan": "^2.1.50",
-        "rector/rector": "^2.4.2",
-        "squizlabs/php_codesniffer": "^4.0.1",
-        "symfony/console": "^7.3 || ^8.0",
-        "symfony/process": "^7.3 || ^8.0",
-        "symfony/var-dumper": "^7.3 || ^8.0.8",
-        "tomasvotruba/cognitive-complexity": "^1.1",
-        "vimeo/psalm": "^6.16.1"
+        "php": ">=8.1",
+        "composer-plugin-api": ">=2.6 <3.0",
+        "captainhook/captainhook": ">=5.0 <6.0",
+        "ergebnis/composer-normalize": ">=2.0 <3.0",
+        "laravel/pint": ">=1.0 <2.0",
+        "pestphp/pest": ">=2.0 <5.0",
+        "pestphp/pest-plugin-drift": ">=2.0 <5.0",
+        "phpbench/phpbench": ">=1.0 <2.0",
+        "phpstan/phpstan": ">=2.0 <3.0",
+        "rector/rector": ">=2.0 <3.0",
+        "squizlabs/php_codesniffer": ">=3.9 <5.0",
+        "symfony/console": ">=6.4 <9.0",
+        "symfony/process": ">=6.4 <9.0",
+        "symfony/string": ">=6.4 <9.0",
+        "symfony/var-dumper": ">=6.4 <9.0",
+        "tomasvotruba/cognitive-complexity": ">=1.0 <2.0",
+        "vimeo/psalm": ">=6.0 <7.0"
     },
     "require-dev": {
         "composer/composer": "^2.9"
@@ -61,22 +66,29 @@
         "class": "Infocyph\\PHPForge\\Composer\\Plugin"
     },
     "scripts": {
-        "post-autoload-dump": "captainhook install --only-enabled -nf",
+        "post-autoload-dump": "@php bin/install-captainhook.php",
         "ic:ci": "@php bin/phpforge ci",
         "ic:phpstan:sarif": "@php bin/phpforge phpstan-sarif",
+        "ic:process": [
+            "@composer normalize",
+            "@ic:process:refactor",
+            "@ic:process:lint",
+            "@ic:process:sniff"
+        ],
+        "ic:process:all": "@ic:process",
+        "ic:process:lint": "@php bin/run-task.php process:lint",
+        "ic:process:refactor": "@php bin/run-task.php process:refactor",
+        "ic:process:sniff": "@php bin/run-task.php process:sniff",
+        "ic:process:sniff:fix": "@ic:process:sniff",
         "ic:release:audit": "@php bin/phpforge audit",
-        "ic:test:code": "@php vendor/bin/pest --configuration pest.xml",
-        "ic:test:lint": "@php vendor/bin/pint --test --config pint.json",
-        "ic:test:refactor": "@php vendor/bin/rector process --config=rector.php --dry-run --debug",
-        "ic:test:security": "@php vendor/bin/psalm --config=psalm.xml --security-analysis --threads=1 --no-cache",
-        "ic:test:sniff": "@php vendor/bin/phpcs --standard=phpcs.xml.dist --report=full src bin",
-        "ic:test:static": "@php vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --memory-limit=1G --no-progress --debug",
-        "ic:test:syntax": "@php bin/phpforge syntax",
-        "ic:tests": [
-            "@ic:test:syntax",
-            "@php vendor/bin/pest --configuration pest.xml --parallel --processes=10",
-            "@ic:test:lint",
-            "@php vendor/bin/phpcs --standard=phpcs.xml.dist --report=summary src bin"
-        ]
+        "ic:test:code": "@php bin/run-task.php test:code",
+        "ic:test:lint": "@php bin/run-task.php test:lint",
+        "ic:test:refactor": "@php bin/run-task.php test:refactor",
+        "ic:test:security": "@php bin/run-task.php test:security",
+        "ic:test:sniff": "@php bin/run-task.php test:sniff",
+        "ic:test:static": "@php bin/run-task.php test:static",
+        "ic:test:syntax": "@php bin/run-task.php test:syntax",
+        "ic:tests": "@php bin/run-task.php tests",
+        "ic:tests:all": "@ic:tests"
     }
 }

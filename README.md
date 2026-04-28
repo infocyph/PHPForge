@@ -1,6 +1,6 @@
 # PHPForge
 
-Shared Composer-powered QA, refactoring, benchmark, release, hook, and CI tooling for Infocyph PHP projects.
+Shared Composer-powered QA, refactoring, benchmark, release, hook and CI tooling for Infocyph PHP projects.
 
 PHPForge is installed as a dev dependency in PHP libraries and packages. It provides Composer commands under the `ic:*` namespace, ships default tool configuration, installs CaptainHook hooks, and exposes a reusable GitHub Actions workflow.
 
@@ -96,16 +96,16 @@ Generate SVG security report artifacts?
 
 Selector presets include:
 
-| Prompt                | Built-in Choices                                                                                                |
-| --------------------- | --------------------------------------------------------------------------------------------------------------- |
-| PHPForge workflow ref | `main`, configured ref, or custom                                                                             |
-| PHP version matrix    | `supported`, `current`, `stable`, or custom JSON. Presets resolve from Endoflife API (`https://endoflife.date/api/php.json`) with fallback to `["8.3","8.4","8.5"]`. |
-| Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]`, or custom JSON. Prompt shows resolved JSON beside each option. |
-| PHP extensions        | `none` => `""`, `detected` (from project `composer.json` `ext-*` entries in `require`, `require-dev`, and `suggest`), `common`, `mysql`, `pgsql`, `mysql+pgsql`, or custom |
-| Coverage driver       | `none`, `xdebug`, or `pcov`                                                                               |
+| Prompt                | Built-in Choices                                                                                                                                                              |
+| --------------------- |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| PHPForge workflow ref | `main`, configured ref, or custom                                                                                                                                             |
+| PHP version matrix    | `supported`, `current`, `stable`, or custom JSON. Presets resolve live with fallback to `["8.3","8.4","8.5"]`.                                                                 |
+| Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]`, or custom JSON. Prompt shows resolved JSON beside each option.                                |
+| PHP extensions        | `none` => `""`, `detected` (from project `composer.json` `ext-*` entries in `require`, `require-dev`, and `suggest`), `common`, `mysql`, `pgsql`, `mysql+pgsql`, or custom    |
+| Coverage driver       | `none`, `xdebug`, or `pcov`                                                                                                                                                   |
 | Extra Composer flags  | `none` => `""`, `with-all-dependencies` => `--with-all-dependencies`, `ignore-ext-redis` => `--ignore-platform-req=ext-redis`, or custom. Prompt explains each option effect. |
-| PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                               |
-| Psalm threads         | `1`, `2`, `4`, or custom                                                                                  |
+| PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                                                                                                   |
+| Psalm threads         | `1`, `2`, `4`, or custom                                                                                                                                                      |
 
 `supported` includes non-EOL PHP minor cycles (>= `8.3`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
 PHP version, dependency matrix, PHP extensions, and Composer flags selectors show resolved values in the prompt and print the final resolved value after selection.
@@ -211,7 +211,7 @@ composer ic:init --force
 ## Configuration
 
 Project config files always have priority over PHPForge bundled defaults.
-PHPForge keeps its own active config files at the package root so the package can test itself with the same defaults it ships; `resources/` is reserved for distributable templates that should not affect editor or agent auto-discovery.
+PHPForge keeps its bundled defaults in `resources/` and resolves them automatically when project-local config files are missing.
 
 | Tool           | Lookup Order                                                  |
 | -------------- | ------------------------------------------------------------- |
@@ -281,7 +281,7 @@ composer ic:tests
 This package also has a root `post-autoload-dump` script:
 
 ```json
-"post-autoload-dump": "captainhook install --only-enabled -nf"
+"post-autoload-dump": "captainhook install --configuration=resources/captainhook.json --only-enabled -nf"
 ```
 
 That keeps hooks installed for this repository. Consuming projects get automatic hook installation from the PHPForge Composer plugin with project `captainhook.json` when present, otherwise with the bundled PHPForge `captainhook.json`.
@@ -465,7 +465,7 @@ Cron-aware retention logic can be set in your repository workflow wrapper (for e
 
 When enabled, the workflow uploads one artifact:
 
-- `security-svg-report` (contains `security-report.svg` and `security-summary.json`)
+- `security-report` (contains `security-report.svg` and `security-summary.json`)
 
 Default generated wrapper policy (cron-aware):
 
@@ -681,7 +681,7 @@ with:
   run_svg_report: true
 ```
 
-Then open the workflow run and download `security-svg-report`.
+Then open the workflow run and download `security-report`.
 
 ### A bundled rule is too strict
 

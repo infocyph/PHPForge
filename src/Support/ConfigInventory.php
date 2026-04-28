@@ -26,7 +26,7 @@ final class ConfigInventory
     {
         return self::source($file) === 'project'
             ? Paths::projectRootPath() . DIRECTORY_SEPARATOR . $file
-            : Paths::packageFile($file);
+            : Paths::bundledConfigFile($file);
     }
 
     public static function source(string $file): string
@@ -37,7 +37,7 @@ final class ConfigInventory
             return 'project';
         }
 
-        if (is_file(Paths::packageFile($file))) {
+        if (is_file(Paths::bundledConfigFile($file))) {
             return 'phpforge';
         }
 
