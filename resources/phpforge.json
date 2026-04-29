@@ -1,0 +1,32 @@
+{
+  "syntax": {
+    "paths": [
+      "src",
+      "app",
+      "config",
+      "database",
+      "tests",
+      "benchmarks",
+      "examples"
+    ]
+  },
+  "duplicates": {
+    "paths": [
+      "src",
+      "app",
+      "config",
+      "database"
+    ],
+    "mode": "gate",
+    "normalize": true,
+    "fuzzy": false,
+    "near_miss": false,
+    "min_lines": 5,
+    "min_tokens": 140,
+    "min_statements": 4,
+    "min_similarity": 0.85,
+    "baseline": "",
+    "write_baseline": "",
+    "json": false
+  }
+}

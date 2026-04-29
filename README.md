@@ -8,18 +8,19 @@ PHPForge is installed as a dev dependency in PHP libraries and packages. It prov
 
 PHPForge brings these tools through one package:
 
-| Tool                     | Used For                                    |
-| ------------------------ | ------------------------------------------- |
-| CaptainHook              | Git hook installation and pre-commit checks |
-| Pest                     | Test execution                              |
-| Laravel Pint             | Code style checks and fixes                 |
-| PHP_CodeSniffer / PHPCBF | Semantic sniffing and fixable sniff repairs |
-| PHPStan                  | Static analysis and cognitive complexity    |
-| Psalm                    | Security and taint analysis                 |
-| Rector                   | Refactor checks and automated refactors     |
-| PHPBench                 | Benchmarks                                  |
-| Composer Normalize       | `composer.json` normalization               |
-| Composer audit           | Release/security audit guard                |
+| Tool                        | Used For                                    |
+| --------------------------- | ------------------------------------------- |
+| CaptainHook                 | Git hook installation and pre-commit checks |
+| Pest                        | Test execution                              |
+| Laravel Pint                | Code style checks and fixes                 |
+| PHP_CodeSniffer / PHPCBF    | Semantic sniffing and fixable sniff repairs |
+| PHPForge duplicate detector | Token-based copy/paste detection            |
+| PHPStan                     | Static analysis and cognitive complexity    |
+| Psalm                       | Security and taint analysis                 |
+| Rector                      | Refactor checks and automated refactors     |
+| PHPBench                    | Benchmarks                                  |
+| Composer Normalize          | `composer.json` normalization               |
+| Composer audit              | Release/security audit guard                |
 
 ## Install
 
@@ -141,23 +142,48 @@ composer ic:init --force
 
 | Command                       | Purpose                                                                                                                                   |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `composer ic:tests`         | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, PHPStan, Psalm security analysis, and Rector dry run. |
+| `composer ic:tests`         | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, PHPStan, Psalm security analysis, and Rector dry run. |
 | `composer ic:tests:all`     | Alias of `ic:tests`.                                                                                                                    |
 | `composer ic:tests:details` | Runs detailed checks without the parallel Pest shortcut.                                                                                  |
 | `composer ic:test:syntax`   | Checks project PHP files while respecting `.gitignore`, `.git/info/exclude`, and global Git ignore rules.                             |
 | `composer ic:test:code`     | Runs Pest.                                                                                                                                |
 | `composer ic:test:lint`     | Runs Pint in check mode.                                                                                                                  |
 | `composer ic:test:sniff`    | Runs PHPCS with a full report.                                                                                                            |
+| `composer ic:test:duplicates` | Detects duplicated PHP code using a token-based scanner.                                                                                |
 | `composer ic:test:static`   | Runs PHPStan.                                                                                                                             |
 | `composer ic:test:security` | Runs Psalm security analysis.                                                                                                             |
 | `composer ic:test:refactor` | Runs Rector in dry-run mode.                                                                                                              |
 | `composer ic:test:bench`    | Runs PHPBench aggregate benchmarks.                                                                                                       |
 
+Native syntax and duplicate settings live in `phpforge.json`, with the bundled default used when a project-local file is not present.
+Duplicate detection normalizes variables and literals by default, ignores whitespace/comments, and scans production paths (`src`, `app`, `config`, and `database`) from that config.
+The Composer gate uses the configured token window for a quiet CI signal; the lower-level binary exposes deeper audit options and accepts `--config=FILE`.
+Use the lower-level binary for custom scans:
+
+```bash
+php vendor/bin/phpforge duplicates --min-lines=5 --min-tokens=70 src tests
+php vendor/bin/phpforge duplicates --mode=audit --near-miss --json src
+php vendor/bin/phpforge duplicates --write-baseline=.phpforge-duplicates-baseline.json src
+php vendor/bin/phpforge duplicates --baseline=.phpforge-duplicates-baseline.json src
+```
+
+Useful duplicate options:
+
+| Option | Purpose |
+| ------ | ------- |
+| `--exact` | Disables variable/literal normalization. |
+| `--fuzzy` | Also normalizes identifiers and calls for renamed-code scans. |
+| `--mode=audit` | Enables statement-window matching in addition to token matching. |
+| `--near-miss` | Enables bounded statement/shape similarity for edited clones. |
+| `--min-similarity=0.85` | Sets the near-miss similarity threshold. |
+| `--baseline=FILE` | Suppresses clone groups already captured in a baseline. |
+| `--write-baseline[=FILE]` | Writes the current clone groups as the baseline and exits successfully. |
+
 ### CI Commands
 
 | Command                            | Purpose                                                                      |
 | ---------------------------------- | ---------------------------------------------------------------------------- |
-| `composer ic:ci`                 | Runs syntax, Pest, Pint, PHPCS, Rector, PHPStan, and Psalm.                  |
+| `composer ic:ci`                 | Runs syntax, Pest, Pint, PHPCS, duplicate detection, Rector, PHPStan, and Psalm. |
 | `composer ic:ci --prefer-lowest` | Runs the CI set without PHPStan and Psalm for prefer-lowest dependency jobs. |
 
 ### Process Commands
@@ -217,6 +243,7 @@ PHPForge keeps its bundled defaults in `resources/` and resolves them automatica
 | -------------- | ------------------------------------------------------------- |
 | Pest / PHPUnit | `pest.xml`, then `phpunit.xml`, then `pest.xml.dist`, then `phpunit.xml.dist`, then bundled `pest.xml` |
 | PHPBench       | `phpbench.json`, then bundled `phpbench.json`             |
+| PHPForge native checks | `phpforge.json`, then bundled `phpforge.json`       |
 | PHPCS / PHPCBF | `phpcs.xml.dist`, then bundled `phpcs.xml.dist`           |
 | PHPStan        | `phpstan.neon.dist`, then bundled `phpstan.neon.dist`     |
 | Pint           | `pint.json`, then bundled `pint.json`                     |
@@ -234,7 +261,7 @@ composer ic:list-config --json
 Publish config only when a project needs custom rules:
 
 ```bash
-composer ic:publish-config pint.json phpstan.neon.dist
+composer ic:publish-config phpforge.json pint.json phpstan.neon.dist
 composer ic:publish-config --all
 ```
 
@@ -274,6 +301,7 @@ The bundled pre-commit hook runs:
 
 ```bash
 composer validate --strict
+composer normalize --dry-run
 composer ic:release:audit
 composer ic:tests
 ```
@@ -281,10 +309,10 @@ composer ic:tests
 This package also has a root `post-autoload-dump` script:
 
 ```json
-"post-autoload-dump": "captainhook install --configuration=resources/captainhook.json --only-enabled -nf"
+"post-autoload-dump": "@php bin/install-captainhook.php"
 ```
 
-That keeps hooks installed for this repository. Consuming projects get automatic hook installation from the PHPForge Composer plugin with project `captainhook.json` when present, otherwise with the bundled PHPForge `captainhook.json`.
+That helper keeps hooks installed for this repository. Consuming projects get automatic hook installation from the PHPForge Composer plugin with project `captainhook.json` when present, otherwise with the bundled PHPForge `captainhook.json`.
 
 ## GitHub Actions
 
@@ -336,7 +364,7 @@ jobs:
       psalm_threads: "1"
       run_analysis: true
       run_svg_report: true
-      artifact_retention_days: 60
+      artifact_retention_days: 61
 ```
 
 Workflow inputs:
@@ -352,7 +380,7 @@ Workflow inputs:
 | `psalm_threads`        | `1`                                 | Psalm thread count used by workflow analysis.                                                |
 | `run_analysis`         | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.             |
 | `run_svg_report`       | `true`                              | Generates `security-report.svg` and `security-summary.json` with benchmark status, per-version matrix results, and tool versions. |
-| `artifact_retention_days` | `14`                             | Artifact retention days (`actions/upload-artifact`). Wrapper templates can compute this from event/cron. |
+| `artifact_retention_days` | `61`                             | Artifact retention days for uploaded `security-report` artifacts. |
 
 ### Workflow Input Details
 
@@ -458,21 +486,14 @@ with:
 
 ```yaml
 with:
-  artifact_retention_days: 14
+  artifact_retention_days: 61
 ```
 
-Cron-aware retention logic can be set in your repository workflow wrapper (for example in `.github/workflows/phpforge.yml`) by passing a computed value to `artifact_retention_days`.
+Set a shorter value for active development branches or a longer value for scheduled/release runs.
 
-When enabled, the workflow uploads one artifact:
+When enabled on `main` or `master`, the workflow uploads one artifact:
 
 - `security-report` (contains `security-report.svg` and `security-summary.json`)
-
-Default generated wrapper policy (cron-aware):
-
-- non-schedule events: `14` days
-- weekly cron (`0 0 * * 0`): `15` days
-- monthly cron (`0 0 1 * *`): `61` days
-- other schedule crons: `60` days
 
 `security-summary.json` includes:
 
@@ -551,7 +572,7 @@ jobs:
       run_analysis: true
 ```
 
-For code scanning, project-local `phpstan.neon.dist` and `psalm.xml` are used when present; otherwise the workflow falls back to PHPForge defaults. The selected PHPStan config is the source of truth for analysed paths; PHPForge does not append extra CLI paths for SARIF generation.
+For code scanning, project-local PHPStan configs (`phpstan.neon`, then `phpstan.neon.dist`) and Psalm configs (`psalm.xml`, then `psalm.xml.dist`) are used when present; otherwise the workflow falls back to PHPForge defaults. When the bundled PHPStan config is used and `src` exists, the workflow appends `src` as the analysed path.
 
 ## Migration Guide
 
@@ -608,6 +629,7 @@ Replace commands:
 | `composer test:code`                          | `composer ic:test:code`         |
 | `composer test:lint`                          | `composer ic:test:lint`         |
 | `composer test:sniff`                         | `composer ic:test:sniff`        |
+| `composer test:duplicates`                    | `composer ic:test:duplicates`   |
 | `composer test:static`                        | `composer ic:test:static`       |
 | `composer test:security`                      | `composer ic:test:security`     |
 | `composer test:refactor`                      | `composer ic:test:refactor`     |
@@ -633,6 +655,7 @@ PHPForge provides those through:
 
 ```bash
 composer ic:test:syntax
+composer ic:test:duplicates
 composer ic:release:audit
 composer ic:phpstan:sarif phpstan-results.json phpstan-results.sarif
 ```

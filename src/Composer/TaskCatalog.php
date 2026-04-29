@@ -43,6 +43,7 @@ final class TaskCatalog
             ...self::testCode(),
             ...self::lintCheck(),
             ...self::sniff(),
+            ...self::duplicates(),
             ...self::refactorCheck(),
         ];
 
@@ -55,6 +56,14 @@ final class TaskCatalog
         }
 
         return $tasks;
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    public static function duplicates(): array
+    {
+        return [[Paths::php(), Paths::bin('phpforge'), 'duplicates', '--config', Paths::config('phpforge.json')]];
     }
 
     /**
@@ -177,7 +186,7 @@ final class TaskCatalog
      */
     public static function syntax(): array
     {
-        return [[Paths::php(), Paths::bin('phpforge'), 'syntax']];
+        return [[Paths::php(), Paths::bin('phpforge'), 'syntax', '--config', Paths::config('phpforge.json')]];
     }
 
     /**
@@ -190,6 +199,7 @@ final class TaskCatalog
             [Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), '--parallel', '--processes=' . self::pestProcesses()],
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', ...self::codePaths()],
+            ...self::duplicates(),
             ...self::staticAnalysis(),
             [Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
             ...self::refactorCheck(),
@@ -214,6 +224,7 @@ final class TaskCatalog
             ...self::testCode(),
             ...self::lintCheck(),
             ...self::sniff(),
+            ...self::duplicates(),
             ...self::staticAnalysis(),
             ...self::security(),
             ...self::refactorCheck(),

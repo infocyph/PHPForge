@@ -9,6 +9,11 @@ it('formats syntax checks with a friendly title', function (): void {
         ->toBe('Checking Syntax');
 });
 
+it('formats duplicate checks with a friendly title', function (): void {
+    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpforge', 'duplicates']))
+        ->toBe('Duplicate Code');
+});
+
 it('formats composer normalize with a friendly title', function (): void {
     expect(TaskDisplay::heading(['composer', 'normalize']))
         ->toBe('Composer Normalize');

@@ -16,6 +16,7 @@ $taskMap = [
     'process:refactor' => static fn(): array => TaskCatalog::refactorFix(),
     'process:sniff' => static fn(): array => TaskCatalog::sniffFix(),
     'test:code' => static fn(): array => TaskCatalog::testCode(),
+    'test:duplicates' => static fn(): array => TaskCatalog::duplicates(),
     'test:lint' => static fn(): array => TaskCatalog::lintCheck(),
     'test:refactor' => static fn(): array => TaskCatalog::refactorCheck(),
     'test:security' => static fn(): array => TaskCatalog::security(),

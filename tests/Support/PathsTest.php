@@ -9,6 +9,11 @@ it('falls back to bundled defaults when project config is missing', function ():
         ->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'pint.json');
 });
 
+it('falls back to bundled PHPForge native checker config', function (): void {
+    expect(Paths::config('phpforge.json'))
+        ->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'phpforge.json');
+});
+
 it('uses bundled config when project config from list is missing', function (): void {
     expect(Paths::firstConfig(['pest.xml', 'phpunit.xml']))
         ->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'pest.xml');

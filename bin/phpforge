@@ -5,10 +5,32 @@ declare(strict_types=1);
 
 use Infocyph\PHPForge\Support\Cli;
 
-require __DIR__ . '/../src/Support/ComposerAuditor.php';
-require __DIR__ . '/../src/Support/Cli.php';
-require __DIR__ . '/../src/Support/PhpstanSarifConverter.php';
-require __DIR__ . '/../src/Support/Paths.php';
-require __DIR__ . '/../src/Support/SyntaxChecker.php';
+$autoloaders = [
+    __DIR__ . '/../vendor/autoload.php',
+    __DIR__ . '/../../../autoload.php',
+];
+
+foreach ($autoloaders as $autoloader) {
+    if (is_file($autoloader)) {
+        require $autoloader;
+
+        break;
+    }
+}
+
+if (!class_exists(Cli::class)) {
+    require __DIR__ . '/../src/Support/ComposerAuditor.php';
+    require __DIR__ . '/../src/Support/Cli.php';
+    require __DIR__ . '/../src/Support/DuplicateAstBlockIndex.php';
+    require __DIR__ . '/../src/Support/DuplicateCloneReducer.php';
+    require __DIR__ . '/../src/Support/DuplicateCodeIndex.php';
+    require __DIR__ . '/../src/Support/DuplicateDetectionEngine.php';
+    require __DIR__ . '/../src/Support/DuplicateDetector.php';
+    require __DIR__ . '/../src/Support/PhpForgeConfig.php';
+    require __DIR__ . '/../src/Support/PhpstanSarifConverter.php';
+    require __DIR__ . '/../src/Support/PhpFileFinder.php';
+    require __DIR__ . '/../src/Support/Paths.php';
+    require __DIR__ . '/../src/Support/SyntaxChecker.php';
+}
 
 exit((new Cli())->run($argv));

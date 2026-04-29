@@ -16,6 +16,7 @@ final class Cli
         return match ($command) {
             'ci' => $this->ci(array_slice($argv, 2)),
             'syntax' => (new SyntaxChecker())->run(array_slice($argv, 2)),
+            'duplicates' => (new DuplicateDetector())->run(array_slice($argv, 2)),
             'phpstan-sarif' => (new PhpstanSarifConverter())->convert((string) ($argv[2] ?? ''), (string) ($argv[3] ?? 'phpstan-results.sarif')),
             'audit' => (new ComposerAuditor())->run(),
             default => $this->help(),
@@ -32,6 +33,7 @@ final class Cli
             'composer ic:test:code',
             'composer ic:test:lint',
             'composer ic:test:sniff',
+            'composer ic:test:duplicates',
         ];
 
         if (!in_array('--prefer-lowest', $args, true)) {
@@ -54,7 +56,7 @@ final class Cli
 
     private function help(): int
     {
-        fwrite(STDOUT, 'Usage: phpforge ci [--prefer-lowest] | syntax [paths...] | audit | phpstan-sarif <phpstan-json> [sarif-output]' . PHP_EOL);
+        fwrite(STDOUT, 'Usage: phpforge ci [--prefer-lowest] | syntax [paths...] | duplicates [options] [paths...] | audit | phpstan-sarif <phpstan-json> [sarif-output]' . PHP_EOL);
 
         return 0;
     }

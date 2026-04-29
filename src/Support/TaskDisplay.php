@@ -184,6 +184,7 @@ final class TaskDisplay
 
         return match (true) {
             $tool === 'phpforge' && $subcommand === 'syntax' => 'Checking Syntax',
+            $tool === 'phpforge' && $subcommand === 'duplicates' => 'Duplicate Code',
             $tool === 'phpforge' && $subcommand === 'audit' => 'Composer Audit',
             $tool === 'composer' && $subcommand === 'validate' => 'Composer Validate',
             $tool === 'composer' && $subcommand === 'normalize' => 'Composer Normalize',
