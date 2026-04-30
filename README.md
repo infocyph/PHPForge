@@ -104,7 +104,7 @@ Selector presets include:
 | Prompt                | Built-in Choices                                                                                                                                                              |
 | --------------------- |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | PHPForge workflow ref | `main`, configured ref, or custom                                                                                                                                             |
-| PHP version matrix    | `supported`, `current`, `stable`, or custom JSON. Presets resolve live with fallback to `["8.3","8.4","8.5"]`.                                                                 |
+| PHP version matrix    | `supported`, `current`, `stable`, or custom JSON. Presets resolve live with fallback to `["8.2","8.3","8.4","8.5"]`.                                                           |
 | Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]`, or custom JSON. Prompt shows resolved JSON beside each option.                                |
 | PHP extensions        | `none` => `""`, `detected` (from project `composer.json` `ext-*` entries in `require`, `require-dev`, and `suggest`), `common`, `mysql`, `pgsql`, `mysql+pgsql`, or custom    |
 | Coverage driver       | `none`, `xdebug`, or `pcov`                                                                                                                                                   |
@@ -112,7 +112,7 @@ Selector presets include:
 | PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                                                                                                   |
 | Psalm threads         | `1`, `2`, `4`, or custom                                                                                                                                                      |
 
-`supported` includes non-EOL PHP minor cycles (>= `8.3`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
+`supported` includes non-EOL PHP minor cycles (>= `8.2`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
 PHP version, dependency matrix, PHP extensions, and Composer flags selectors show resolved values in the prompt and print the final resolved value after selection.
 
 The generated files are:
@@ -369,7 +369,7 @@ jobs:
       actions: read
       contents: read
     with:
-      php_versions: '["8.3","8.4","8.5"]'
+      php_versions: '["8.2","8.3","8.4","8.5"]'
       dependency_versions: '["prefer-lowest","prefer-stable"]'
       php_extensions: ""
       coverage: "none"
@@ -385,7 +385,7 @@ Workflow inputs:
 
 | Input                    | Default                               | Purpose                                                                                      |
 | ------------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `php_versions`         | `["8.3","8.4","8.5"]`               | PHP matrix as a JSON array string.                                                           |
+| `php_versions`         | `["8.2","8.3","8.4","8.5"]`         | PHP matrix as a JSON array string.                                                           |
 | `dependency_versions`  | `["prefer-lowest","prefer-stable"]` | Composer dependency modes as a JSON array string.                                            |
 | `php_extensions`       | `""`                                | Comma-separated PHP extensions passed to `shivammathur/setup-php`.                         |
 | `coverage`             | `none`                              | Coverage driver passed to `shivammathur/setup-php`; use `xdebug`, `pcov`, or `none`. |
@@ -402,7 +402,7 @@ Workflow inputs:
 
 ```yaml
 with:
-  php_versions: '["8.3","8.4","8.5"]'
+  php_versions: '["8.2","8.3","8.4","8.5"]'
 ```
 
 Use a smaller matrix for faster daily CI, or the full supported range for release confidence.
@@ -546,7 +546,7 @@ jobs:
       actions: read
       contents: read
     with:
-      php_versions: '["8.3","8.4","8.5"]'
+      php_versions: '["8.2","8.3","8.4","8.5"]'
       dependency_versions: '["prefer-lowest","prefer-stable"]'
       run_analysis: true
 ```
@@ -558,7 +558,7 @@ jobs:
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     with:
-      php_versions: '["8.3","8.4"]'
+      php_versions: '["8.2","8.3"]'
       php_extensions: "mbstring, intl, pdo_mysql"
       composer_flags: "--ignore-platform-req=ext-redis"
       run_analysis: false
@@ -576,7 +576,7 @@ jobs:
       actions: read
       contents: read
     with:
-      php_versions: '["8.3","8.4"]'
+      php_versions: '["8.2","8.3"]'
       dependency_versions: '["prefer-stable"]'
       php_extensions: "mbstring, intl, bcmath, pdo_mysql"
       coverage: "xdebug"
