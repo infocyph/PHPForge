@@ -43,6 +43,7 @@ final class TaskCatalog
             ...self::testCode(),
             ...self::lintCheck(),
             ...self::sniff(),
+            ...self::duplicates(),
             ...self::refactorCheck(),
         ];
 
@@ -55,6 +56,14 @@ final class TaskCatalog
         }
 
         return $tasks;
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    public static function duplicates(): array
+    {
+        return [[Paths::php(), Paths::bin('phpforge'), 'duplicates', '--config', Paths::config('phpforge.json')]];
     }
 
     /**
@@ -151,7 +160,7 @@ final class TaskCatalog
      */
     public static function sniff(): array
     {
-        return [[Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=full', ...self::codePaths()]];
+        return [[Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=full', '.']];
     }
 
     /**
@@ -159,7 +168,7 @@ final class TaskCatalog
      */
     public static function sniffFix(): array
     {
-        return [[Paths::php(), Paths::bin('phpcbf'), '--standard=' . Paths::config('phpcs.xml.dist'), '--runtime-set', 'ignore_errors_on_exit', '1', ...self::codePaths()]];
+        return [[Paths::php(), Paths::bin('phpcbf'), '--standard=' . Paths::config('phpcs.xml.dist'), '--runtime-set', 'ignore_errors_on_exit', '1', '.']];
     }
 
     /**
@@ -177,7 +186,7 @@ final class TaskCatalog
      */
     public static function syntax(): array
     {
-        return [[Paths::php(), Paths::bin('phpforge'), 'syntax']];
+        return [[Paths::php(), Paths::bin('phpforge'), 'syntax', '--config', Paths::config('phpforge.json')]];
     }
 
     /**
@@ -189,7 +198,8 @@ final class TaskCatalog
             ...self::syntax(),
             [Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), '--parallel', '--processes=' . self::pestProcesses()],
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
-            [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', ...self::codePaths()],
+            [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
+            ...self::duplicates(),
             ...self::staticAnalysis(),
             [Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
             ...self::refactorCheck(),
@@ -214,6 +224,7 @@ final class TaskCatalog
             ...self::testCode(),
             ...self::lintCheck(),
             ...self::sniff(),
+            ...self::duplicates(),
             ...self::staticAnalysis(),
             ...self::security(),
             ...self::refactorCheck(),
@@ -329,16 +340,8 @@ final class TaskCatalog
     private static function bundledPhpstanPathArgs(string $configPath): array
     {
         return self::isBundledConfigInConsumingProject($configPath)
-            ? Paths::existingProjectPaths('src')
+            ? Paths::existingProjectPaths('.')
             : [];
-    }
-
-    /**
-     * @return list<string>
-     */
-    private static function codePaths(): array
-    {
-        return Paths::existingProjectPaths('src', 'app', 'config', 'database', 'tests', 'benchmarks', 'examples');
     }
 
     private static function envInt(string $name, int $default, int $minimum, int $maximum): string

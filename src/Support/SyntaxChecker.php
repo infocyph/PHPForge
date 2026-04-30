@@ -11,10 +11,13 @@ final class SyntaxChecker
      */
     public function run(array $paths): int
     {
-        $files = $this->gitAwarePhpFiles($paths);
+        $options = $this->parseArgs($paths);
 
-        $files = array_values(array_unique($files));
-        sort($files);
+        if ($options['help']) {
+            return $this->help();
+        }
+
+        $files = (new PhpFileFinder())->find($options['paths'], $options['excludes']);
 
         if ($files === []) {
             fwrite(STDOUT, 'No PHP files found.' . PHP_EOL);
@@ -25,141 +28,70 @@ final class SyntaxChecker
         return $this->lintFiles($files);
     }
 
-    private function absolutePath(string $path): string
+    /**
+     * @param list<string> $args
+     * @param array{help:bool,config:string,paths:list<string>,excludes:list<string>} $options
+     */
+    private function consumeConfigOption(array $args, int &$index, string $arg, array &$options): bool
     {
-        if (preg_match('/^[A-Za-z]:[\/\\\\]/', $path) === 1 || str_starts_with($path, DIRECTORY_SEPARATOR)) {
-            return $path;
+        $config = $this->optionValue($arg, '--config');
+
+        if ($config !== null) {
+            $options['config'] = $config;
+
+            return true;
         }
 
-        return (getcwd() ?: '.') . DIRECTORY_SEPARATOR . $path;
+        if ($arg !== '--config') {
+            return false;
+        }
+
+        if (isset($args[$index + 1])) {
+            $options['config'] = $args[++$index];
+        }
+
+        return true;
     }
 
     /**
-     * @return list<string>
+     * @param list<string> $args
+     * @param array{help:bool,config:string,paths:list<string>,excludes:list<string>} $options
      */
-    private function filterUnignoredPhpFiles(string $stdout): array
+    private function consumeExcludeOption(array $args, int &$index, string $arg, array &$options): bool
     {
-        $candidates = [];
+        $exclude = $this->optionValue($arg, '--exclude');
 
-        foreach (explode("\0", $stdout) as $file) {
-            if ($file === '' || !str_ends_with($file, '.php')) {
-                continue;
+        if ($exclude !== null) {
+            if ($exclude !== '') {
+                $options['excludes'][] = $exclude;
             }
 
-            $absolute = $this->absolutePath($file);
-
-            if (is_file($absolute)) {
-                $candidates[$file] = $absolute;
-            }
+            return true;
         }
 
-        $ignored = $this->gitIgnoredPaths(array_keys($candidates));
-        $files = [];
-
-        foreach ($candidates as $path => $absolute) {
-            if (!isset($ignored[$path])) {
-                $files[] = $absolute;
-            }
+        if ($arg !== '--exclude') {
+            return false;
         }
 
-        return $files;
+        if (isset($args[$index + 1]) && $args[$index + 1] !== '') {
+            $options['excludes'][] = $args[++$index];
+        }
+
+        return true;
     }
 
-    /**
-     * @param list<string> $paths
-     *
-     * @return list<string>
-     */
-    private function gitAwarePhpFiles(array $paths): array
+    private function help(): int
     {
-        $gitFiles = $this->gitTrackedAndUnignoredPhpFiles($paths);
+        fwrite(STDOUT, implode(PHP_EOL, [
+            'Usage: phpforge syntax [options] [paths...]',
+            '',
+            'Options:',
+            '  --config=FILE                  read PHPForge native checker settings',
+            '  --exclude=PATH                 skip a path (repeatable)',
+            '  --help                         show this help',
+        ]) . PHP_EOL);
 
-        if ($gitFiles !== null) {
-            return $gitFiles;
-        }
-
-        return $this->recursivePhpFiles($paths === [] ? ['.'] : $paths);
-    }
-
-    /**
-     * @param list<string> $paths
-     *
-     * @return array<string, true>
-     */
-    private function gitIgnoredPaths(array $paths): array
-    {
-        if ($paths === []) {
-            return [];
-        }
-
-        $process = proc_open(['git', 'check-ignore', '-z', '--stdin', '--no-index'], [
-            0 => ['pipe', 'r'],
-            1 => ['pipe', 'w'],
-            2 => ['pipe', 'w'],
-        ], $pipes);
-
-        if (!is_resource($process)) {
-            return [];
-        }
-
-        fwrite($pipes[0], implode("\0", $paths) . "\0");
-        fclose($pipes[0]);
-
-        $stdout = stream_get_contents($pipes[1]) ?: '';
-        stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        proc_close($process);
-
-        $ignored = [];
-
-        foreach (explode("\0", $stdout) as $path) {
-            if ($path !== '') {
-                $ignored[$path] = true;
-            }
-        }
-
-        return $ignored;
-    }
-
-    /**
-     * @param list<string> $paths
-     *
-     * @return list<string>|null
-     */
-    private function gitTrackedAndUnignoredPhpFiles(array $paths): ?array
-    {
-        $command = ['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard'];
-
-        if ($paths !== []) {
-            $command[] = '--';
-
-            foreach ($paths as $path) {
-                if ($path !== '') {
-                    $command[] = $path;
-                }
-            }
-        }
-
-        $process = proc_open($command, [
-            1 => ['pipe', 'w'],
-            2 => ['pipe', 'w'],
-        ], $pipes);
-
-        if (!is_resource($process)) {
-            return null;
-        }
-
-        $stdout = stream_get_contents($pipes[1]) ?: '';
-        stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-
-        if (proc_close($process) !== 0) {
-            return null;
-        }
-
-        return $this->filterUnignoredPhpFiles($stdout);
+        return 0;
     }
 
     private function lintFile(string $file): ?string
@@ -217,64 +149,56 @@ final class SyntaxChecker
         return 1;
     }
 
-    /**
-     * @param list<string> $paths
-     *
-     * @return list<string>
-     */
-    private function recursivePhpFiles(array $paths): array
+    private function optionValue(string $arg, string $name): ?string
     {
-        $files = [];
-
-        foreach ($paths as $path) {
-            if ($path === '') {
-                continue;
-            }
-
-            $absolute = $this->absolutePath($path);
-
-            if (is_file($absolute) && str_ends_with($absolute, '.php')) {
-                $files[] = $absolute;
-
-                continue;
-            }
-
-            if (!is_dir($absolute)) {
-                continue;
-            }
-
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveCallbackFilterIterator(
-                    new \RecursiveDirectoryIterator($absolute, \FilesystemIterator::SKIP_DOTS),
-                    $this->syntaxFilter(...),
-                ),
-            );
-
-            foreach ($iterator as $file) {
-                if ($file instanceof \SplFileInfo && $file->isFile() && $file->getExtension() === 'php') {
-                    $files[] = $file->getPathname();
-                }
-            }
+        if (!str_starts_with($arg, $name . '=')) {
+            return null;
         }
 
-        return $files;
+        return substr($arg, strlen($name) + 1);
     }
 
-    private function syntaxFilter(\SplFileInfo $file): bool
+    /**
+     * @param list<string> $args
+     * @return array{help:bool,config:string,paths:list<string>,excludes:list<string>}
+     */
+    private function parseArgs(array $args): array
     {
-        if (!$file->isDir()) {
-            return true;
+        $options = [
+            'help' => false,
+            'config' => Paths::config('phpforge.json'),
+            'paths' => [],
+            'excludes' => [],
+        ];
+
+        for ($index = 0; $index < count($args); $index++) {
+            $arg = $args[$index];
+
+            if ($arg === '--help' || $arg === '-h') {
+                $options['help'] = true;
+
+                continue;
+            }
+
+            if ($this->consumeConfigOption($args, $index, $arg, $options)
+                || $this->consumeExcludeOption($args, $index, $arg, $options)) {
+                continue;
+            }
+
+            $options['paths'][] = $arg;
         }
 
-        return !in_array($file->getFilename(), [
-            '.git',
-            '.idea',
-            '.phpunit.cache',
-            '.psalm-cache',
-            '.vscode',
-            'coverage',
-            'node_modules',
-            'vendor',
-        ], true);
+        $config = PhpForgeConfig::fromFile($options['config']);
+
+        if ($options['paths'] === []) {
+            $options['paths'] = $config->syntaxPaths();
+        }
+
+        $options['excludes'] = array_values(array_unique([
+            ...$config->syntaxExcludes(),
+            ...$options['excludes'],
+        ]));
+
+        return $options;
     }
 }

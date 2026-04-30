@@ -52,6 +52,7 @@ final class ConfigInventory
         return [
             'pest' => ['pest.xml', 'phpunit.xml', 'pest.xml.dist', 'phpunit.xml.dist'],
             'phpbench' => ['phpbench.json'],
+            'phpforge' => ['phpforge.json'],
             'phpcs' => ['phpcs.xml.dist'],
             'phpstan' => ['phpstan.neon.dist'],
             'pint' => ['pint.json'],

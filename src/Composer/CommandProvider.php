@@ -18,6 +18,7 @@ final class CommandProvider implements CommandProviderCapability
             new InfocyphCommand('ic:test:code', 'Run Pest tests.', TaskCatalog::testCode()),
             new InfocyphCommand('ic:test:lint', 'Run Pint in check mode.', TaskCatalog::lintCheck()),
             new InfocyphCommand('ic:test:sniff', 'Run PHP_CodeSniffer.', TaskCatalog::sniff()),
+            new InfocyphCommand('ic:test:duplicates', 'Detect duplicated PHP code.', TaskCatalog::duplicates()),
             new InfocyphCommand('ic:test:static', 'Run PHPStan.', TaskCatalog::staticAnalysis()),
             new InfocyphCommand('ic:test:security', 'Run Psalm security analysis.', TaskCatalog::security()),
             new InfocyphCommand('ic:test:refactor', 'Run Rector in dry-run mode.', TaskCatalog::refactorCheck()),

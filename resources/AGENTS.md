@@ -25,7 +25,7 @@
 
 ## Config And CI
 
-- Config priority: project `pest.xml`/`phpunit.xml`, `phpbench.json`, `phpcs.xml.dist`, `phpstan.neon.dist`, `pint.json`, `psalm.xml`, `rector.php`, `captainhook.json`; then PHPForge defaults.
+- Config priority: project `pest.xml`/`phpunit.xml`, `phpbench.json`, `phpforge.json`, `phpcs.xml.dist`, `phpstan.neon.dist`, `pint.json`, `psalm.xml`, `rector.php`, `captainhook.json`; then PHPForge defaults.
 - Syntax scan respects Git ignores, including `vendor`.
 - Pre-commit runs `composer validate --strict`, `composer normalize --dry-run`, `composer ic:release:audit`, `composer ic:tests`.
 - `IC_HOOKS_STRICT=1` is default; use `IC_HOOKS_STRICT=0 composer install` only for best-effort hook install.

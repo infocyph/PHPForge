@@ -10,6 +10,7 @@ it('lists bundled config files without duplicates', function (): void {
         ->toContain('phpunit.xml')
         ->toContain('pest.xml.dist')
         ->toContain('phpunit.xml.dist')
+        ->toContain('phpforge.json')
         ->toContain('pint.json')
         ->toContain('phpstan.neon.dist')
         ->toContain('psalm.xml')
