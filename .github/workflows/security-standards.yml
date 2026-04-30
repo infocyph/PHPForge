@@ -173,14 +173,11 @@ jobs:
         run: |
           VENDOR_DIR="$(composer config vendor-dir)"
           PHPSTAN_CONFIG="$VENDOR_DIR/infocyph/phpforge/resources/phpstan.neon.dist"
-          USING_PROJECT_PHPSTAN_CONFIG=0
 
           if [ -f "phpstan.neon" ]; then
             PHPSTAN_CONFIG="phpstan.neon"
-            USING_PROJECT_PHPSTAN_CONFIG=1
           elif [ -f "phpstan.neon.dist" ]; then
             PHPSTAN_CONFIG="phpstan.neon.dist"
-            USING_PROJECT_PHPSTAN_CONFIG=1
           elif [ -f "resources/phpstan.neon.dist" ]; then
             PHPSTAN_CONFIG="resources/phpstan.neon.dist"
           fi
@@ -191,9 +188,6 @@ jobs:
           fi
 
           PHPSTAN_ARGS=(analyse --configuration="$PHPSTAN_CONFIG" --memory-limit="${{ inputs.phpstan_memory_limit }}" --no-progress --error-format=json)
-          if [ "$USING_PROJECT_PHPSTAN_CONFIG" -eq 0 ] && [ -d "src" ]; then
-            PHPSTAN_ARGS+=(src)
-          fi
 
           php "$VENDOR_DIR/bin/phpstan" "${PHPSTAN_ARGS[@]}" > phpstan-results.json || true
           composer ic:phpstan:sarif -- phpstan-results.json phpstan-results.sarif

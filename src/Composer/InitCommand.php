@@ -35,60 +35,28 @@ final class InitCommand extends Command
             ->addOption('workflow', null, InputOption::VALUE_NONE, 'Copy the Security & Standards GitHub Actions workflow.')
             ->addOption('workflow-ref', null, InputOption::VALUE_REQUIRED, 'PHPForge Git ref used by generated workflow wrappers.', 'main')
             ->addOption('captainhook', null, InputOption::VALUE_NONE, 'Copy the default CaptainHook configuration.')
+            ->addOption('phpforge', null, InputOption::VALUE_NONE, 'Copy the default PHPForge native checker configuration.')
+            ->addOption('gitlab-ci', null, InputOption::VALUE_NONE, 'Copy a GitLab CI pipeline.')
+            ->addOption('bitbucket-ci', null, InputOption::VALUE_NONE, 'Copy a Bitbucket Pipelines configuration.')
+            ->addOption('forgejo-workflow', null, InputOption::VALUE_NONE, 'Copy a Forgejo Actions workflow.')
             ->addOption('no-interaction-defaults', null, InputOption::VALUE_NONE, 'Use default init selections without prompting.')
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing files.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $copyWorkflow = (bool) $input->getOption('workflow');
-        $copyCaptainHook = (bool) $input->getOption('captainhook');
-        $explicit = $copyWorkflow || $copyCaptainHook || (bool) $input->getOption('no-interaction-defaults');
         $settings = $this->defaultSettings($this->stringValue($input->getOption('workflow-ref'), 'main'));
         $settings['php_versions'] = $this->phpVersionPresets()['supported'];
-
-        if (!$explicit && $input->isInteractive()) {
-            $settings = $this->ask($input, $output, $settings);
-            $copyWorkflow = $settings['workflow'];
-            $copyCaptainHook = $settings['captainhook'];
-        } elseif (!$copyWorkflow && !$copyCaptainHook) {
-            $copyWorkflow = true;
-            $copyCaptainHook = true;
-        }
+        $selection = $this->resolvedSelection($input, $output, $settings);
+        $settings = $selection['settings'];
+        $flags = $selection['flags'];
 
         $force = (bool) $input->getOption('force');
-        $copied = 0;
-
-        if ($copyWorkflow) {
-            $copied += $this->copyWorkflow(
-                Paths::packageFile('resources/workflows/security-standards.yml'),
-                Paths::projectRootPath() . DIRECTORY_SEPARATOR . '.github' . DIRECTORY_SEPARATOR . 'workflows' . DIRECTORY_SEPARATOR . 'security-standards.yml',
-                $settings,
-                $force,
-                $output,
-            );
-        }
-
-        if ($copyCaptainHook) {
-            $copied += $this->copy(
-                Paths::bundledConfigFile('captainhook.json'),
-                Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'captainhook.json',
-                $force,
-                $output,
-            );
-        }
+        $copied = $this->copySelectedTargets($flags, $settings, $force, $output);
 
         $output->writeln(sprintf('<info>PHPForge init complete: %d file(s) copied.</info>', $copied));
         $output->writeln('<info>Next steps:</info>');
-
-        if ($copyWorkflow) {
-            $output->writeln('  - Review and commit .github/workflows/security-standards.yml');
-        }
-
-        if ($copyCaptainHook) {
-            $output->writeln('  - Hooks auto-install on the next composer install/update');
-            $output->writeln('  - Optional now: composer ic:hooks (install/update immediately)');
-        }
+        $this->renderNextSteps($flags, $output);
 
         $output->writeln('  - Run composer ic:tests to validate setup');
 
@@ -221,6 +189,10 @@ final class InitCommand extends Command
     ): array {
         $settings['captainhook'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install CaptainHook config? [Y/n] ', true));
         $settings['workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitHub Actions workflow wrapper? [Y/n] ', true));
+        $settings['phpforge'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install PHPForge native checker config (phpforge.json)? [Y/n] ', true));
+        $settings['gitlab_ci'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitLab CI pipeline (.gitlab-ci.yml)? [y/N] ', false));
+        $settings['bitbucket_ci'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Bitbucket pipeline (bitbucket-pipelines.yml)? [y/N] ', false));
+        $settings['forgejo_workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Forgejo workflow (.forgejo/workflows/security-standards.yml)? [y/N] ', false));
 
         return $settings;
     }
@@ -416,6 +388,41 @@ final class InitCommand extends Command
     }
 
     /**
+     * @param array<string, bool> $flags
+     * @param array<string, bool|string> $settings
+     */
+    private function copySelectedTargets(array $flags, array $settings, bool $force, OutputInterface $output): int
+    {
+        $targets = [
+            'captainhook' => [Paths::bundledConfigFile('captainhook.json'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'captainhook.json'],
+            'phpforge' => [Paths::bundledConfigFile('phpforge.json'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'phpforge.json'],
+            'gitlab_ci' => [Paths::packageFile('resources/ci/gitlab-ci.yml'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . '.gitlab-ci.yml'],
+            'bitbucket_ci' => [Paths::packageFile('resources/ci/bitbucket-pipelines.yml'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'bitbucket-pipelines.yml'],
+            'forgejo_workflow' => [Paths::packageFile('resources/ci/forgejo-security-standards.yml'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . '.forgejo' . DIRECTORY_SEPARATOR . 'workflows' . DIRECTORY_SEPARATOR . 'security-standards.yml'],
+        ];
+
+        $copied = 0;
+
+        if ($flags['workflow']) {
+            $copied += $this->copyWorkflow(
+                Paths::packageFile('resources/workflows/security-standards.yml'),
+                Paths::projectRootPath() . DIRECTORY_SEPARATOR . '.github' . DIRECTORY_SEPARATOR . 'workflows' . DIRECTORY_SEPARATOR . 'security-standards.yml',
+                $settings,
+                $force,
+                $output,
+            );
+        }
+
+        foreach ($targets as $flag => [$source, $target]) {
+            if ($flags[$flag]) {
+                $copied += $this->copy($source, $target, $force, $output);
+            }
+        }
+
+        return $copied;
+    }
+
+    /**
      * @param array<string, bool|string> $settings
      */
     private function copyWorkflow(string $source, string $target, array $settings, bool $force, OutputInterface $output): int
@@ -452,6 +459,10 @@ final class InitCommand extends Command
      * @return array{
      *     workflow: bool,
      *     captainhook: bool,
+     *     phpforge: bool,
+     *     gitlab_ci: bool,
+     *     bitbucket_ci: bool,
+     *     forgejo_workflow: bool,
      *     workflow_ref: string,
      *     php_versions: string,
      *     dependency_versions: string,
@@ -469,6 +480,10 @@ final class InitCommand extends Command
         return [
             'workflow' => true,
             'captainhook' => true,
+            'phpforge' => true,
+            'gitlab_ci' => false,
+            'bitbucket_ci' => false,
+            'forgejo_workflow' => false,
             'workflow_ref' => $workflowRef,
             'php_versions' => '["8.3","8.4","8.5"]',
             'dependency_versions' => '["prefer-lowest","prefer-stable"]',
@@ -594,6 +609,66 @@ final class InitCommand extends Command
         ];
 
         return $this->phpVersionPresetsCache;
+    }
+
+    /**
+     * @param array<string, bool> $flags
+     */
+    private function renderNextSteps(array $flags, OutputInterface $output): void
+    {
+        $messages = [
+            'workflow' => '  - Review and commit .github/workflows/security-standards.yml',
+            'phpforge' => '  - Review and commit phpforge.json (syntax/duplicate scan policy)',
+            'gitlab_ci' => '  - Review and commit .gitlab-ci.yml',
+            'bitbucket_ci' => '  - Review and commit bitbucket-pipelines.yml',
+            'forgejo_workflow' => '  - Review and commit .forgejo/workflows/security-standards.yml',
+        ];
+
+        foreach ($messages as $key => $message) {
+            if ($flags[$key]) {
+                $output->writeln($message);
+            }
+        }
+
+        if ($flags['captainhook']) {
+            $output->writeln('  - Hooks auto-install on the next composer install/update');
+            $output->writeln('  - Optional now: composer ic:hooks (install/update immediately)');
+        }
+    }
+
+    /**
+     * @param array<string, bool|string> $settings
+     *
+     * @return array{
+     *     flags: array<string, bool>,
+     *     settings: array<string, bool|string>
+     * }
+     */
+    private function resolvedSelection(InputInterface $input, OutputInterface $output, array $settings): array
+    {
+        $flags = [
+            'workflow' => (bool) $input->getOption('workflow'),
+            'captainhook' => (bool) $input->getOption('captainhook'),
+            'phpforge' => (bool) $input->getOption('phpforge'),
+            'gitlab_ci' => (bool) $input->getOption('gitlab-ci'),
+            'bitbucket_ci' => (bool) $input->getOption('bitbucket-ci'),
+            'forgejo_workflow' => (bool) $input->getOption('forgejo-workflow'),
+        ];
+        $explicit = in_array(true, $flags, true) || (bool) $input->getOption('no-interaction-defaults');
+
+        if (!$explicit && $input->isInteractive()) {
+            $settings = $this->ask($input, $output, $settings);
+
+            foreach (array_keys($flags) as $key) {
+                $flags[$key] = (bool) $settings[$key];
+            }
+        } elseif (!in_array(true, $flags, true)) {
+            $flags['workflow'] = true;
+            $flags['captainhook'] = true;
+            $flags['phpforge'] = true;
+        }
+
+        return ['flags' => $flags, 'settings' => $settings];
     }
 
     private function stringValue(mixed $value, string $default): string

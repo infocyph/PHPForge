@@ -2,7 +2,7 @@
 
 Shared Composer-powered QA, refactoring, benchmark, release, hook and CI tooling for Infocyph PHP projects.
 
-PHPForge is installed as a dev dependency in PHP libraries and packages. It provides Composer commands under the `ic:*` namespace, ships default tool configuration, installs CaptainHook hooks, and exposes a reusable GitHub Actions workflow.
+PHPForge is installed as a dev dependency in PHP libraries and packages. It provides Composer commands under the `ic:*` namespace, ships default tool configuration, installs CaptainHook hooks, exposes a reusable GitHub Actions workflow and includes starter templates for GitLab CI, Bitbucket Pipelines and Forgejo Actions.
 
 ## What It Includes
 
@@ -83,6 +83,10 @@ composer ic:init
 ```text
 Install CaptainHook config?
 Install GitHub Actions workflow wrapper?
+Install PHPForge native checker config (phpforge.json)?
+Install GitLab CI pipeline (.gitlab-ci.yml)?
+Install Bitbucket pipeline (bitbucket-pipelines.yml)?
+Install Forgejo workflow (.forgejo/workflows/security-standards.yml)?
 PHPForge workflow ref
 PHP version matrix
 Dependency matrix
@@ -131,7 +135,11 @@ Use targeted or non-interactive init commands when needed:
 
 ```bash
 composer ic:init --captainhook
+composer ic:init --phpforge
 composer ic:init --workflow --workflow-ref=main
+composer ic:init --gitlab-ci
+composer ic:init --bitbucket-ci
+composer ic:init --forgejo-workflow
 composer ic:init --no-interaction-defaults
 composer ic:init --force
 ```
@@ -156,15 +164,16 @@ composer ic:init --force
 | `composer ic:test:bench`    | Runs PHPBench aggregate benchmarks.                                                                                                       |
 
 Native syntax and duplicate settings live in `phpforge.json`, with the bundled default used when a project-local file is not present.
-Duplicate detection normalizes variables and literals by default, ignores whitespace/comments, and scans production paths (`src`, `app`, `config`, and `database`) from that config.
+Syntax and duplicate checks are root-scoped by default and rely on `exclude` lists in `phpforge.json` (plus Git ignore rules).
+Duplicate detection normalizes variables and literals by default and ignores whitespace/comments.
 The Composer gate uses the configured token window for a quiet CI signal; the lower-level binary exposes deeper audit options and accepts `--config=FILE`.
 Use the lower-level binary for custom scans:
 
 ```bash
-php vendor/bin/phpforge duplicates --min-lines=5 --min-tokens=70 src tests
-php vendor/bin/phpforge duplicates --mode=audit --near-miss --json src
-php vendor/bin/phpforge duplicates --write-baseline=.phpforge-duplicates-baseline.json src
-php vendor/bin/phpforge duplicates --baseline=.phpforge-duplicates-baseline.json src
+php vendor/bin/phpforge duplicates --min-lines=5 --min-tokens=70
+php vendor/bin/phpforge duplicates --mode=audit --near-miss --json --exclude=tests
+php vendor/bin/phpforge duplicates --write-baseline=.phpforge-duplicates-baseline.json
+php vendor/bin/phpforge duplicates --baseline=.phpforge-duplicates-baseline.json
 ```
 
 Useful duplicate options:
@@ -176,6 +185,7 @@ Useful duplicate options:
 | `--mode=audit` | Enables statement-window matching in addition to token matching. |
 | `--near-miss` | Enables bounded statement/shape similarity for edited clones. |
 | `--min-similarity=0.85` | Sets the near-miss similarity threshold. |
+| `--exclude=PATH` | Excludes one path (repeatable). |
 | `--baseline=FILE` | Suppresses clone groups already captured in a baseline. |
 | `--write-baseline[=FILE]` | Writes the current clone groups as the baseline and exits successfully. |
 
@@ -217,9 +227,13 @@ Useful duplicate options:
 
 | Command                                               | Purpose                                                                   |
 | ----------------------------------------------------- | ------------------------------------------------------------------------- |
-| `composer ic:init`                                  | Interactively sets up CaptainHook and the workflow wrapper.               |
+| `composer ic:init`                                  | Interactively sets up CaptainHook, PHPForge native checker config, and the workflow wrapper. |
 | `composer ic:init --captainhook`                    | Copies only `captainhook.json`.                                         |
+| `composer ic:init --phpforge`                       | Copies only `phpforge.json`.                                            |
 | `composer ic:init --workflow --workflow-ref=main`   | Copies only the workflow wrapper and points it at the given PHPForge ref. |
+| `composer ic:init --gitlab-ci`                      | Copies `.gitlab-ci.yml` starter pipeline.                               |
+| `composer ic:init --bitbucket-ci`                   | Copies `bitbucket-pipelines.yml` starter pipeline.                      |
+| `composer ic:init --forgejo-workflow`               | Copies `.forgejo/workflows/security-standards.yml` starter workflow.    |
 | `composer ic:init --no-interaction-defaults`        | Copies default init files without prompting.                              |
 | `composer ic:init --force`                          | Overwrites existing copied files.                                         |
 | `composer ic:hooks`                                 | Installs enabled CaptainHook hooks.                                       |
@@ -572,7 +586,29 @@ jobs:
       run_analysis: true
 ```
 
-For code scanning, project-local PHPStan configs (`phpstan.neon`, then `phpstan.neon.dist`) and Psalm configs (`psalm.xml`, then `psalm.xml.dist`) are used when present; otherwise the workflow falls back to PHPForge defaults. When the bundled PHPStan config is used and `src` exists, the workflow appends `src` as the analysed path.
+For code scanning, project-local PHPStan configs (`phpstan.neon`, then `phpstan.neon.dist`) and Psalm configs (`psalm.xml`, then `psalm.xml.dist`) are used when present; otherwise the workflow falls back to PHPForge defaults.
+
+## Other CI Platforms
+
+Generate starter CI files with `ic:init`:
+
+```bash
+composer ic:init --gitlab-ci
+composer ic:init --bitbucket-ci
+composer ic:init --forgejo-workflow
+```
+
+Generated files:
+
+- `.gitlab-ci.yml` (GitLab CI)
+- `bitbucket-pipelines.yml` (Bitbucket Pipelines)
+- `.forgejo/workflows/security-standards.yml` (Forgejo Actions)
+
+Each template installs dependencies and runs:
+
+```bash
+composer ic:ci
+```
 
 ## Migration Guide
 
@@ -601,7 +637,7 @@ After:
 
 ```json
 "require-dev": {
-    "infocyph/phpforge": "^1.0"
+    "infocyph/phpforge": "dev-main"
 }
 ```
 

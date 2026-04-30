@@ -1,0 +1,17 @@
+image: composer:2
+
+pipelines:
+  default:
+    - step:
+        name: Security & Standards
+        caches:
+          - composer
+        script:
+          - export IC_PHPSTAN_MEMORY_LIMIT=1G
+          - export IC_PSALM_THREADS=1
+          - composer install --no-interaction --prefer-dist --no-progress
+          - composer ic:ci
+
+definitions:
+  caches:
+    composer: ~/.composer/cache
