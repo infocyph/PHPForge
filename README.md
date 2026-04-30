@@ -83,6 +83,7 @@ composer ic:init
 ```text
 Install CaptainHook config?
 Install GitHub Actions workflow wrapper?
+Install PHPForge native checker config (phpforge.json)?
 PHPForge workflow ref
 PHP version matrix
 Dependency matrix
@@ -131,6 +132,7 @@ Use targeted or non-interactive init commands when needed:
 
 ```bash
 composer ic:init --captainhook
+composer ic:init --phpforge
 composer ic:init --workflow --workflow-ref=main
 composer ic:init --no-interaction-defaults
 composer ic:init --force
@@ -156,15 +158,16 @@ composer ic:init --force
 | `composer ic:test:bench`    | Runs PHPBench aggregate benchmarks.                                                                                                       |
 
 Native syntax and duplicate settings live in `phpforge.json`, with the bundled default used when a project-local file is not present.
-Duplicate detection normalizes variables and literals by default, ignores whitespace/comments, and scans production paths (`src`, `app`, `config`, and `database`) from that config.
+Syntax and duplicate checks are root-scoped by default and rely on `exclude` lists in `phpforge.json` (plus Git ignore rules).
+Duplicate detection normalizes variables and literals by default and ignores whitespace/comments.
 The Composer gate uses the configured token window for a quiet CI signal; the lower-level binary exposes deeper audit options and accepts `--config=FILE`.
 Use the lower-level binary for custom scans:
 
 ```bash
-php vendor/bin/phpforge duplicates --min-lines=5 --min-tokens=70 src tests
-php vendor/bin/phpforge duplicates --mode=audit --near-miss --json src
-php vendor/bin/phpforge duplicates --write-baseline=.phpforge-duplicates-baseline.json src
-php vendor/bin/phpforge duplicates --baseline=.phpforge-duplicates-baseline.json src
+php vendor/bin/phpforge duplicates --min-lines=5 --min-tokens=70
+php vendor/bin/phpforge duplicates --mode=audit --near-miss --json --exclude=tests
+php vendor/bin/phpforge duplicates --write-baseline=.phpforge-duplicates-baseline.json
+php vendor/bin/phpforge duplicates --baseline=.phpforge-duplicates-baseline.json
 ```
 
 Useful duplicate options:
@@ -176,6 +179,7 @@ Useful duplicate options:
 | `--mode=audit` | Enables statement-window matching in addition to token matching. |
 | `--near-miss` | Enables bounded statement/shape similarity for edited clones. |
 | `--min-similarity=0.85` | Sets the near-miss similarity threshold. |
+| `--exclude=PATH` | Excludes one path (repeatable). |
 | `--baseline=FILE` | Suppresses clone groups already captured in a baseline. |
 | `--write-baseline[=FILE]` | Writes the current clone groups as the baseline and exits successfully. |
 
@@ -217,8 +221,9 @@ Useful duplicate options:
 
 | Command                                               | Purpose                                                                   |
 | ----------------------------------------------------- | ------------------------------------------------------------------------- |
-| `composer ic:init`                                  | Interactively sets up CaptainHook and the workflow wrapper.               |
+| `composer ic:init`                                  | Interactively sets up CaptainHook, PHPForge native checker config, and the workflow wrapper. |
 | `composer ic:init --captainhook`                    | Copies only `captainhook.json`.                                         |
+| `composer ic:init --phpforge`                       | Copies only `phpforge.json`.                                            |
 | `composer ic:init --workflow --workflow-ref=main`   | Copies only the workflow wrapper and points it at the given PHPForge ref. |
 | `composer ic:init --no-interaction-defaults`        | Copies default init files without prompting.                              |
 | `composer ic:init --force`                          | Overwrites existing copied files.                                         |

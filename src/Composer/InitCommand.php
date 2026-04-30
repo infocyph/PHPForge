@@ -35,6 +35,7 @@ final class InitCommand extends Command
             ->addOption('workflow', null, InputOption::VALUE_NONE, 'Copy the Security & Standards GitHub Actions workflow.')
             ->addOption('workflow-ref', null, InputOption::VALUE_REQUIRED, 'PHPForge Git ref used by generated workflow wrappers.', 'main')
             ->addOption('captainhook', null, InputOption::VALUE_NONE, 'Copy the default CaptainHook configuration.')
+            ->addOption('phpforge', null, InputOption::VALUE_NONE, 'Copy the default PHPForge native checker configuration.')
             ->addOption('no-interaction-defaults', null, InputOption::VALUE_NONE, 'Use default init selections without prompting.')
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing files.');
     }
@@ -43,7 +44,8 @@ final class InitCommand extends Command
     {
         $copyWorkflow = (bool) $input->getOption('workflow');
         $copyCaptainHook = (bool) $input->getOption('captainhook');
-        $explicit = $copyWorkflow || $copyCaptainHook || (bool) $input->getOption('no-interaction-defaults');
+        $copyPhpforge = (bool) $input->getOption('phpforge');
+        $explicit = $copyWorkflow || $copyCaptainHook || $copyPhpforge || (bool) $input->getOption('no-interaction-defaults');
         $settings = $this->defaultSettings($this->stringValue($input->getOption('workflow-ref'), 'main'));
         $settings['php_versions'] = $this->phpVersionPresets()['supported'];
 
@@ -51,9 +53,11 @@ final class InitCommand extends Command
             $settings = $this->ask($input, $output, $settings);
             $copyWorkflow = $settings['workflow'];
             $copyCaptainHook = $settings['captainhook'];
-        } elseif (!$copyWorkflow && !$copyCaptainHook) {
+            $copyPhpforge = $settings['phpforge'];
+        } elseif (!$copyWorkflow && !$copyCaptainHook && !$copyPhpforge) {
             $copyWorkflow = true;
             $copyCaptainHook = true;
+            $copyPhpforge = true;
         }
 
         $force = (bool) $input->getOption('force');
@@ -78,6 +82,15 @@ final class InitCommand extends Command
             );
         }
 
+        if ($copyPhpforge) {
+            $copied += $this->copy(
+                Paths::bundledConfigFile('phpforge.json'),
+                Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'phpforge.json',
+                $force,
+                $output,
+            );
+        }
+
         $output->writeln(sprintf('<info>PHPForge init complete: %d file(s) copied.</info>', $copied));
         $output->writeln('<info>Next steps:</info>');
 
@@ -88,6 +101,10 @@ final class InitCommand extends Command
         if ($copyCaptainHook) {
             $output->writeln('  - Hooks auto-install on the next composer install/update');
             $output->writeln('  - Optional now: composer ic:hooks (install/update immediately)');
+        }
+
+        if ($copyPhpforge) {
+            $output->writeln('  - Review and commit phpforge.json (syntax/duplicate scan policy)');
         }
 
         $output->writeln('  - Run composer ic:tests to validate setup');
@@ -221,6 +238,7 @@ final class InitCommand extends Command
     ): array {
         $settings['captainhook'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install CaptainHook config? [Y/n] ', true));
         $settings['workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitHub Actions workflow wrapper? [Y/n] ', true));
+        $settings['phpforge'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install PHPForge native checker config (phpforge.json)? [Y/n] ', true));
 
         return $settings;
     }
@@ -452,6 +470,7 @@ final class InitCommand extends Command
      * @return array{
      *     workflow: bool,
      *     captainhook: bool,
+     *     phpforge: bool,
      *     workflow_ref: string,
      *     php_versions: string,
      *     dependency_versions: string,
@@ -469,6 +488,7 @@ final class InitCommand extends Command
         return [
             'workflow' => true,
             'captainhook' => true,
+            'phpforge' => true,
             'workflow_ref' => $workflowRef,
             'php_versions' => '["8.3","8.4","8.5"]',
             'dependency_versions' => '["prefer-lowest","prefer-stable"]',
