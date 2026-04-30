@@ -1,0 +1,25 @@
+name: "Security & Standards"
+
+on:
+  push:
+    branches: [ "main", "master", "develop", "development" ]
+  pull_request:
+    branches: [ "main", "master", "develop", "development" ]
+
+jobs:
+  phpforge:
+    runs-on: ubuntu-latest
+    container:
+      image: composer:2
+    env:
+      IC_PHPSTAN_MEMORY_LIMIT: "1G"
+      IC_PSALM_THREADS: "1"
+    steps:
+      - name: Checkout
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Security & Standards
+        run: composer ic:ci
