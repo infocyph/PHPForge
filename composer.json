@@ -23,14 +23,14 @@
         }
     ],
     "require": {
-        "php": ">=8.1",
+        "php": ">=8.2",
         "composer-plugin-api": ">=2.6 <3.0",
         "captainhook/captainhook": ">=5.0 <6.0",
         "ergebnis/composer-normalize": ">=2.0 <3.0",
         "laravel/pint": ">=1.0 <2.0",
         "nikic/php-parser": ">=5.0 <6.0",
-        "pestphp/pest": ">=2.0 <5.0",
-        "pestphp/pest-plugin-drift": ">=2.0 <5.0",
+        "pestphp/pest": ">=3.0 <5.0",
+        "pestphp/pest-plugin-drift": ">=3.0 <5.0",
         "phpbench/phpbench": ">=1.0 <2.0",
         "phpstan/phpstan": ">=2.0 <3.0",
         "rector/rector": ">=2.0 <3.0",

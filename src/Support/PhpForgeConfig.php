@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Infocyph\PHPForge\Support;
 
-final class PhpForgeConfig
+final readonly class PhpForgeConfig
 {
     /**
      * @param array<string, mixed> $config
      */
-    private function __construct(private readonly array $config) {}
+    private function __construct(private array $config) {}
 
     public static function fromFile(string $path): self
     {
