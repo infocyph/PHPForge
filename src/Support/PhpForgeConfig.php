@@ -29,9 +29,8 @@ final class PhpForgeConfig
     }
 
     /**
-     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>} $options
-     *
-     * @return array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>}
+     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>} $options
+     * @return array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>}
      */
     public function applyDuplicateOptions(array $options): array
     {
@@ -50,56 +49,41 @@ final class PhpForgeConfig
         $writeBaseline = $this->stringValue($section, 'write_baseline');
 
         $paths = $this->stringList($this->value($section, 'paths'));
+        $excludes = $this->excludePaths($section);
 
-        if ($mode !== null) {
-            $options['mode'] = $mode;
-        }
-
-        if ($json !== null) {
-            $options['json'] = $json;
-        }
-
-        if ($normalize !== null) {
-            $options['normalize'] = $normalize;
-        }
-
-        if ($fuzzy !== null) {
-            $options['fuzzy'] = $fuzzy;
-        }
-
-        if ($nearMiss !== null) {
-            $options['nearMiss'] = $nearMiss;
-        }
-
-        if ($minLines !== null) {
-            $options['minLines'] = max(1, $minLines);
-        }
-
-        if ($minTokens !== null) {
-            $options['minTokens'] = max(1, $minTokens);
-        }
-
-        if ($minStatements !== null) {
-            $options['minStatements'] = max(1, $minStatements);
-        }
+        $this->applyDuplicateScalarOptions(
+            $options,
+            $mode,
+            $json,
+            $normalize,
+            $fuzzy,
+            $nearMiss,
+            $baseline,
+            $writeBaseline,
+        );
+        $this->applyDuplicateThresholdOptions($options, $minLines, $minTokens, $minStatements);
 
         if ($minSimilarity !== null) {
             $options['minSimilarity'] = $this->normalizeSimilarity($minSimilarity);
-        }
-
-        if ($baseline !== null) {
-            $options['baseline'] = $baseline;
-        }
-
-        if ($writeBaseline !== null) {
-            $options['writeBaseline'] = $writeBaseline;
         }
 
         if ($paths !== []) {
             $options['paths'] = $paths;
         }
 
+        if ($excludes !== []) {
+            $options['excludes'] = $excludes;
+        }
+
         return $options;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function syntaxExcludes(): array
+    {
+        return $this->excludePaths($this->section('syntax'));
     }
 
     /**
@@ -131,6 +115,70 @@ final class PhpForgeConfig
     }
 
     /**
+     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>} $options
+     */
+    private function applyDuplicateScalarOptions(
+        array &$options,
+        ?string $mode,
+        ?bool $json,
+        ?bool $normalize,
+        ?bool $fuzzy,
+        ?bool $nearMiss,
+        ?string $baseline,
+        ?string $writeBaseline,
+    ): void {
+        if ($mode !== null) {
+            $options['mode'] = $mode;
+        }
+
+        if ($json !== null) {
+            $options['json'] = $json;
+        }
+
+        if ($normalize !== null) {
+            $options['normalize'] = $normalize;
+        }
+
+        if ($fuzzy !== null) {
+            $options['fuzzy'] = $fuzzy;
+        }
+
+        if ($nearMiss !== null) {
+            $options['nearMiss'] = $nearMiss;
+        }
+
+        if ($baseline !== null) {
+            $options['baseline'] = $baseline;
+        }
+
+        if ($writeBaseline !== null) {
+            $options['writeBaseline'] = $writeBaseline;
+        }
+    }
+
+    /**
+     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>} $options
+     */
+    private function applyDuplicateThresholdOptions(
+        array &$options,
+        ?int $minLines,
+        ?int $minTokens,
+        ?int $minStatements,
+    ): void {
+        if ($minLines !== null) {
+            $options['minLines'] = max(1, $minLines);
+        }
+
+        if ($minTokens !== null) {
+            $options['minTokens'] = max(1, $minTokens);
+        }
+
+        if ($minStatements !== null) {
+            $options['minStatements'] = max(1, $minStatements);
+        }
+    }
+
+    /**
      * @param array<string, mixed> $section
      */
     private function boolValue(array $section, string $key): ?bool
@@ -138,6 +186,18 @@ final class PhpForgeConfig
         $value = $this->value($section, $key);
 
         return is_bool($value) ? $value : null;
+    }
+
+    /**
+     * @param array<string, mixed> $section
+     * @return list<string>
+     */
+    private function excludePaths(array $section): array
+    {
+        return array_values(array_unique([
+            ...$this->stringList($this->value($section, 'exclude')),
+            ...$this->stringList($this->value($section, 'exclude_paths')),
+        ]));
     }
 
     /**

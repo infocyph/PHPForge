@@ -4,24 +4,64 @@ declare(strict_types=1);
 
 it('loads syntax paths from phpforge config', function (): void {
     $root = makeSyntaxCheckerFixture();
-    $configured = $root . DIRECTORY_SEPARATOR . 'configured';
+    $configured = $root.DIRECTORY_SEPARATOR.'configured';
+    $excluded = $configured.DIRECTORY_SEPARATOR.'excluded';
 
     mkdir($configured, 0755, true);
-    file_put_contents($root . DIRECTORY_SEPARATOR . 'phpforge.json', json_encode([
+    mkdir($excluded, 0755, true);
+    file_put_contents($root.DIRECTORY_SEPARATOR.'phpforge.json', json_encode([
         'syntax' => [
             'paths' => ['configured'],
+            'exclude' => ['configured/excluded'],
         ],
     ], JSON_PRETTY_PRINT));
-    file_put_contents($configured . DIRECTORY_SEPARATOR . 'Example.php', <<<'PHP'
+    file_put_contents($configured.DIRECTORY_SEPARATOR.'Example.php', <<<'PHP'
 <?php
 
 final class Example
 {
 }
 PHP);
+    file_put_contents($excluded.DIRECTORY_SEPARATOR.'Broken.php', <<<'PHP'
+<?php
+
+final class Broken
+{
+PHP);
 
     try {
         $run = runSyntaxCheckerCommand($root, []);
+    } finally {
+        removeSyntaxCheckerFixture($root);
+    }
+
+    expect($run['exitCode'])->toBe(0)
+        ->and($run['stdout'])->toContain('Syntax OK: 1 PHP files checked.');
+});
+
+it('supports excluding syntax paths from CLI arguments', function (): void {
+    $root = makeSyntaxCheckerFixture();
+    $configured = $root.DIRECTORY_SEPARATOR.'configured';
+    $excluded = $configured.DIRECTORY_SEPARATOR.'excluded';
+
+    mkdir($configured, 0755, true);
+    mkdir($excluded, 0755, true);
+    file_put_contents($configured.DIRECTORY_SEPARATOR.'Example.php', <<<'PHP'
+<?php
+
+final class Example
+{
+}
+PHP);
+    file_put_contents($excluded.DIRECTORY_SEPARATOR.'Broken.php', <<<'PHP'
+<?php
+
+final class Broken
+{
+PHP);
+
+    try {
+        $run = runSyntaxCheckerCommand($root, ['configured', '--exclude=configured/excluded']);
     } finally {
         removeSyntaxCheckerFixture($root);
     }
@@ -35,13 +75,13 @@ PHP);
  */
 function runSyntaxCheckerCommand(string $cwd, array $args): array
 {
-    $binary = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpforge';
+    $binary = dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'bin'.DIRECTORY_SEPARATOR.'phpforge';
     $process = proc_open([PHP_BINARY, $binary, 'syntax', ...$args], [
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w'],
     ], $pipes, $cwd);
 
-    if (!is_resource($process)) {
+    if (! is_resource($process)) {
         throw new RuntimeException('Could not start syntax checker.');
     }
 
@@ -59,7 +99,7 @@ function runSyntaxCheckerCommand(string $cwd, array $args): array
 
 function makeSyntaxCheckerFixture(): string
 {
-    $root = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-syntax-' . uniqid('', true);
+    $root = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-syntax-'.uniqid('', true);
     mkdir($root, 0755, true);
 
     return $root;
@@ -67,7 +107,7 @@ function makeSyntaxCheckerFixture(): string
 
 function removeSyntaxCheckerFixture(string $root): void
 {
-    if (!is_dir($root)) {
+    if (! is_dir($root)) {
         return;
     }
 

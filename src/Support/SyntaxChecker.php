@@ -17,7 +17,7 @@ final class SyntaxChecker
             return $this->help();
         }
 
-        $files = (new PhpFileFinder())->find($options['paths']);
+        $files = (new PhpFileFinder())->find($options['paths'], $options['excludes']);
 
         if ($files === []) {
             fwrite(STDOUT, 'No PHP files found.' . PHP_EOL);
@@ -28,6 +28,58 @@ final class SyntaxChecker
         return $this->lintFiles($files);
     }
 
+    /**
+     * @param list<string> $args
+     * @param array{help:bool,config:string,paths:list<string>,excludes:list<string>} $options
+     */
+    private function consumeConfigOption(array $args, int &$index, string $arg, array &$options): bool
+    {
+        $config = $this->optionValue($arg, '--config');
+
+        if ($config !== null) {
+            $options['config'] = $config;
+
+            return true;
+        }
+
+        if ($arg !== '--config') {
+            return false;
+        }
+
+        if (isset($args[$index + 1])) {
+            $options['config'] = $args[++$index];
+        }
+
+        return true;
+    }
+
+    /**
+     * @param list<string> $args
+     * @param array{help:bool,config:string,paths:list<string>,excludes:list<string>} $options
+     */
+    private function consumeExcludeOption(array $args, int &$index, string $arg, array &$options): bool
+    {
+        $exclude = $this->optionValue($arg, '--exclude');
+
+        if ($exclude !== null) {
+            if ($exclude !== '') {
+                $options['excludes'][] = $exclude;
+            }
+
+            return true;
+        }
+
+        if ($arg !== '--exclude') {
+            return false;
+        }
+
+        if (isset($args[$index + 1]) && $args[$index + 1] !== '') {
+            $options['excludes'][] = $args[++$index];
+        }
+
+        return true;
+    }
+
     private function help(): int
     {
         fwrite(STDOUT, implode(PHP_EOL, [
@@ -35,6 +87,7 @@ final class SyntaxChecker
             '',
             'Options:',
             '  --config=FILE                  read PHPForge native checker settings',
+            '  --exclude=PATH                 skip a path (repeatable)',
             '  --help                         show this help',
         ]) . PHP_EOL);
 
@@ -107,8 +160,7 @@ final class SyntaxChecker
 
     /**
      * @param list<string> $args
-     *
-     * @return array{help:bool,config:string,paths:list<string>}
+     * @return array{help:bool,config:string,paths:list<string>,excludes:list<string>}
      */
     private function parseArgs(array $args): array
     {
@@ -116,6 +168,7 @@ final class SyntaxChecker
             'help' => false,
             'config' => Paths::config('phpforge.json'),
             'paths' => [],
+            'excludes' => [],
         ];
 
         for ($index = 0; $index < count($args); $index++) {
@@ -127,28 +180,24 @@ final class SyntaxChecker
                 continue;
             }
 
-            $config = $this->optionValue($arg, '--config');
-
-            if ($config !== null) {
-                $options['config'] = $config;
-
-                continue;
-            }
-
-            if ($arg === '--config') {
-                if (isset($args[$index + 1])) {
-                    $options['config'] = $args[++$index];
-                }
-
+            if ($this->consumeConfigOption($args, $index, $arg, $options)
+                || $this->consumeExcludeOption($args, $index, $arg, $options)) {
                 continue;
             }
 
             $options['paths'][] = $arg;
         }
 
+        $config = PhpForgeConfig::fromFile($options['config']);
+
         if ($options['paths'] === []) {
-            $options['paths'] = PhpForgeConfig::fromFile($options['config'])->syntaxPaths();
+            $options['paths'] = $config->syntaxPaths();
         }
+
+        $options['excludes'] = array_values(array_unique([
+            ...$config->syntaxExcludes(),
+            ...$options['excludes'],
+        ]));
 
         return $options;
     }

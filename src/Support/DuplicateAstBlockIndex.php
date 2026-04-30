@@ -11,7 +11,6 @@ final class DuplicateAstBlockIndex
 {
     /**
      * @param list<array{value:string,exact:string,line:int,statement:int,shape:string}> $tokens
-     *
      * @return list<array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}>
      */
     public function blocks(string $contents, string $file, array $tokens): array
@@ -62,7 +61,6 @@ final class DuplicateAstBlockIndex
 
     /**
      * @param array<int, array{first:int,last:int}> $lineTokenMap
-     *
      * @return array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}|null
      */
     private function block(Node $node, string $file, array $lineTokenMap): ?array
@@ -153,7 +151,6 @@ final class DuplicateAstBlockIndex
 
     /**
      * @param list<array{value:string,exact:string,line:int,statement:int,shape:string}> $tokens
-     *
      * @return array<int, array{first:int,last:int}>
      */
     private function lineTokenMap(array $tokens): array
@@ -257,7 +254,6 @@ final class DuplicateAstBlockIndex
 
     /**
      * @param array<int, array{first:int,last:int}> $lineTokenMap
-     *
      * @return array{start:int,end:int}|null
      */
     private function tokenRange(array $lineTokenMap, int $startLine, int $endLine): ?array

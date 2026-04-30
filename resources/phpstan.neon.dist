@@ -5,7 +5,26 @@ parameters:
     customRulesetUsed: true
     level: max
     paths:
-        - %currentWorkingDirectory%/src
+        - %currentWorkingDirectory%
+    excludePaths:
+        analyse:
+            - %currentWorkingDirectory%/vendor/*
+            - %currentWorkingDirectory%/node_modules/*
+            - %currentWorkingDirectory%/coverage/*
+            - %currentWorkingDirectory%/.phpunit.cache/*
+            - %currentWorkingDirectory%/.psalm-cache/*
+            - %currentWorkingDirectory%/build/*
+            - %currentWorkingDirectory%/dist/*
+            - %currentWorkingDirectory%/tmp/*
+            - %currentWorkingDirectory%/.tmp/*
+            - %currentWorkingDirectory%/storage/*
+            - %currentWorkingDirectory%/bootstrap/cache/*
+            - %currentWorkingDirectory%/var/cache/*
+            - %currentWorkingDirectory%/tests/*
+            - %currentWorkingDirectory%/resources/*
+            - %currentWorkingDirectory%/bin/*
+            - %currentWorkingDirectory%/benchmarks/*
+            - %currentWorkingDirectory%/examples/*
     parallel:
         maximumNumberOfProcesses: 2
     cognitive_complexity:

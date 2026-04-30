@@ -151,7 +151,6 @@ final class PhpstanSarifConverter
 
     /**
      * @param array<string, mixed> $decoded
-     *
      * @return list<array<string, mixed>>
      */
     private function phpstanResults(array $decoded): array
@@ -164,7 +163,6 @@ final class PhpstanSarifConverter
 
     /**
      * @param list<array<string, mixed>> $results
-     *
      * @return list<array{id: string, name: string, shortDescription: array{text: string}}>
      */
     private function ruleDescriptors(array $results): array
@@ -192,7 +190,6 @@ final class PhpstanSarifConverter
 
     /**
      * @param array<mixed> $array
-     *
      * @return array<string, mixed>
      */
     private function stringKeyedArray(array $array): array

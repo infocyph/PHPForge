@@ -8,7 +8,6 @@ final class DuplicateCloneReducer
 {
     /**
      * @param list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}> $clones
-     *
      * @return list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}>
      */
     public function group(array $clones): array
@@ -25,7 +24,6 @@ final class DuplicateCloneReducer
 
     /**
      * @param list<array{file:string,start_line:int,end_line:int,lines:int,context:string}> $occurrences
-     *
      * @return array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}
      */
     public function makeClone(string $source, array $occurrences, int $tokens, int $statements, float $similarity): array
@@ -49,7 +47,6 @@ final class DuplicateCloneReducer
 
     /**
      * @param list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}> $clones
-     *
      * @return list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}>
      */
     public function pruneContained(array $clones): array
@@ -67,7 +64,6 @@ final class DuplicateCloneReducer
 
     /**
      * @param list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}> $clones
-     *
      * @return list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}>
      */
     public function rank(array $clones): array
@@ -173,7 +169,6 @@ final class DuplicateCloneReducer
     /**
      * @param array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>} $left
      * @param array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>} $right
-     *
      * @return array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}
      */
     private function mergeClone(array $left, array $right): array
@@ -240,7 +235,6 @@ final class DuplicateCloneReducer
 
     /**
      * @param list<array{file:string,start_line:int,end_line:int,lines:int,context:string}> $occurrences
-     *
      * @return list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>
      */
     private function uniqueOccurrences(array $occurrences): array

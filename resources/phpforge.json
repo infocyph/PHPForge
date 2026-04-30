@@ -1,21 +1,45 @@
 {
   "syntax": {
-    "paths": [
-      "src",
-      "app",
-      "config",
-      "database",
+    "paths": [],
+    "exclude": [
       "tests",
-      "benchmarks",
-      "examples"
+      "vendor",
+      "node_modules",
+      ".git",
+      ".idea",
+      ".vscode",
+      "coverage",
+      ".phpunit.cache",
+      ".psalm-cache",
+      "build",
+      "dist",
+      "tmp",
+      ".tmp",
+      "storage",
+      "bootstrap/cache",
+      "var/cache"
     ]
   },
   "duplicates": {
-    "paths": [
-      "src",
-      "app",
-      "config",
-      "database"
+    "paths": [],
+    "exclude": [
+      "tests",
+      "vendor",
+      "node_modules",
+      ".git",
+      ".idea",
+      ".vscode",
+      "coverage",
+      ".phpunit.cache",
+      ".psalm-cache",
+      "build",
+      "dist",
+      "tmp",
+      ".tmp",
+      "storage",
+      "bootstrap/cache",
+      "var/cache",
+      "storage/framework/views"
     ],
     "mode": "gate",
     "normalize": true,

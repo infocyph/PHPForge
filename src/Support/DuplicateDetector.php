@@ -17,7 +17,7 @@ final class DuplicateDetector
             return $this->help();
         }
 
-        $result = (new DuplicateDetectionEngine())->analyze((new PhpFileFinder())->find($options['paths']), $options);
+        $result = (new DuplicateDetectionEngine())->analyze((new PhpFileFinder())->find($options['paths'], $options['excludes']), $options);
 
         if ($options['baseline'] !== '') {
             $result = $this->withoutBaselineClones($result, $options['baseline']);
@@ -57,7 +57,7 @@ final class DuplicateDetector
     }
 
     /**
-     * @return array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>}
+     * @return array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>}
      */
     private function defaultOptions(): array
     {
@@ -76,6 +76,7 @@ final class DuplicateDetector
             'baseline' => '',
             'writeBaseline' => '',
             'paths' => [],
+            'excludes' => [],
         ];
     }
 
@@ -87,6 +88,7 @@ final class DuplicateDetector
             'Options:',
             '  --mode=gate|audit              gate is deterministic; audit enables structural matching',
             '  --config=FILE                  read PHPForge native checker settings',
+            '  --exclude=PATH                 skip a path (repeatable)',
             '  --min-lines=N                  minimum duplicated lines (default: 5)',
             '  --min-tokens=N                 token fingerprint window size (default: 140)',
             '  --min-statements=N             statement window size for audit mode (default: 4)',
@@ -129,9 +131,8 @@ final class DuplicateDetector
     }
 
     /**
-     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>} $options
-     *
-     * @return array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>}
+     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>} $options
+     * @return array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>}
      */
     private function normalizeMode(array $options): array
     {
@@ -155,8 +156,7 @@ final class DuplicateDetector
 
     /**
      * @param list<string> $args
-     *
-     * @return array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>}
+     * @return array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>}
      */
     private function parseArgs(array $args): array
     {
@@ -170,10 +170,9 @@ final class DuplicateDetector
 
     /**
      * @param list<string> $args
-     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>} $options
+     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>} $options
      * @param list<string> $configuredPaths
-     *
-     * @return array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>}
+     * @return array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>}
      */
     private function parseCliOptions(array $args, array $options, array $configuredPaths): array
     {
@@ -194,6 +193,10 @@ final class DuplicateDetector
                 continue;
             }
 
+            if ($this->parseExcludeOption($args, $index, $options, $arg)) {
+                continue;
+            }
+
             if ($this->parseFlag($options, $arg) || $this->parseNumericOption($options, $arg) || $this->parseFileOption($options, $arg)) {
                 continue;
             }
@@ -209,7 +212,37 @@ final class DuplicateDetector
     }
 
     /**
-     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>} $options
+     * @param list<string> $args
+     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>} $options
+     */
+    private function parseExcludeOption(array $args, int &$index, array &$options, string $arg): bool
+    {
+        $exclude = $this->optionValue($arg, '--exclude');
+
+        if ($exclude !== null) {
+            if ($exclude !== '') {
+                $options['excludes'][] = $exclude;
+            }
+
+            $options['excludes'] = array_values(array_unique($options['excludes']));
+
+            return true;
+        }
+
+        if ($arg !== '--exclude') {
+            return false;
+        }
+
+        if (isset($args[$index + 1]) && $args[$index + 1] !== '') {
+            $options['excludes'][] = $args[++$index];
+            $options['excludes'] = array_values(array_unique($options['excludes']));
+        }
+
+        return true;
+    }
+
+    /**
+     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>} $options
      */
     private function parseFileOption(array &$options, string $arg): bool
     {
@@ -239,7 +272,7 @@ final class DuplicateDetector
     }
 
     /**
-     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>} $options
+     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>} $options
      */
     private function parseFlag(array &$options, string $arg): bool
     {
@@ -274,7 +307,7 @@ final class DuplicateDetector
     }
 
     /**
-     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>} $options
+     * @param array{help:bool,json:bool,config:string,mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float,baseline:string,writeBaseline:string,paths:list<string>,excludes:list<string>} $options
      */
     private function parseNumericOption(array &$options, string $arg): bool
     {
@@ -322,7 +355,6 @@ final class DuplicateDetector
 
     /**
      * @param array{files:int,total_lines:int,duplicated_lines:int,duplicate_percentage:float,known_clones:int,new_clones:int,clones:list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}>} $result
-     *
      * @return array{files:int,total_lines:int,duplicated_lines:int,duplicate_percentage:float,known_clones:int,new_clones:int,clones:list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}>}
      */
     private function withoutBaselineClones(array $result, string $baselinePath): array

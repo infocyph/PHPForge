@@ -9,7 +9,6 @@ final class DuplicateDetectionEngine
     /**
      * @param list<string> $files
      * @param array{mode:string,normalize:bool,fuzzy:bool,nearMiss:bool,minLines:int,minTokens:int,minStatements:int,minSimilarity:float} $options
-     *
      * @return array{files:int,total_lines:int,duplicated_lines:int,duplicate_percentage:float,known_clones:int,new_clones:int,clones:list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}>}
      */
     public function analyze(array $files, array $options): array
@@ -55,7 +54,6 @@ final class DuplicateDetectionEngine
 
     /**
      * @param array<string, list<array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}>> $blocks
-     *
      * @return array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}
      */
     private function blockById(array $blocks, string $id): array
@@ -73,7 +71,6 @@ final class DuplicateDetectionEngine
 
     /**
      * @param array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>} $block
-     *
      * @return array{file:string,start_line:int,end_line:int,lines:int,context:string}
      */
     private function blockOccurrence(array $block): array
@@ -167,7 +164,6 @@ final class DuplicateDetectionEngine
     /**
      * @param array<string, list<array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}>> $blocks
      * @param array{minLines:int,minStatements:int} $options
-     *
      * @return list<array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}>
      */
     private function flatBlocks(array $blocks, array $options): array
@@ -233,7 +229,6 @@ final class DuplicateDetectionEngine
      * @param array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>} $left
      * @param array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>} $right
      * @param array{minSimilarity:float} $options
-     *
      * @return array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}|null
      */
     private function nearMissClone(array $left, array $right, array $options, DuplicateCloneReducer $reducer): ?array
@@ -252,7 +247,6 @@ final class DuplicateDetectionEngine
     /**
      * @param array<string, list<array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}>> $blocks
      * @param array{nearMiss:bool,minLines:int,minStatements:int,minSimilarity:float} $options
-     *
      * @return list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}>
      */
     private function nearMissClones(array $blocks, array $options, DuplicateCloneReducer $reducer): array
@@ -267,7 +261,6 @@ final class DuplicateDetectionEngine
     /**
      * @param list<array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}> $blocks
      * @param array{minSimilarity:float} $options
-     *
      * @return list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}>
      */
     private function nearMissPairs(array $blocks, array $options, DuplicateCloneReducer $reducer): array
@@ -321,7 +314,6 @@ final class DuplicateDetectionEngine
 
     /**
      * @param list<array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}> $blocks
-     *
      * @return array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}|null
      */
     private function smallestContainingBlock(array $blocks, int $tokenStart, int $tokenEnd): ?array
@@ -339,7 +331,6 @@ final class DuplicateDetectionEngine
 
     /**
      * @param array<string, array{statements:int,occurrences:array<string, array{file:string,start_line:int,end_line:int,lines:int,context:string}>}> $cloneMap
-     *
      * @return list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}>
      */
     private function statementCloneMapToClones(array $cloneMap, DuplicateCloneReducer $reducer): array
@@ -358,7 +349,6 @@ final class DuplicateDetectionEngine
     /**
      * @param array<string, list<array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}>> $blocks
      * @param array{mode:string,minLines:int,minStatements:int} $options
-     *
      * @return list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}>
      */
     private function statementClones(array $blocks, array $options, DuplicateCloneReducer $reducer): array
@@ -381,7 +371,6 @@ final class DuplicateDetectionEngine
 
     /**
      * @param array<string, list<array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}>> $blocks
-     *
      * @return array<string, list<array{block:string,hash:string}>>
      */
     private function statementWindows(array $blocks, int $minStatements): array
@@ -402,7 +391,6 @@ final class DuplicateDetectionEngine
 
     /**
      * @param array<string, array{tokens:int,occurrences:array<string, array{file:string,start_line:int,end_line:int,lines:int,context:string}>}> $cloneMap
-     *
      * @return list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}>
      */
     private function tokenCloneMapToClones(array $cloneMap, DuplicateCloneReducer $reducer): array
@@ -422,7 +410,6 @@ final class DuplicateDetectionEngine
      * @param array<string, list<array{value:string,exact:string,line:int,statement:int,shape:string}>> $streams
      * @param array<string, list<array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}>> $blocks
      * @param array{minLines:int,minTokens:int} $options
-     *
      * @return list<array{fingerprint:string,source:string,score:float,similarity:float,tokens:int,lines:int,statements:int,block_type:string,occurrences:list<array{file:string,start_line:int,end_line:int,lines:int,context:string}>}>
      */
     private function tokenClones(array $streams, array $blocks, array $options, DuplicateCloneReducer $reducer): array
@@ -439,7 +426,6 @@ final class DuplicateDetectionEngine
     /**
      * @param list<array{value:string,exact:string,line:int,statement:int,shape:string}> $tokens
      * @param list<array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}> $blocks
-     *
      * @return array{file:string,start_line:int,end_line:int,lines:int,context:string}
      */
     private function tokenOccurrence(array $tokens, array $blocks, string $file, int $start, int $tokenCount): array
@@ -478,7 +464,6 @@ final class DuplicateDetectionEngine
 
     /**
      * @param array<string, list<array{value:string,exact:string,line:int,statement:int,shape:string}>> $streams
-     *
      * @return array<string, list<array{file:string,index:int}>>
      */
     private function tokenWindows(array $streams, int $minTokens): array

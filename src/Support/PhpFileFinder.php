@@ -8,12 +8,13 @@ final class PhpFileFinder
 {
     /**
      * @param list<string> $paths
-     *
+     * @param list<string> $excludes
      * @return list<string>
      */
-    public function find(array $paths): array
+    public function find(array $paths, array $excludes = []): array
     {
         $files = $this->gitAwarePhpFiles($paths);
+        $files = $this->withoutExcludedPaths($files, $excludes);
 
         $files = array_values(array_unique($files));
         sort($files);
@@ -63,7 +64,6 @@ final class PhpFileFinder
 
     /**
      * @param list<string> $paths
-     *
      * @return list<string>
      */
     private function gitAwarePhpFiles(array $paths): array
@@ -79,7 +79,6 @@ final class PhpFileFinder
 
     /**
      * @param list<string> $paths
-     *
      * @return array<string, true>
      */
     private function gitIgnoredPaths(array $paths): array
@@ -120,7 +119,6 @@ final class PhpFileFinder
 
     /**
      * @param list<string> $paths
-     *
      * @return list<string>|null
      */
     private function gitTrackedAndUnignoredPhpFiles(array $paths): ?array
@@ -158,9 +156,19 @@ final class PhpFileFinder
         return $this->filterUnignoredPhpFiles($stdout);
     }
 
+    private function normalizePath(string $path): string
+    {
+        $normalized = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+
+        if ($normalized !== DIRECTORY_SEPARATOR) {
+            $normalized = rtrim($normalized, DIRECTORY_SEPARATOR);
+        }
+
+        return $normalized;
+    }
+
     /**
      * @param list<string> $paths
-     *
      * @return list<string>
      */
     private function recursivePhpFiles(array $paths): array
@@ -217,5 +225,43 @@ final class PhpFileFinder
             'node_modules',
             'vendor',
         ], true);
+    }
+
+    /**
+     * @param list<string> $files
+     * @param list<string> $excludes
+     * @return list<string>
+     */
+    private function withoutExcludedPaths(array $files, array $excludes): array
+    {
+        if ($excludes === []) {
+            return $files;
+        }
+
+        $normalizedExcludes = [];
+
+        foreach ($excludes as $exclude) {
+            if ($exclude === '') {
+                continue;
+            }
+
+            $normalizedExcludes[] = $this->normalizePath($this->absolutePath($exclude));
+        }
+
+        if ($normalizedExcludes === []) {
+            return $files;
+        }
+
+        return array_values(array_filter($files, function (string $file) use ($normalizedExcludes): bool {
+            $normalizedFile = $this->normalizePath($file);
+
+            foreach ($normalizedExcludes as $exclude) {
+                if ($normalizedFile === $exclude || str_starts_with($normalizedFile, $exclude . DIRECTORY_SEPARATOR)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }));
     }
 }

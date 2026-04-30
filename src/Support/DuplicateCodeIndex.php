@@ -9,7 +9,6 @@ final class DuplicateCodeIndex
     /**
      * @param list<string> $files
      * @param array{normalize:bool,fuzzy:bool} $options
-     *
      * @return array{streams: array<string, list<array{value:string,exact:string,line:int,statement:int,shape:string}>>, blocks: array<string, list<array{id:string,type:string,file:string,start_line:int,end_line:int,token_start:int,token_end:int,statement_hashes:list<string>,shape:list<string>}>>, total_lines: int}
      */
     public function build(array $files, array $options): array
@@ -35,6 +34,23 @@ final class DuplicateCodeIndex
         return ['streams' => $streams, 'blocks' => $blocks, 'total_lines' => $totalLines];
     }
 
+    private function isIdentifierToken(int $id): bool
+    {
+        static $ids = null;
+
+        if (!is_array($ids)) {
+            $ids = [T_STRING];
+
+            foreach (['T_NAME_QUALIFIED', 'T_NAME_FULLY_QUALIFIED', 'T_NAME_RELATIVE'] as $tokenName) {
+                if (defined($tokenName)) {
+                    $ids[] = (int) constant($tokenName);
+                }
+            }
+        }
+
+        return in_array($id, $ids, true);
+    }
+
     private function lineCount(string $contents): int
     {
         return $contents === '' ? 0 : substr_count($contents, "\n") + 1;
@@ -42,7 +58,6 @@ final class DuplicateCodeIndex
 
     /**
      * @param array{0:int,1:string,2:int}|string $rawToken
-     *
      * @return array{value:string,exact:string,line:int,statement:int,shape:string}|null
      */
     private function normalizedToken(array|string $rawToken, int &$currentLine, bool $normalize, bool $fuzzy): ?array
@@ -69,11 +84,14 @@ final class DuplicateCodeIndex
 
     private function normalizeToken(int $id, string $text, bool $fuzzy): string
     {
+        if ($this->isIdentifierToken($id)) {
+            return $fuzzy ? 'ID' : token_name($id) . ':' . strtolower($text);
+        }
+
         return match ($id) {
             T_VARIABLE => 'VAR',
             T_LNUMBER, T_DNUMBER => 'NUM',
             T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE => 'STR',
-            T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_NAME_RELATIVE => $fuzzy ? 'ID' : token_name($id) . ':' . strtolower($text),
             default => token_name($id) . ':' . strtolower($text),
         };
     }

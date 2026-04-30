@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 it('detects fuzzy token duplicates across php files', function (): void {
     $root = makeDuplicateDetectorFixture();
-    $src = $root . DIRECTORY_SEPARATOR . 'src';
+    $src = $root.DIRECTORY_SEPARATOR.'src';
 
     mkdir($src, 0755, true);
-    file_put_contents($src . DIRECTORY_SEPARATOR . 'Alpha.php', <<<'PHP'
+    file_put_contents($src.DIRECTORY_SEPARATOR.'Alpha.php', <<<'PHP'
 <?php
 
 final class Alpha
@@ -23,7 +23,7 @@ final class Alpha
     }
 }
 PHP);
-    file_put_contents($src . DIRECTORY_SEPARATOR . 'Beta.php', <<<'PHP'
+    file_put_contents($src.DIRECTORY_SEPARATOR.'Beta.php', <<<'PHP'
 <?php
 
 final class Beta
@@ -57,10 +57,10 @@ PHP);
 
 it('passes when no duplicate reaches the configured threshold', function (): void {
     $root = makeDuplicateDetectorFixture();
-    $src = $root . DIRECTORY_SEPARATOR . 'src';
+    $src = $root.DIRECTORY_SEPARATOR.'src';
 
     mkdir($src, 0755, true);
-    file_put_contents($src . DIRECTORY_SEPARATOR . 'Solo.php', <<<'PHP'
+    file_put_contents($src.DIRECTORY_SEPARATOR.'Solo.php', <<<'PHP'
 <?php
 
 final class Solo
@@ -86,10 +86,10 @@ PHP);
 
 it('detects near-miss block clones in audit mode', function (): void {
     $root = makeDuplicateDetectorFixture();
-    $src = $root . DIRECTORY_SEPARATOR . 'src';
+    $src = $root.DIRECTORY_SEPARATOR.'src';
 
     mkdir($src, 0755, true);
-    file_put_contents($src . DIRECTORY_SEPARATOR . 'NearMiss.php', <<<'PHP'
+    file_put_contents($src.DIRECTORY_SEPARATOR.'NearMiss.php', <<<'PHP'
 <?php
 
 function first(array $items): array
@@ -131,16 +131,16 @@ PHP);
 
 it('can write and use a duplicate baseline', function (): void {
     $root = makeDuplicateDetectorFixture();
-    $src = $root . DIRECTORY_SEPARATOR . 'src';
-    $baseline = $root . DIRECTORY_SEPARATOR . 'duplicates-baseline.json';
+    $src = $root.DIRECTORY_SEPARATOR.'src';
+    $baseline = $root.DIRECTORY_SEPARATOR.'duplicates-baseline.json';
 
     mkdir($src, 0755, true);
-    file_put_contents($src . DIRECTORY_SEPARATOR . 'One.php', duplicateBaselineFixture('One'));
-    file_put_contents($src . DIRECTORY_SEPARATOR . 'Two.php', duplicateBaselineFixture('Two'));
+    file_put_contents($src.DIRECTORY_SEPARATOR.'One.php', duplicateBaselineFixture('One'));
+    file_put_contents($src.DIRECTORY_SEPARATOR.'Two.php', duplicateBaselineFixture('Two'));
 
     try {
-        $write = runDuplicateDetectorCommand($root, ['--json', '--fuzzy', '--min-lines=5', '--min-tokens=20', '--write-baseline=' . $baseline, 'src']);
-        $check = runDuplicateDetectorCommand($root, ['--json', '--fuzzy', '--min-lines=5', '--min-tokens=20', '--baseline=' . $baseline, 'src']);
+        $write = runDuplicateDetectorCommand($root, ['--json', '--fuzzy', '--min-lines=5', '--min-tokens=20', '--write-baseline='.$baseline, 'src']);
+        $check = runDuplicateDetectorCommand($root, ['--json', '--fuzzy', '--min-lines=5', '--min-tokens=20', '--baseline='.$baseline, 'src']);
     } finally {
         removeDuplicateDetectorFixture($root);
     }
@@ -156,10 +156,10 @@ it('can write and use a duplicate baseline', function (): void {
 
 it('loads duplicate options and paths from phpforge config', function (): void {
     $root = makeDuplicateDetectorFixture();
-    $configured = $root . DIRECTORY_SEPARATOR . 'configured';
+    $configured = $root.DIRECTORY_SEPARATOR.'configured';
 
     mkdir($configured, 0755, true);
-    file_put_contents($root . DIRECTORY_SEPARATOR . 'phpforge.json', json_encode([
+    file_put_contents($root.DIRECTORY_SEPARATOR.'phpforge.json', json_encode([
         'duplicates' => [
             'paths' => ['configured'],
             'fuzzy' => true,
@@ -167,8 +167,8 @@ it('loads duplicate options and paths from phpforge config', function (): void {
             'min_tokens' => 20,
         ],
     ], JSON_PRETTY_PRINT));
-    file_put_contents($configured . DIRECTORY_SEPARATOR . 'One.php', duplicateBaselineFixture('One'));
-    file_put_contents($configured . DIRECTORY_SEPARATOR . 'Two.php', duplicateBaselineFixture('Two'));
+    file_put_contents($configured.DIRECTORY_SEPARATOR.'One.php', duplicateBaselineFixture('One'));
+    file_put_contents($configured.DIRECTORY_SEPARATOR.'Two.php', duplicateBaselineFixture('Two'));
 
     try {
         $run = runDuplicateDetectorCommand($root, ['--json']);
@@ -182,14 +182,89 @@ it('loads duplicate options and paths from phpforge config', function (): void {
         ->and($result['clones'])->not()->toBeEmpty();
 });
 
+it('supports excluding duplicate paths from phpforge config', function (): void {
+    $root = makeDuplicateDetectorFixture();
+    $configured = $root.DIRECTORY_SEPARATOR.'configured';
+    $excluded = $configured.DIRECTORY_SEPARATOR.'excluded';
+
+    mkdir($configured, 0755, true);
+    mkdir($excluded, 0755, true);
+    file_put_contents($root.DIRECTORY_SEPARATOR.'phpforge.json', json_encode([
+        'duplicates' => [
+            'paths' => ['configured'],
+            'exclude' => ['configured/excluded'],
+            'fuzzy' => true,
+            'min_lines' => 5,
+            'min_tokens' => 20,
+        ],
+    ], JSON_PRETTY_PRINT));
+    file_put_contents($configured.DIRECTORY_SEPARATOR.'Solo.php', <<<'PHP'
+<?php
+
+final class Solo
+{
+    public function value(): int
+    {
+        return 42;
+    }
+}
+PHP);
+    file_put_contents($excluded.DIRECTORY_SEPARATOR.'One.php', duplicateBaselineFixture('One'));
+    file_put_contents($excluded.DIRECTORY_SEPARATOR.'Two.php', duplicateBaselineFixture('Two'));
+
+    try {
+        $run = runDuplicateDetectorCommand($root, ['--json']);
+    } finally {
+        removeDuplicateDetectorFixture($root);
+    }
+
+    $result = json_decode($run['stdout'], true);
+
+    expect($run['exitCode'])->toBe(0)
+        ->and($result['clones'])->toBe([]);
+});
+
+it('supports excluding duplicate paths from CLI arguments', function (): void {
+    $root = makeDuplicateDetectorFixture();
+    $configured = $root.DIRECTORY_SEPARATOR.'configured';
+    $excluded = $configured.DIRECTORY_SEPARATOR.'excluded';
+
+    mkdir($configured, 0755, true);
+    mkdir($excluded, 0755, true);
+    file_put_contents($configured.DIRECTORY_SEPARATOR.'Solo.php', <<<'PHP'
+<?php
+
+final class Solo
+{
+    public function value(): int
+    {
+        return 42;
+    }
+}
+PHP);
+    file_put_contents($excluded.DIRECTORY_SEPARATOR.'One.php', duplicateBaselineFixture('One'));
+    file_put_contents($excluded.DIRECTORY_SEPARATOR.'Two.php', duplicateBaselineFixture('Two'));
+
+    try {
+        $run = runDuplicateDetectorCommand($root, ['--json', '--fuzzy', '--min-lines=5', '--min-tokens=20', 'configured', '--exclude=configured/excluded']);
+    } finally {
+        removeDuplicateDetectorFixture($root);
+    }
+
+    $result = json_decode($run['stdout'], true);
+
+    expect($run['exitCode'])->toBe(0)
+        ->and($result['clones'])->toBe([]);
+});
+
 it('lets duplicate command paths override phpforge config paths', function (): void {
     $root = makeDuplicateDetectorFixture();
-    $configured = $root . DIRECTORY_SEPARATOR . 'configured';
-    $explicit = $root . DIRECTORY_SEPARATOR . 'explicit';
+    $configured = $root.DIRECTORY_SEPARATOR.'configured';
+    $explicit = $root.DIRECTORY_SEPARATOR.'explicit';
 
     mkdir($configured, 0755, true);
     mkdir($explicit, 0755, true);
-    file_put_contents($root . DIRECTORY_SEPARATOR . 'phpforge.json', json_encode([
+    file_put_contents($root.DIRECTORY_SEPARATOR.'phpforge.json', json_encode([
         'duplicates' => [
             'paths' => ['configured'],
             'fuzzy' => true,
@@ -197,9 +272,9 @@ it('lets duplicate command paths override phpforge config paths', function (): v
             'min_tokens' => 20,
         ],
     ], JSON_PRETTY_PRINT));
-    file_put_contents($configured . DIRECTORY_SEPARATOR . 'One.php', duplicateBaselineFixture('One'));
-    file_put_contents($configured . DIRECTORY_SEPARATOR . 'Two.php', duplicateBaselineFixture('Two'));
-    file_put_contents($explicit . DIRECTORY_SEPARATOR . 'Solo.php', <<<'PHP'
+    file_put_contents($configured.DIRECTORY_SEPARATOR.'One.php', duplicateBaselineFixture('One'));
+    file_put_contents($configured.DIRECTORY_SEPARATOR.'Two.php', duplicateBaselineFixture('Two'));
+    file_put_contents($explicit.DIRECTORY_SEPARATOR.'Solo.php', <<<'PHP'
 <?php
 
 final class Solo
@@ -245,7 +320,7 @@ PHP;
 
 function makeDuplicateDetectorFixture(): string
 {
-    $root = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-duplicates-' . uniqid('', true);
+    $root = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-duplicates-'.uniqid('', true);
     mkdir($root, 0755, true);
 
     return $root;
@@ -253,7 +328,7 @@ function makeDuplicateDetectorFixture(): string
 
 function removeDuplicateDetectorFixture(string $root): void
 {
-    if (!is_dir($root)) {
+    if (! is_dir($root)) {
         return;
     }
 
@@ -276,19 +351,18 @@ function removeDuplicateDetectorFixture(string $root): void
 }
 
 /**
- * @param list<string> $args
- *
+ * @param  list<string>  $args
  * @return array{exitCode:int,stdout:string,stderr:string}
  */
 function runDuplicateDetectorCommand(string $cwd, array $args): array
 {
-    $binary = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpforge';
+    $binary = dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'bin'.DIRECTORY_SEPARATOR.'phpforge';
     $process = proc_open([PHP_BINARY, $binary, 'duplicates', ...$args], [
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w'],
     ], $pipes, $cwd);
 
-    if (!is_resource($process)) {
+    if (! is_resource($process)) {
         throw new RuntimeException('Could not start duplicate detector.');
     }
 

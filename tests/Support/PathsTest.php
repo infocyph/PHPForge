@@ -6,17 +6,17 @@ use Infocyph\PHPForge\Support\Paths;
 
 it('falls back to bundled defaults when project config is missing', function (): void {
     expect(Paths::config('pint.json'))
-        ->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'pint.json');
+        ->toBe(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'pint.json');
 });
 
 it('falls back to bundled PHPForge native checker config', function (): void {
     expect(Paths::config('phpforge.json'))
-        ->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'phpforge.json');
+        ->toBe(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpforge.json');
 });
 
 it('uses bundled config when project config from list is missing', function (): void {
     expect(Paths::firstConfig(['pest.xml', 'phpunit.xml']))
-        ->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'pest.xml');
+        ->toBe(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'pest.xml');
 });
 
 it('returns null when project config from a list does not exist', function (): void {
@@ -31,5 +31,5 @@ it('returns null when no project-only config exists', function (): void {
 
 it('resolves package files from the PHPForge package root', function (): void {
     expect(Paths::packageFile('bin/phpforge'))
-        ->toBe(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpforge');
+        ->toBe(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'bin'.DIRECTORY_SEPARATOR.'phpforge');
 });

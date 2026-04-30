@@ -1,7 +1,19 @@
 {
     "preset": "per",
     "exclude": [
-        "tests"
+        "tests",
+        "vendor",
+        "node_modules",
+        "coverage",
+        ".phpunit.cache",
+        ".psalm-cache",
+        "build",
+        "dist",
+        "tmp",
+        ".tmp",
+        "storage",
+        "bootstrap/cache",
+        "var/cache"
     ],
     "notPath": [
         "rector.php"

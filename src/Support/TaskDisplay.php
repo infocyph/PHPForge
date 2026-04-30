@@ -134,7 +134,6 @@ final class TaskDisplay
 
     /**
      * @param list<string> $task
-     *
      * @return array{tool: string, subcommand: string}
      */
     private static function parseTool(array $task): array
