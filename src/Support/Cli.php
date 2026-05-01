@@ -28,6 +28,10 @@ final class Cli
      */
     private function ci(array $args): int
     {
+        if (!in_array('--prefer-lowest', $args, true)) {
+            return $this->passthru('composer ic:tests:parallel');
+        }
+
         $commands = [
             'composer ic:test:syntax',
             'composer ic:test:code',

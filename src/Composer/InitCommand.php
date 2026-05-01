@@ -19,7 +19,7 @@ final class InitCommand extends Command
     private const END_OF_LIFE_PHP_API = 'https://endoflife.date/api/php.json';
 
     /**
-     * @var array<string, string>|null
+     * @var non-empty-array<string, string>|null
      */
     private ?array $phpVersionPresetsCache = null;
 
@@ -95,43 +95,47 @@ final class InitCommand extends Command
         return $settings;
     }
 
+    /**
+     * @param non-empty-list<string> $choices
+     */
+    private function askChoiceWithCustom(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $prompt,
+        array $choices,
+        string $default,
+        string $customPrompt,
+    ): string {
+        $selection = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion($prompt, [...$choices, 'custom'], $default)), $default);
+
+        return $selection === 'custom'
+            ? $this->stringValue($helper->ask($input, $output, new Question($customPrompt, $default)), $default)
+            : $selection;
+    }
+
     private function askComposerFlags(
         QuestionHelper $helper,
         InputInterface $input,
         OutputInterface $output,
         string $defaultComposerFlags,
     ): string {
-        $composerFlagPresets = [
+        return $this->askMappedChoice($helper, $input, $output, [
+            'prompt' => 'Extra Composer flags',
+            'default_choice' => 'none (no extra Composer flags)',
+            'custom_prompt' => 'Custom Composer flags: ',
+            'custom_default' => $defaultComposerFlags,
+            'resolved_label' => 'Resolved Composer flags',
+        ], [
             'none' => '',
             'with-all-dependencies' => '--with-all-dependencies',
             'ignore-ext-redis' => '--ignore-platform-req=ext-redis',
-        ];
-
-        $composerFlagChoiceMap = [
+        ], [
             'none (no extra Composer flags)' => 'none',
             'with-all-dependencies (--with-all-dependencies; update transitive deps as needed)' => 'with-all-dependencies',
             'ignore-ext-redis (--ignore-platform-req=ext-redis; ignore ext-redis platform check)' => 'ignore-ext-redis',
             'custom (enter custom Composer flags)' => 'custom',
-        ];
-
-        $composerFlagChoice = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
-            'Extra Composer flags',
-            array_keys($composerFlagChoiceMap),
-            'none (no extra Composer flags)',
-        )), 'none (no extra Composer flags)');
-
-        $composerFlags = $composerFlagChoiceMap[$composerFlagChoice] ?? 'none';
-
-        $resolvedComposerFlags = $composerFlags === 'custom'
-            ? $this->stringValue($helper->ask($input, $output, new Question('Custom Composer flags: ', $defaultComposerFlags)), $defaultComposerFlags)
-            : $composerFlagPresets[$composerFlags];
-
-        $output->writeln(sprintf(
-            '<comment>Resolved Composer flags: %s</comment>',
-            $resolvedComposerFlags !== '' ? $resolvedComposerFlags : '(none)',
-        ));
-
-        return $resolvedComposerFlags;
+        ]);
     }
 
     private function askCoverageDriver(
@@ -149,32 +153,22 @@ final class InitCommand extends Command
         OutputInterface $output,
         string $defaultDependencyVersions,
     ): string {
-        $dependencyVersionPresets = [
+        $presets = [
             'full' => '["prefer-lowest","prefer-stable"]',
             'stable' => '["prefer-stable"]',
         ];
 
-        $dependencyChoiceMap = [
-            sprintf('full (%s)', $dependencyVersionPresets['full']) => 'full',
-            sprintf('stable (%s)', $dependencyVersionPresets['stable']) => 'stable',
+        return $this->askMappedChoice($helper, $input, $output, [
+            'prompt' => 'Dependency matrix',
+            'default_choice' => sprintf('full (%s)', $presets['full']),
+            'custom_prompt' => 'Custom dependency versions JSON: ',
+            'custom_default' => $defaultDependencyVersions,
+            'resolved_label' => 'Resolved dependency matrix',
+        ], $presets, [
+            sprintf('full (%s)', $presets['full']) => 'full',
+            sprintf('stable (%s)', $presets['stable']) => 'stable',
             'custom (enter JSON array string)' => 'custom',
-        ];
-
-        $dependencyChoice = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
-            'Dependency matrix',
-            array_keys($dependencyChoiceMap),
-            sprintf('full (%s)', $dependencyVersionPresets['full']),
-        )), sprintf('full (%s)', $dependencyVersionPresets['full']));
-
-        $dependencyPreset = $dependencyChoiceMap[$dependencyChoice] ?? 'full';
-
-        $resolvedDependencyVersions = $dependencyPreset === 'custom'
-            ? $this->stringValue($helper->ask($input, $output, new Question('Custom dependency versions JSON: ', $defaultDependencyVersions)), $defaultDependencyVersions)
-            : $dependencyVersionPresets[$dependencyPreset];
-
-        $output->writeln(sprintf('<comment>Resolved dependency matrix: %s</comment>', $resolvedDependencyVersions));
-
-        return $resolvedDependencyVersions;
+        ]);
     }
 
     /**
@@ -195,6 +189,40 @@ final class InitCommand extends Command
         $settings['forgejo_workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Forgejo workflow (.forgejo/workflows/security-standards.yml)? [y/N] ', false));
 
         return $settings;
+    }
+
+    /**
+     * @param array{prompt:string,default_choice:string,custom_prompt:string,custom_default:string,resolved_label:string} $settings
+     * @param non-empty-array<string, string> $presets
+     * @param array<string, string> $choiceMap
+     */
+    private function askMappedChoice(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        array $settings,
+        array $presets,
+        array $choiceMap,
+    ): string {
+        $choice = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
+            $settings['prompt'],
+            array_keys($choiceMap),
+            $settings['default_choice'],
+        )), $settings['default_choice']);
+
+        $defaultPreset = array_key_first($presets);
+        $preset = $choiceMap[$choice] ?? $defaultPreset;
+        $resolved = $preset === 'custom'
+            ? $this->stringValue($helper->ask($input, $output, new Question($settings['custom_prompt'], $settings['custom_default'])), $settings['custom_default'])
+            : ($presets[$preset] ?? $settings['custom_default']);
+
+        $output->writeln(sprintf(
+            '<comment>%s: %s</comment>',
+            $settings['resolved_label'],
+            $resolved !== '' ? $resolved : '(none)',
+        ));
+
+        return $resolved;
     }
 
     private function askPhpExtensions(
@@ -226,24 +254,13 @@ final class InitCommand extends Command
             'custom (enter comma-separated extension names)' => 'custom',
         ];
 
-        $extensionChoice = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
-            'PHP extensions',
-            array_keys($extensionChoiceMap),
-            'none (no extra extensions)',
-        )), 'none (no extra extensions)');
-
-        $extensionPreset = $extensionChoiceMap[$extensionChoice] ?? 'none';
-
-        $resolvedExtensions = $extensionPreset === 'custom'
-            ? $this->stringValue($helper->ask($input, $output, new Question('Custom PHP extensions, comma-separated: ', $defaultExtensions)), $defaultExtensions)
-            : $phpExtensionPresets[$extensionPreset];
-
-        $output->writeln(sprintf(
-            '<comment>Resolved PHP extensions: %s</comment>',
-            $resolvedExtensions !== '' ? $resolvedExtensions : '(none)',
-        ));
-
-        return $resolvedExtensions;
+        return $this->askMappedChoice($helper, $input, $output, [
+            'prompt' => 'PHP extensions',
+            'default_choice' => 'none (no extra extensions)',
+            'custom_prompt' => 'Custom PHP extensions, comma-separated: ',
+            'custom_default' => $defaultExtensions,
+            'resolved_label' => 'Resolved PHP extensions',
+        ], $phpExtensionPresets, $extensionChoiceMap);
     }
 
     private function askPhpstanMemoryLimit(
@@ -252,20 +269,15 @@ final class InitCommand extends Command
         OutputInterface $output,
         string $defaultPhpstanMemoryLimit,
     ): string {
-        $phpstanMemoryLimit = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
+        return $this->askChoiceWithCustom(
+            $helper,
+            $input,
+            $output,
             'PHPStan memory limit',
-            [
-                '1G',
-                '2G',
-                '4G',
-                'custom',
-            ],
+            ['1G', '2G', '4G'],
             $defaultPhpstanMemoryLimit,
-        )), $defaultPhpstanMemoryLimit);
-
-        return $phpstanMemoryLimit === 'custom'
-            ? $this->stringValue($helper->ask($input, $output, new Question('Custom PHPStan memory limit: ', $defaultPhpstanMemoryLimit)), $defaultPhpstanMemoryLimit)
-            : $phpstanMemoryLimit;
+            'Custom PHPStan memory limit: ',
+        );
     }
 
     private function askPhpVersions(
@@ -282,21 +294,15 @@ final class InitCommand extends Command
             'custom (enter JSON array string)' => 'custom',
         ];
 
-        $phpVersionChoice = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
-            'PHP version matrix',
-            array_keys($phpVersionChoiceMap),
-            sprintf('supported (%s)', $phpVersionPresets['supported'] ?? $defaultPhpVersions),
-        )), sprintf('supported (%s)', $phpVersionPresets['supported'] ?? $defaultPhpVersions));
+        $defaultChoice = sprintf('supported (%s)', $phpVersionPresets['supported'] ?? $defaultPhpVersions);
 
-        $phpPreset = $phpVersionChoiceMap[$phpVersionChoice] ?? 'supported';
-
-        $resolvedPhpVersions = $phpPreset === 'custom'
-            ? $this->stringValue($helper->ask($input, $output, new Question('Custom PHP versions JSON: ', $defaultPhpVersions)), $defaultPhpVersions)
-            : ($phpVersionPresets[$phpPreset] ?? $defaultPhpVersions);
-
-        $output->writeln(sprintf('<comment>Resolved PHP versions: %s</comment>', $resolvedPhpVersions));
-
-        return $resolvedPhpVersions;
+        return $this->askMappedChoice($helper, $input, $output, [
+            'prompt' => 'PHP version matrix',
+            'default_choice' => $defaultChoice,
+            'custom_prompt' => 'Custom PHP versions JSON: ',
+            'custom_default' => $defaultPhpVersions,
+            'resolved_label' => 'Resolved PHP versions',
+        ], $phpVersionPresets, $phpVersionChoiceMap);
     }
 
     private function askPsalmThreads(
@@ -305,20 +311,15 @@ final class InitCommand extends Command
         OutputInterface $output,
         string $defaultPsalmThreads,
     ): string {
-        $psalmThreads = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
+        return $this->askChoiceWithCustom(
+            $helper,
+            $input,
+            $output,
             'Psalm threads',
-            [
-                '1',
-                '2',
-                '4',
-                'custom',
-            ],
+            ['1', '2', '4'],
             $defaultPsalmThreads,
-        )), $defaultPsalmThreads);
-
-        return $psalmThreads === 'custom'
-            ? $this->stringValue($helper->ask($input, $output, new Question('Custom Psalm thread count: ', $defaultPsalmThreads)), $defaultPsalmThreads)
-            : $psalmThreads;
+            'Custom Psalm thread count: ',
+        );
     }
 
     private function askRunAnalysis(
@@ -576,7 +577,7 @@ final class InitCommand extends Command
     }
 
     /**
-     * @return array<string, string>
+     * @return non-empty-array<string, string>
      */
     private function phpVersionPresets(): array
     {

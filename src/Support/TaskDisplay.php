@@ -12,13 +12,13 @@ final class TaskDisplay
     public static function heading(array $task): string
     {
         $title = self::title($task);
-        $source = self::configSource($task);
+        $config = self::configLabel($task);
 
-        if (!is_string($source)) {
+        if (!is_string($config)) {
             return $title;
         }
 
-        return sprintf('%s (%s)', $title, $source);
+        return sprintf('%s (%s)', $title, $config);
     }
 
     private static function commandBasename(string $command): string
@@ -47,6 +47,23 @@ final class TaskDisplay
     /**
      * @param list<string> $task
      */
+    private static function configLabel(array $task): ?string
+    {
+        $path = self::configPath($task);
+
+        if (!is_string($path)) {
+            return null;
+        }
+
+        $resolvedPath = realpath($path);
+        $candidate = is_string($resolvedPath) ? $resolvedPath : $path;
+
+        return 'Config: ' . self::displayPath($candidate);
+    }
+
+    /**
+     * @param list<string> $task
+     */
     private static function configPath(array $task): ?string
     {
         $optionValue = self::optionValue($task, '--configuration')
@@ -56,58 +73,9 @@ final class TaskDisplay
         return is_string($optionValue) && $optionValue !== '' ? $optionValue : null;
     }
 
-    /**
-     * @param list<string> $task
-     */
-    private static function configSource(array $task): ?string
-    {
-        $path = self::configPath($task);
-
-        if (!is_string($path)) {
-            return null;
-        }
-
-        if (self::isBundledVendorPath($path)) {
-            return 'Stock: ' . self::displayPath($path);
-        }
-
-        $resolvedPath = realpath($path);
-        $candidate = is_string($resolvedPath) ? $resolvedPath : $path;
-
-        $projectRoot = Paths::projectRootPath();
-        $packageRoot = dirname(__DIR__, 2);
-        $projectRealPath = realpath($projectRoot);
-        $packageRealPath = realpath($packageRoot);
-
-        if (is_string($packageRealPath) && is_string($projectRealPath) && $projectRealPath !== $packageRealPath && self::isPathWithin($candidate, $packageRealPath)) {
-            return 'Stock: ' . self::displayPath($candidate);
-        }
-
-        if (is_string($projectRealPath) && self::isPathWithin($candidate, $projectRealPath)) {
-            return 'Project: ' . self::displayPath($candidate);
-        }
-
-        return null;
-    }
-
     private static function displayPath(string $path): string
     {
         return str_replace('\\', '/', $path);
-    }
-
-    private static function isBundledVendorPath(string $path): bool
-    {
-        $normalizedPath = str_replace('\\', '/', strtolower($path));
-
-        return str_contains($normalizedPath, '/vendor/infocyph/phpforge/');
-    }
-
-    private static function isPathWithin(string $path, string $base): bool
-    {
-        $normalizedPath = rtrim(str_replace('\\', '/', $path), '/');
-        $normalizedBase = rtrim(str_replace('\\', '/', $base), '/');
-
-        return $normalizedPath === $normalizedBase || str_starts_with($normalizedPath, $normalizedBase . '/');
     }
 
     /**

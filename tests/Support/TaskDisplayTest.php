@@ -19,17 +19,17 @@ it('formats composer normalize with a friendly title', function (): void {
         ->toBe('Composer Normalize');
 });
 
-it('labels project configs as project source', function (): void {
+it('labels config paths clearly', function (): void {
     $projectConfig = getcwd().DIRECTORY_SEPARATOR.'pest.xml';
     $resolvedConfig = realpath($projectConfig);
 
     expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/pest', '--configuration', $projectConfig]))
-        ->toBe('Pest (Project: '.str_replace('\\', '/', is_string($resolvedConfig) ? $resolvedConfig : $projectConfig).')');
+        ->toBe('Pest (Config: '.str_replace('\\', '/', is_string($resolvedConfig) ? $resolvedConfig : $projectConfig).')');
 });
 
-it('labels bundled vendor config paths as stock source', function (): void {
+it('labels bundled vendor config paths as config paths', function (): void {
     $stockVendorConfig = '/app/UID/vendor/infocyph/phpforge/pint.json';
 
     expect(TaskDisplay::heading([PHP_BINARY, '/app/UID/vendor/bin/pint', '--config', $stockVendorConfig]))
-        ->toBe('Pint (Stock: /app/UID/vendor/infocyph/phpforge/pint.json)');
+        ->toBe('Pint (Config: /app/UID/vendor/infocyph/phpforge/pint.json)');
 });

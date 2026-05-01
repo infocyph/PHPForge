@@ -19,6 +19,7 @@ foreach ($autoloaders as $autoloader) {
 }
 
 if (!class_exists(Cli::class)) {
+    require __DIR__ . '/../src/Support/ArrayShape.php';
     require __DIR__ . '/../src/Support/ComposerAuditor.php';
     require __DIR__ . '/../src/Support/Cli.php';
     require __DIR__ . '/../src/Support/DuplicateAstBlockIndex.php';
@@ -27,6 +28,8 @@ if (!class_exists(Cli::class)) {
     require __DIR__ . '/../src/Support/DuplicateDetectionEngine.php';
     require __DIR__ . '/../src/Support/DuplicateDetector.php';
     require __DIR__ . '/../src/Support/PhpForgeConfig.php';
+    require __DIR__ . '/../src/Support/ProcessResult.php';
+    require __DIR__ . '/../src/Support/ProcRunner.php';
     require __DIR__ . '/../src/Support/PhpstanSarifConverter.php';
     require __DIR__ . '/../src/Support/PhpFileFinder.php';
     require __DIR__ . '/../src/Support/Paths.php';

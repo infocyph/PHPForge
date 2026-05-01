@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\PHPForge\Composer;
 
 use Composer\Command\BaseCommand as Command;
+use Infocyph\PHPForge\Support\ParallelRunner;
 use Infocyph\PHPForge\Support\Runner;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -26,6 +27,10 @@ final class CiCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        return (new Runner($output))->run(TaskCatalog::ci((bool) $input->getOption('prefer-lowest')));
+        if ((bool) $input->getOption('prefer-lowest')) {
+            return (new Runner($output))->run(TaskCatalog::ci(true));
+        }
+
+        return (new ParallelRunner($output))->run(TaskCatalog::syntax(), TaskCatalog::testParallel());
     }
 }

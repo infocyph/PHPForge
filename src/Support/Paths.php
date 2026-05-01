@@ -143,25 +143,7 @@ final class Paths
 
     private static function composerConfig(string $key): mixed
     {
-        $composerJson = self::projectRoot() . DIRECTORY_SEPARATOR . 'composer.json';
-
-        if (!is_file($composerJson) || !is_readable($composerJson)) {
-            return null;
-        }
-
-        $contents = file_get_contents($composerJson);
-
-        if (!is_string($contents)) {
-            return null;
-        }
-
-        $data = json_decode($contents, true);
-
-        if (!is_array($data)) {
-            return null;
-        }
-
-        $config = $data['config'] ?? [];
+        $config = self::composerData()['config'] ?? [];
 
         if (!is_array($config)) {
             return null;
@@ -170,25 +152,31 @@ final class Paths
         return $config[$key] ?? null;
     }
 
-    private static function isPhpforgeRootPackage(): bool
+    /**
+     * @return array<string, mixed>
+     */
+    private static function composerData(): array
     {
         $composerJson = self::projectRoot() . DIRECTORY_SEPARATOR . 'composer.json';
 
         if (!is_file($composerJson) || !is_readable($composerJson)) {
-            return false;
+            return [];
         }
 
         $contents = file_get_contents($composerJson);
 
         if (!is_string($contents)) {
-            return false;
+            return [];
         }
 
         $data = json_decode($contents, true);
 
-        if (!is_array($data)) {
-            return false;
-        }
+        return ArrayShape::stringKeyed($data);
+    }
+
+    private static function isPhpforgeRootPackage(): bool
+    {
+        $data = self::composerData();
 
         return ($data['name'] ?? null) === 'infocyph/phpforge';
     }
