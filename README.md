@@ -389,18 +389,21 @@ composer ic:publish-config psalm.xml --force
 
 | Variable                    | Default | Purpose                                                                                                  |
 | --------------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
-| `IC_PEST_PROCESSES`       | `10`  | Controls Pest parallel processes for `ic:tests`.                                                       |
-| `IC_TEST_CONCURRENCY`     | `3`   | Controls the maximum concurrently running tools for `ic:tests:parallel`.                               |
-| `PHPFORGE_PARALLEL`       | `3`   | Alias for `IC_TEST_CONCURRENCY`; useful in generic CI parallelism settings.                            |
-| `IC_PHPSTAN_MEMORY_LIMIT` | `1G`  | Controls PHPStan memory limit.                                                                           |
-| `IC_PSALM_THREADS`        | `1`   | Controls Psalm thread count.                                                                             |
-| `IC_HOOKS_STRICT`         | `1`   | Fails Composer when automatic CaptainHook install fails. Set to `0` for best-effort hook installation. |
+| `IC_PEST_PROCESSES`         | `10`    | Controls Pest parallel processes for `ic:tests`.                                                         |
+| `IC_TEST_CONCURRENCY`       | `3`     | Controls the maximum concurrently running tools for `ic:tests:parallel`.                                 |
+| `PHPFORGE_PARALLEL`         | `3`     | Alias for `IC_TEST_CONCURRENCY`; useful in generic CI parallelism settings.                              |
+| `PHPFORGE_QUALITY_SUMMARY`  | none    | Writes an aggregate per-tool quality result JSON file for `ic:ci`, `ic:tests`, and `ic:tests:parallel`.  |
+| `IC_QUALITY_SUMMARY`        | none    | Alias for `PHPFORGE_QUALITY_SUMMARY`.                                                                    |
+| `IC_PHPSTAN_MEMORY_LIMIT`   | `1G`    | Controls PHPStan memory limit.                                                                           |
+| `IC_PSALM_THREADS`          | `1`     | Controls Psalm thread count.                                                                             |
+| `IC_HOOKS_STRICT`           | `1`     | Fails Composer when automatic CaptainHook install fails. Set to `0` for best-effort hook installation.   |
 
 Example:
 
 ```bash
 IC_PEST_PROCESSES=4 composer ic:tests
 IC_TEST_CONCURRENCY=4 composer ic:tests:parallel
+PHPFORGE_QUALITY_SUMMARY=var/quality.json composer ic:ci
 IC_PHPSTAN_MEMORY_LIMIT=2G composer ic:test:static
 IC_HOOKS_STRICT=0 composer install
 ```
@@ -617,12 +620,13 @@ When enabled on `main` or `master`, the workflow uploads one artifact:
 
 - `tested_php_versions`
 - `matrix_results` (per PHP version: `code_analysis_prefer_lowest`, `code_analysis_prefer_stable`, `security_analysis`)
+- `quality_results` (uploaded per-tool JSON summaries from CI workers when available)
 - `benchmark_result`
 - `benchmark_command`
 - `benchmark_php_version`
 - `tools` (tool `name`, package, resolved version)
 
-`security-report.svg` renders the same high-level status, per-version matrix check results, and resolved tool versions.
+`security-report.svg` renders the same high-level status, per-version matrix check results, per-tool quality chips when quality summaries are available, and resolved tool versions.
 
 ### Workflow Examples
 

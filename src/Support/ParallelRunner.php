@@ -41,22 +41,26 @@ final readonly class ParallelRunner
     public function run(array $preflightTasks, array $parallelTasks, ?int $concurrency = null): int
     {
         $concurrency ??= self::concurrencyFrom(null);
+        $preflightResults = [];
 
         $this->output->writeln(sprintf('<info>Parallel Tests</info>'));
         $this->output->writeln(sprintf('Concurrency: %d', $concurrency));
         $this->output->writeln('');
 
         foreach ($preflightTasks as $task) {
-            $exitCode = $this->runPreflight($task);
+            $result = $this->runPreflight($task);
+            $preflightResults[] = $result;
 
-            if ($exitCode !== 0) {
-                return $exitCode;
+            if ($result['exit_code'] !== 0) {
+                QualitySummary::write($preflightResults);
+
+                return $result['exit_code'];
             }
 
             $this->output->writeln('');
         }
 
-        return $this->runParallel($parallelTasks, $concurrency);
+        return $this->runParallel($parallelTasks, $concurrency, $preflightResults);
     }
 
     private static function boundedConcurrency(int $value): int
@@ -128,7 +132,7 @@ final readonly class ParallelRunner
     }
 
     /**
-     * @param list<array{heading:string,exit_code:int,status:string}> $results
+     * @param list<array{heading:string,status:string,exit_code:int}> $results
      */
     private function renderSummary(array $results): int
     {
@@ -150,8 +154,9 @@ final readonly class ParallelRunner
 
     /**
      * @param list<list<string>> $tasks
+     * @param list<array{heading:string,status:string,exit_code:int}> $preflightResults
      */
-    private function runParallel(array $tasks, int $concurrency): int
+    private function runParallel(array $tasks, int $concurrency, array $preflightResults): int
     {
         $pending = $tasks;
         $active = [];
@@ -174,15 +179,20 @@ final readonly class ParallelRunner
             }
         }
 
+        $results = [...$preflightResults, ...$results];
+        QualitySummary::write($results);
+
         return $this->renderSummary($results);
     }
 
     /**
      * @param list<string> $task
+     * @return array{heading:string,status:string,exit_code:int}
      */
-    private function runPreflight(array $task): int
+    private function runPreflight(array $task): array
     {
-        $this->output->writeln(sprintf('<info>%s</info>', TaskDisplay::heading($task)));
+        $heading = TaskDisplay::heading($task);
+        $this->output->writeln(sprintf('<info>%s</info>', $heading));
 
         $stdout = '';
         $stderr = '';
@@ -201,10 +211,18 @@ final readonly class ParallelRunner
         });
 
         if ($process->isSuccessful() || TaskSkipPolicy::shouldSkipUnavailablePerPreset($task, $stdout, $stderr)) {
-            return 0;
+            return [
+                'heading' => $heading,
+                'status' => $process->isSuccessful() ? 'PASS' : 'SKIP',
+                'exit_code' => 0,
+            ];
         }
 
-        return $process->getExitCode() ?? 1;
+        return [
+            'heading' => $heading,
+            'status' => 'FAIL',
+            'exit_code' => $process->getExitCode() ?? 1,
+        ];
     }
 
     /**

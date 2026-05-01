@@ -110,7 +110,10 @@ jobs:
         env:
           IC_PHPSTAN_MEMORY_LIMIT: ${{ inputs.phpstan_memory_limit }}
           IC_PSALM_THREADS: ${{ inputs.psalm_threads }}
+          PHPFORGE_QUALITY_SUMMARY: .phpforge-report/out/quality-${{ matrix.php-versions }}-${{ matrix.dependency-version }}.json
         run: |
+          mkdir -p .phpforge-report/out
+
           if [ "${{ matrix.dependency-version }}" != "prefer-lowest" ]; then
             composer ic:ci
           else
@@ -120,6 +123,14 @@ jobs:
               composer ic:ci --prefer-lowest
             fi
           fi
+
+      - name: Upload quality summary
+        if: always() && hashFiles('.phpforge-report/out/quality-*.json') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-summary-${{ matrix.php-versions }}-${{ matrix.dependency-version }}
+          path: .phpforge-report/out/quality-*.json
+          retention-days: ${{ inputs.artifact_retention_days }}
 
   analyze:
     needs: prepare
@@ -288,6 +299,14 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress ${{ inputs.composer_flags }}
 
+      - name: Download quality summaries
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          pattern: quality-summary-*
+          path: .phpforge-report/quality-summaries
+          merge-multiple: true
+
       - name: Run benchmark
         id: benchmark
         shell: bash
@@ -397,6 +416,12 @@ jobs:
           done < <(jq -r '.[]' <<< "$php_versions_input")
 
           matrix_results_json="$(jq -sc '.' "$version_matrix_file")"
+          quality_results_json="[]"
+          quality_summary_dir=".phpforge-report/quality-summaries"
+
+          if [ -d "$quality_summary_dir" ] && compgen -G "$quality_summary_dir/*.json" > /dev/null; then
+            quality_results_json="$(jq -s '[.[] | select(type == "object")]' "$quality_summary_dir"/*.json)"
+          fi
 
           package_version() {
             local package_name="$1"
@@ -446,6 +471,7 @@ jobs:
             --arg benchmark_command "$benchmark_command" \
             --arg benchmark_php_version "$benchmark_php_version" \
             --argjson tools "$tools_json" \
+            --argjson quality_results "$quality_results_json" \
             '{
               generated_at: $generated_at,
               overall_state: $overall_state,
@@ -456,6 +482,7 @@ jobs:
               benchmark_result: $benchmark_result,
               benchmark_command: $benchmark_command,
               benchmark_php_version: $benchmark_php_version,
+              quality_results: $quality_results,
               tools: $tools
             }' > .phpforge-report/out/security-summary.json
 
@@ -615,13 +642,36 @@ jobs:
             chip_x=$((chip_x + width + 14))
           }
 
-          append_chip "Syntax" "$run_result"
-          append_chip "Tests" "$run_result"
-          append_chip "Lint" "$run_result"
-          append_chip "Static" "$analyze_result"
-          append_chip "Security" "$analyze_result"
-          append_chip "Refactor" "$run_result"
-          append_chip "Composer" "$run_result"
+          quality_tool_status() {
+            local tool="$1"
+            local fallback="$2"
+            local statuses
+
+            statuses="$(jq -r --arg tool "$tool" '
+              [ .[] | .tools[]? | select(.tool == $tool) | .status ]
+              | unique
+              | join(" ")
+            ' <<< "$quality_results_json")"
+
+            if [[ " ${statuses} " == *" failure "* ]]; then
+              echo "failure"
+            elif [[ " ${statuses} " == *" success "* ]]; then
+              echo "success"
+            elif [[ " ${statuses} " == *" skipped "* ]]; then
+              echo "skipped"
+            else
+              echo "$fallback"
+            fi
+          }
+
+          append_chip "Syntax" "$(quality_tool_status syntax "$run_result")"
+          append_chip "Pest" "$(quality_tool_status pest "$run_result")"
+          append_chip "Pint" "$(quality_tool_status pint "$run_result")"
+          append_chip "PHPCS" "$(quality_tool_status phpcs "$run_result")"
+          append_chip "Duplicates" "$(quality_tool_status duplicates "$run_result")"
+          append_chip "PHPStan" "$(quality_tool_status phpstan "$analyze_result")"
+          append_chip "Psalm" "$(quality_tool_status psalm "$analyze_result")"
+          append_chip "Rector" "$(quality_tool_status rector "$run_result")"
 
           footer_y=$((chip_y + 64))
           tools_svg=""
@@ -679,7 +729,7 @@ jobs:
             </defs>
             <style>
               :root { max-width: 800px; height: auto; background: transparent; }
-              .panel { fill: transparent; stroke: #385274; stroke-width: 1.1; }
+              .panel { fill: url(#panelGlow); fill-opacity: 0.86; stroke: #385274; stroke-width: 1.1; }
               .divider { stroke: #475569; stroke-width: 1; opacity: 0.9; }
               .text { paint-order: stroke fill; stroke: #020617; stroke-width: 3px; stroke-linejoin: round; }
               .small-text { paint-order: stroke fill; stroke: #020617; stroke-width: 2px; stroke-linejoin: round; }
@@ -763,6 +813,7 @@ jobs:
             echo "- Analysis job: \`${analyze_result}\`"
             echo "- Tested PHP versions: \`${tested_versions}\`"
             echo "- Benchmark: \`${benchmark_result}\` (command: ${benchmark_command}, PHP ${benchmark_php_version})"
+            echo "- Quality summaries: \`$(jq 'length' <<< "$quality_results_json")\`"
             echo "- Tools: ${tool_versions}"
             echo "- Artifacts: \`security-report.svg\`, \`security-summary.json\`"
           } >> "$GITHUB_STEP_SUMMARY"

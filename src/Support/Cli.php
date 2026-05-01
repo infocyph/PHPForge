@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Infocyph\PHPForge\Support;
 
+use Infocyph\PHPForge\Composer\TaskCatalog;
+use Symfony\Component\Console\Output\ConsoleOutput;
+
 final class Cli
 {
     /**
@@ -28,34 +31,13 @@ final class Cli
      */
     private function ci(array $args): int
     {
-        if (!in_array('--prefer-lowest', $args, true)) {
-            return $this->passthru('composer ic:tests:parallel');
-        }
-
-        $commands = [
-            'composer ic:test:syntax',
-            'composer ic:test:code',
-            'composer ic:test:lint',
-            'composer ic:test:sniff',
-            'composer ic:test:duplicates',
-        ];
+        $output = new ConsoleOutput();
 
         if (!in_array('--prefer-lowest', $args, true)) {
-            $commands[] = 'composer ic:test:static';
-            $commands[] = 'composer ic:test:security';
+            return (new ParallelRunner($output))->run(TaskCatalog::syntax(), TaskCatalog::testParallel());
         }
 
-        $commands[] = 'composer ic:test:refactor';
-
-        foreach ($commands as $command) {
-            $exitCode = $this->passthru($command);
-
-            if ($exitCode !== 0) {
-                return $exitCode;
-            }
-        }
-
-        return 0;
+        return (new Runner($output))->run(TaskCatalog::ci(true));
     }
 
     private function help(): int
@@ -63,22 +45,5 @@ final class Cli
         fwrite(STDOUT, 'Usage: phpforge ci [--prefer-lowest] | syntax [paths...] | duplicates [options] [paths...] | audit | phpstan-sarif <phpstan-json> [sarif-output]' . PHP_EOL);
 
         return 0;
-    }
-
-    private function passthru(string $command): int
-    {
-        $process = proc_open($command, [
-            0 => ['file', 'php://stdin', 'r'],
-            1 => ['file', 'php://stdout', 'w'],
-            2 => ['file', 'php://stderr', 'w'],
-        ], $pipes);
-
-        if (!is_resource($process)) {
-            fwrite(STDERR, sprintf('Failed to start process: %s', $command) . PHP_EOL);
-
-            return 1;
-        }
-
-        return proc_close($process);
     }
 }
