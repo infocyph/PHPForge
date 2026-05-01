@@ -8,30 +8,30 @@ PHPForge is installed as a dev dependency in PHP libraries and packages. It prov
 
 PHPForge brings these tools through one package:
 
-| Tool                        | Used For                                    |
-| --------------------------- | ------------------------------------------- |
-| CaptainHook                 | Git hook installation and pre-commit checks |
-| Pest                        | Test execution                              |
-| Laravel Pint                | Code style checks and fixes                 |
-| PHP_CodeSniffer / PHPCBF    | Semantic sniffing and fixable sniff repairs |
-| PHPForge syntax checker     | Git-aware PHP syntax validation             |
+| Tool                        | Used For                                            |
+| --------------------------- | --------------------------------------------------- |
+| CaptainHook                 | Git hook installation and pre-commit checks         |
+| Pest                        | Test execution                                      |
+| Laravel Pint                | Code style checks and fixes                         |
+| PHP_CodeSniffer / PHPCBF    | Semantic sniffing and fixable sniff repairs         |
+| PHPForge syntax checker     | Git-aware PHP syntax validation                     |
 | PHPForge duplicate detector | Token, AST, statement and near-miss clone detection |
-| PHPStan                     | Static analysis and cognitive complexity    |
-| Psalm                       | Security and taint analysis                 |
-| Rector                      | Refactor checks and automated refactors     |
-| PHPBench                    | Benchmarks                                  |
-| Composer Normalize          | `composer.json` normalization               |
-| Composer audit              | Release/security audit guard                |
+| PHPStan                     | Static analysis and cognitive complexity            |
+| Psalm                       | Security and taint analysis                         |
+| Rector                      | Refactor checks and automated refactors             |
+| PHPBench                    | Benchmarks                                          |
+| Composer Normalize          | `composer.json` normalization                     |
+| Composer audit              | Release/security audit guard                        |
 
 ## Install
 
-Install in the consuming project:
+Install in the consuming project (you will go through some series of approval, check and allow):
 
 ```bash
 composer require --dev infocyph/phpforge:dev-main
 ```
 
-Composer may ask for plugin approval. If approval is needed, run:
+If approval is needed (if not allowed in primary run or missed somehow), run:
 
 ```bash
 composer config allow-plugins.infocyph/phpforge true
@@ -102,16 +102,16 @@ Generate SVG security report artifacts?
 
 Selector presets include:
 
-| Prompt                | Built-in Choices                                                                                                                                                              |
-| --------------------- |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| PHPForge workflow ref | `main`, configured ref, or custom                                                                                                                                             |
-| PHP version matrix    | `supported`, `current`, `stable`, or custom JSON. Presets resolve live with fallback to `["8.2","8.3","8.4","8.5"]`.                                                           |
-| Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]`, or custom JSON. Prompt shows resolved JSON beside each option.                                |
-| PHP extensions        | `none` => `""`, `detected` (from project `composer.json` `ext-*` entries in `require`, `require-dev`, and `suggest`), `common`, `mysql`, `pgsql`, `mysql+pgsql`, or custom    |
-| Coverage driver       | `none`, `xdebug`, or `pcov`                                                                                                                                                   |
-| Extra Composer flags  | `none` => `""`, `with-all-dependencies` => `--with-all-dependencies`, `ignore-ext-redis` => `--ignore-platform-req=ext-redis`, or custom. Prompt explains each option effect. |
-| PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                                                                                                   |
-| Psalm threads         | `1`, `2`, `4`, or custom                                                                                                                                                      |
+| Prompt                | Built-in Choices                                                                                                                                                                                   |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PHPForge workflow ref | `main`, configured ref, or custom                                                                                                                                                                |
+| PHP version matrix    | `supported`, `current`, `stable`, or custom JSON. Presets resolve live with fallback to `["8.2","8.3","8.4","8.5"]`.                                                                       |
+| Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]`, or custom JSON. Prompt shows resolved JSON beside each option.                                             |
+| PHP extensions        | `none` => `""`, `detected` (from project `composer.json` `ext-*` entries in `require`, `require-dev`, and `suggest`), `common`, `mysql`, `pgsql`, `mysql+pgsql`, or custom |
+| Coverage driver       | `none`, `xdebug`, or `pcov`                                                                                                                                                                  |
+| Extra Composer flags  | `none` => `""`, `with-all-dependencies` => `--with-all-dependencies`, `ignore-ext-redis` => `--ignore-platform-req=ext-redis`, or custom. Prompt explains each option effect.          |
+| PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                                                                                                                  |
+| Psalm threads         | `1`, `2`, `4`, or custom                                                                                                                                                                     |
 
 `supported` includes non-EOL PHP minor cycles (>= `8.2`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
 PHP version, dependency matrix, PHP extensions, and Composer flags selectors show resolved values in the prompt and print the final resolved value after selection.
@@ -153,21 +153,21 @@ composer ic:init --force
 
 ### Test Commands
 
-| Command                       | Purpose                                                                                                                                   |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `composer ic:tests`         | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, PHPStan, Psalm security analysis, and Rector dry run. |
-| `composer ic:tests:all`     | Alias of `ic:tests`.                                                                                                                    |
-| `composer ic:tests:parallel` | Runs syntax first, then executes the remaining quality checks with bounded parallelism and a buffered PASS/FAIL summary.                 |
-| `composer ic:tests:details` | Runs detailed checks without the parallel Pest shortcut.                                                                                  |
-| `composer ic:test:syntax`   | Runs PHPForge's native syntax checker using `phpforge.json`, Git ignores, and native excludes.                             |
-| `composer ic:test:code`     | Runs Pest.                                                                                                                                |
-| `composer ic:test:lint`     | Runs Pint in check mode.                                                                                                                  |
-| `composer ic:test:sniff`    | Runs PHPCS with a full report against the project root and bundled/project excludes.                                                       |
-| `composer ic:test:duplicates` | Runs PHPForge's native duplicate detector using `phpforge.json`.                                                                       |
-| `composer ic:test:static`   | Runs PHPStan.                                                                                                                             |
-| `composer ic:test:security` | Runs Psalm security analysis.                                                                                                             |
-| `composer ic:test:refactor` | Runs Rector in dry-run mode.                                                                                                              |
-| `composer ic:test:bench`    | Runs PHPBench aggregate benchmarks.                                                                                                       |
+| Command                         | Purpose                                                                                                                                                        |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `composer ic:tests`           | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, PHPStan, Psalm security analysis, and Rector dry run. |
+| `composer ic:tests:all`       | Alias of `ic:tests`.                                                                                                                                         |
+| `composer ic:tests:parallel`  | Runs syntax first, then executes the remaining quality checks with bounded parallelism and a buffered PASS/FAIL summary.                                       |
+| `composer ic:tests:details`   | Runs detailed checks without the parallel Pest shortcut.                                                                                                       |
+| `composer ic:test:syntax`     | Runs PHPForge's native syntax checker using `phpforge.json`, Git ignores, and native excludes.                                                               |
+| `composer ic:test:code`       | Runs Pest.                                                                                                                                                     |
+| `composer ic:test:lint`       | Runs Pint in check mode.                                                                                                                                       |
+| `composer ic:test:sniff`      | Runs PHPCS with a full report against the project root and bundled/project excludes.                                                                           |
+| `composer ic:test:duplicates` | Runs PHPForge's native duplicate detector using `phpforge.json`.                                                                                             |
+| `composer ic:test:static`     | Runs PHPStan.                                                                                                                                                  |
+| `composer ic:test:security`   | Runs Psalm security analysis.                                                                                                                                  |
+| `composer ic:test:refactor`   | Runs Rector in dry-run mode.                                                                                                                                   |
+| `composer ic:test:bench`      | Runs PHPBench aggregate benchmarks.                                                                                                                            |
 
 Native syntax and duplicate settings live in `phpforge.json`, with the bundled default used when a project-local file is not present.
 Both native checks are root-scoped by default because their bundled `paths` lists are empty; Git-aware PHP discovery is then filtered by the configured `exclude` lists.
@@ -184,39 +184,39 @@ php vendor/bin/phpforge duplicates --baseline=.phpforge-duplicates-baseline.json
 
 Useful native checker options:
 
-| Option | Applies To | Purpose |
-| ------ | ---------- | ------- |
-| `--config=FILE` | Syntax, duplicates | Reads native checker settings from a custom `phpforge.json` file. |
-| `--exclude=PATH` | Syntax, duplicates | Excludes one path; repeat it for multiple one-off exclusions. |
-| `--exact` | Duplicates | Disables variable/literal normalization. |
-| `--fuzzy` | Duplicates | Also normalizes identifiers and calls for renamed-code scans. |
-| `--mode=audit` | Duplicates | Enables statement-window matching in addition to token matching. |
-| `--near-miss` | Duplicates | Enables bounded statement/shape similarity for edited clones. |
-| `--min-lines=N` | Duplicates | Sets the minimum duplicated line span. |
-| `--min-tokens=N` | Duplicates | Sets the token fingerprint window size. |
-| `--min-statements=N` | Duplicates | Sets the structural statement window size for audit matching. |
-| `--min-similarity=0.85` | Duplicates | Sets the near-miss similarity threshold. |
-| `--baseline=FILE` | Duplicates | Suppresses clone groups already captured in a baseline. |
-| `--write-baseline[=FILE]` | Duplicates | Writes the current clone groups as the baseline and exits successfully. |
-| `--json` | Duplicates | Emits machine-readable JSON. |
+| Option                      | Applies To         | Purpose                                                                 |
+| --------------------------- | ------------------ | ----------------------------------------------------------------------- |
+| `--config=FILE`           | Syntax, duplicates | Reads native checker settings from a custom `phpforge.json` file.     |
+| `--exclude=PATH`          | Syntax, duplicates | Excludes one path; repeat it for multiple one-off exclusions.           |
+| `--exact`                 | Duplicates         | Disables variable/literal normalization.                                |
+| `--fuzzy`                 | Duplicates         | Also normalizes identifiers and calls for renamed-code scans.           |
+| `--mode=audit`            | Duplicates         | Enables statement-window matching in addition to token matching.        |
+| `--near-miss`             | Duplicates         | Enables bounded statement/shape similarity for edited clones.           |
+| `--min-lines=N`           | Duplicates         | Sets the minimum duplicated line span.                                  |
+| `--min-tokens=N`          | Duplicates         | Sets the token fingerprint window size.                                 |
+| `--min-statements=N`      | Duplicates         | Sets the structural statement window size for audit matching.           |
+| `--min-similarity=0.85`   | Duplicates         | Sets the near-miss similarity threshold.                                |
+| `--baseline=FILE`         | Duplicates         | Suppresses clone groups already captured in a baseline.                 |
+| `--write-baseline[=FILE]` | Duplicates         | Writes the current clone groups as the baseline and exits successfully. |
+| `--json`                  | Duplicates         | Emits machine-readable JSON.                                            |
 
 ### CI Commands
 
-| Command                            | Purpose                                                                      |
-| ---------------------------------- | ---------------------------------------------------------------------------- |
+| Command                            | Purpose                                                                                     |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- |
 | `composer ic:ci`                 | Runs the normal CI suite through the same bounded parallel runner as `ic:tests:parallel`. |
-| `composer ic:ci --prefer-lowest` | Runs the CI set without PHPStan and Psalm for prefer-lowest dependency jobs. |
+| `composer ic:ci --prefer-lowest` | Runs the CI set without PHPStan and Psalm for prefer-lowest dependency jobs.                |
 
 ### Process Commands
 
-| Command                           | Purpose                                                   |
-| --------------------------------- | --------------------------------------------------------- |
-| `composer ic:process`             | Runs Composer Normalize, Rector, Pint, and PHPCBF fixes. |
-| `composer ic:process:all`         | Alias of `ic:process`.                                    |
-| `composer ic:process:refactor`    | Runs Rector fixes.                                        |
-| `composer ic:process:lint`        | Runs Pint fixes.                                          |
-| `composer ic:process:sniff`       | Runs PHPCBF fixes.                                        |
-| `composer ic:process:sniff:fix`   | Alias of `ic:process:sniff`.                              |
+| Command                           | Purpose                                                  |
+| --------------------------------- | -------------------------------------------------------- |
+| `composer ic:process`           | Runs Composer Normalize, Rector, Pint, and PHPCBF fixes. |
+| `composer ic:process:all`       | Alias of `ic:process`.                                 |
+| `composer ic:process:refactor`  | Runs Rector fixes.                                       |
+| `composer ic:process:lint`      | Runs Pint fixes.                                         |
+| `composer ic:process:sniff`     | Runs PHPCBF fixes.                                       |
+| `composer ic:process:sniff:fix` | Alias of `ic:process:sniff`.                           |
 
 ### Benchmark Commands
 
@@ -236,45 +236,45 @@ Useful native checker options:
 
 ### Config And Utility Commands
 
-| Command                                               | Purpose                                                                   |
-| ----------------------------------------------------- | ------------------------------------------------------------------------- |
-| `composer ic:init`                                  | Interactively sets up CaptainHook, PHPForge native checker config, and the workflow wrapper. |
-| `composer ic:init --captainhook`                    | Copies only `captainhook.json`.                                         |
-| `composer ic:init --phpforge`                       | Copies only `phpforge.json`.                                            |
-| `composer ic:init --workflow --workflow-ref=main`   | Copies only the workflow wrapper and points it at the given PHPForge ref. |
-| `composer ic:init --gitlab-ci`                      | Copies `.gitlab-ci.yml` starter pipeline.                               |
-| `composer ic:init --bitbucket-ci`                   | Copies `bitbucket-pipelines.yml` starter pipeline.                      |
-| `composer ic:init --forgejo-workflow`               | Copies `.forgejo/workflows/security-standards.yml` starter workflow.    |
-| `composer ic:init --no-interaction-defaults`        | Copies default init files without prompting.                              |
-| `composer ic:init --force`                          | Overwrites existing copied files.                                         |
-| `composer ic:hooks`                                 | Installs enabled CaptainHook hooks.                                       |
+| Command                                               | Purpose                                                                                                        |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `composer ic:init`                                  | Interactively sets up CaptainHook, PHPForge native checker config, and the workflow wrapper.                   |
+| `composer ic:init --captainhook`                    | Copies only `captainhook.json`.                                                                              |
+| `composer ic:init --phpforge`                       | Copies only `phpforge.json`.                                                                                 |
+| `composer ic:init --workflow --workflow-ref=main`   | Copies only the workflow wrapper and points it at the given PHPForge ref.                                      |
+| `composer ic:init --gitlab-ci`                      | Copies `.gitlab-ci.yml` starter pipeline.                                                                    |
+| `composer ic:init --bitbucket-ci`                   | Copies `bitbucket-pipelines.yml` starter pipeline.                                                           |
+| `composer ic:init --forgejo-workflow`               | Copies `.forgejo/workflows/security-standards.yml` starter workflow.                                         |
+| `composer ic:init --no-interaction-defaults`        | Copies default init files without prompting.                                                                   |
+| `composer ic:init --force`                          | Overwrites existing copied files.                                                                              |
+| `composer ic:hooks`                                 | Installs enabled CaptainHook hooks.                                                                            |
 | `composer ic:doctor`                                | Shows detected configs, vendor-dir, plugin permissions, hook status, and workflow wrapper validation warnings. |
-| `composer ic:doctor --json`                         | Outputs doctor diagnostics as JSON, including workflow wrapper validation details. |
-| `composer ic:list-config`                           | Lists config files and their resolution source.                           |
-| `composer ic:list-config --json`                    | Outputs config resolution as JSON.                                        |
-| `composer ic:publish-config [file...]`              | Copies selected bundled config files into the project.                    |
-| `composer ic:publish-config --all`                  | Copies every bundled config file into the project.                        |
-| `composer ic:publish-config --all --force`          | Overwrites all project config files with bundled defaults.                |
-| `composer ic:clean`                                 | Removes known PHPForge output files and cache directories.                |
-| `composer ic:version`                               | Shows PHPForge, PHP, PHP binary, and vendor-dir information.              |
-| `composer ic:phpstan:sarif input.json output.sarif` | Converts PHPStan JSON output to SARIF 2.1.0.                              |
+| `composer ic:doctor --json`                         | Outputs doctor diagnostics as JSON, including workflow wrapper validation details.                             |
+| `composer ic:list-config`                           | Lists config files and their resolution source.                                                                |
+| `composer ic:list-config --json`                    | Outputs config resolution as JSON.                                                                             |
+| `composer ic:publish-config [file...]`              | Copies selected bundled config files into the project.                                                         |
+| `composer ic:publish-config --all`                  | Copies every bundled config file into the project.                                                             |
+| `composer ic:publish-config --all --force`          | Overwrites all project config files with bundled defaults.                                                     |
+| `composer ic:clean`                                 | Removes known PHPForge output files and cache directories.                                                     |
+| `composer ic:version`                               | Shows PHPForge, PHP, PHP binary, and vendor-dir information.                                                   |
+| `composer ic:phpstan:sarif input.json output.sarif` | Converts PHPStan JSON output to SARIF 2.1.0.                                                                   |
 
 ## Configuration
 
 Project config files always have priority over PHPForge bundled defaults.
 PHPForge keeps its bundled defaults in `resources/` and resolves them automatically when project-local config files are missing.
 
-| Tool           | Lookup Order                                                  |
-| -------------- | ------------------------------------------------------------- |
-| Pest / PHPUnit | `pest.xml`, then `phpunit.xml`, then `pest.xml.dist`, then `phpunit.xml.dist`, then bundled `pest.xml` |
-| PHPBench       | `phpbench.json`, then bundled `phpbench.json`             |
-| PHPForge native checks | `phpforge.json`, then bundled `phpforge.json`       |
-| PHPCS / PHPCBF | `phpcs.xml.dist`, then bundled `phpcs.xml.dist`           |
-| PHPStan        | `phpstan.neon.dist`, then bundled `phpstan.neon.dist`     |
-| Pint           | `pint.json`, then bundled `pint.json`                     |
-| Psalm          | `psalm.xml`, then bundled `psalm.xml`                     |
-| Rector         | `rector.php`, then bundled `rector.php`                   |
-| CaptainHook    | `captainhook.json`, then bundled `captainhook.json`       |
+| Tool                   | Lookup Order                                                                                                     |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Pest / PHPUnit         | `pest.xml`, then `phpunit.xml`, then `pest.xml.dist`, then `phpunit.xml.dist`, then bundled `pest.xml` |
+| PHPBench               | `phpbench.json`, then bundled `phpbench.json`                                                                |
+| PHPForge native checks | `phpforge.json`, then bundled `phpforge.json`                                                                |
+| PHPCS / PHPCBF         | `phpcs.xml.dist`, then bundled `phpcs.xml.dist`                                                              |
+| PHPStan                | `phpstan.neon.dist`, then bundled `phpstan.neon.dist`                                                        |
+| Pint                   | `pint.json`, then bundled `pint.json`                                                                        |
+| Psalm                  | `psalm.xml`, then bundled `psalm.xml`                                                                        |
+| Rector                 | `rector.php`, then bundled `rector.php`                                                                      |
+| CaptainHook            | `captainhook.json`, then bundled `captainhook.json`                                                          |
 
 ### PHPForge Native Checker Config
 
@@ -343,23 +343,23 @@ Bundled default:
 }
 ```
 
-| Key | Purpose |
-| --- | ------- |
-| `syntax.paths` | PHP files/directories checked by `phpforge syntax`. Empty means Git-aware project-root discovery. |
-| `syntax.exclude` | Paths removed from syntax discovery. The bundled config excludes tests, vendor, caches, build output, storage, and common IDE/tool directories. |
-| `duplicates.paths` | PHP files/directories scanned by `phpforge duplicates`. Empty means Git-aware project-root discovery. |
-| `duplicates.exclude` | Paths removed from duplicate detection. The bundled config excludes tests, vendor, caches, build output, storage, and generated framework views. |
-| `duplicates.mode` | `audit` enables structural statement matching and near-miss matching; `gate` is a stricter deterministic CI mode. |
-| `duplicates.normalize` | Replaces noisy variable names and literals before matching. Set `false` for exact-style matching. |
-| `duplicates.fuzzy` | Also normalizes identifiers/calls for renamed-code audits. More sensitive, potentially noisier. |
-| `duplicates.near_miss` | Finds edited clones through bounded statement/shape similarity. Mostly useful with audit mode. |
-| `duplicates.min_lines` | Minimum duplicated lines before a clone group can be reported. |
-| `duplicates.min_tokens` | Token fingerprint window size. The bundled `90` is PhpStorm-like middle sensitivity; higher values are quieter, lower values are more sensitive. |
-| `duplicates.min_statements` | Statement-window size used by audit/structural matching. |
-| `duplicates.min_similarity` | Near-miss threshold from `0.0` to `1.0`; `0.85` means 85 percent similar. |
-| `duplicates.baseline` | Baseline file whose known clone fingerprints are suppressed. |
-| `duplicates.write_baseline` | Writes current clone groups to the given baseline and exits successfully. Usually use CLI for this. |
-| `duplicates.json` | Emits machine-readable JSON instead of human text. Best for automation/reporting. |
+| Key                           | Purpose                                                                                                                                            |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `syntax.paths`              | PHP files/directories checked by `phpforge syntax`. Empty means Git-aware project-root discovery.                                                |
+| `syntax.exclude`            | Paths removed from syntax discovery. The bundled config excludes tests, vendor, caches, build output, storage, and common IDE/tool directories.    |
+| `duplicates.paths`          | PHP files/directories scanned by `phpforge duplicates`. Empty means Git-aware project-root discovery.                                            |
+| `duplicates.exclude`        | Paths removed from duplicate detection. The bundled config excludes tests, vendor, caches, build output, storage, and generated framework views.   |
+| `duplicates.mode`           | `audit` enables structural statement matching and near-miss matching; `gate` is a stricter deterministic CI mode.                              |
+| `duplicates.normalize`      | Replaces noisy variable names and literals before matching. Set `false` for exact-style matching.                                                |
+| `duplicates.fuzzy`          | Also normalizes identifiers/calls for renamed-code audits. More sensitive, potentially noisier.                                                    |
+| `duplicates.near_miss`      | Finds edited clones through bounded statement/shape similarity. Mostly useful with audit mode.                                                     |
+| `duplicates.min_lines`      | Minimum duplicated lines before a clone group can be reported.                                                                                     |
+| `duplicates.min_tokens`     | Token fingerprint window size. The bundled `90` is PhpStorm-like middle sensitivity; higher values are quieter, lower values are more sensitive. |
+| `duplicates.min_statements` | Statement-window size used by audit/structural matching.                                                                                           |
+| `duplicates.min_similarity` | Near-miss threshold from `0.0` to `1.0`; `0.85` means 85 percent similar.                                                                    |
+| `duplicates.baseline`       | Baseline file whose known clone fingerprints are suppressed.                                                                                       |
+| `duplicates.write_baseline` | Writes current clone groups to the given baseline and exits successfully. Usually use CLI for this.                                                |
+| `duplicates.json`           | Emits machine-readable JSON instead of human text. Best for automation/reporting.                                                                  |
 
 `exclude_paths` is also accepted as an alias for `exclude` in either section.
 Snake case, kebab case, and camel case are accepted for native checker config keys, so `min_tokens`, `min-tokens`, and `minTokens` resolve to the same setting.
@@ -390,8 +390,8 @@ composer ic:publish-config psalm.xml --force
 | Variable                    | Default | Purpose                                                                                                  |
 | --------------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
 | `IC_PEST_PROCESSES`       | `10`  | Controls Pest parallel processes for `ic:tests`.                                                       |
-| `IC_TEST_CONCURRENCY`     | `3`   | Controls the maximum concurrently running tools for `ic:tests:parallel`.                              |
-| `PHPFORGE_PARALLEL`       | `3`   | Alias for `IC_TEST_CONCURRENCY`; useful in generic CI parallelism settings.                           |
+| `IC_TEST_CONCURRENCY`     | `3`   | Controls the maximum concurrently running tools for `ic:tests:parallel`.                               |
+| `PHPFORGE_PARALLEL`       | `3`   | Alias for `IC_TEST_CONCURRENCY`; useful in generic CI parallelism settings.                            |
 | `IC_PHPSTAN_MEMORY_LIMIT` | `1G`  | Controls PHPStan memory limit.                                                                           |
 | `IC_PSALM_THREADS`        | `1`   | Controls Psalm thread count.                                                                             |
 | `IC_HOOKS_STRICT`         | `1`   | Fails Composer when automatic CaptainHook install fails. Set to `0` for best-effort hook installation. |
@@ -420,7 +420,7 @@ The bundled pre-commit hook runs:
 composer validate --strict
 composer normalize --dry-run
 composer ic:release:audit
-composer ic:tests
+composer ic:ci
 ```
 
 This package also has a root `post-autoload-dump` script:
@@ -486,18 +486,18 @@ jobs:
 
 Workflow inputs:
 
-| Input                    | Default                               | Purpose                                                                                      |
-| ------------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `php_versions`         | `["8.2","8.3","8.4","8.5"]`         | PHP matrix as a JSON array string.                                                           |
-| `dependency_versions`  | `["prefer-lowest","prefer-stable"]` | Composer dependency modes as a JSON array string.                                            |
-| `php_extensions`       | `""`                                | Comma-separated PHP extensions passed to `shivammathur/setup-php`.                         |
-| `coverage`             | `none`                              | Coverage driver passed to `shivammathur/setup-php`; use `xdebug`, `pcov`, or `none`. |
-| `composer_flags`       | `""`                                | Extra flags appended to Composer install/update commands.                                    |
-| `phpstan_memory_limit` | `1G`                                | PHPStan memory limit used by workflow analysis.                                              |
-| `psalm_threads`        | `1`                                 | Psalm thread count used by workflow analysis.                                                |
-| `run_analysis`         | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.             |
-| `run_svg_report`       | `true`                              | Generates `security-report.svg` and `security-summary.json` with benchmark status, per-version matrix results, and tool versions. |
-| `artifact_retention_days` | `61`                             | Artifact retention days for uploaded `security-report` artifacts. |
+| Input                       | Default                               | Purpose                                                                                                                               |
+| --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `php_versions`            | `["8.2","8.3","8.4","8.5"]`         | PHP matrix as a JSON array string.                                                                                                    |
+| `dependency_versions`     | `["prefer-lowest","prefer-stable"]` | Composer dependency modes as a JSON array string.                                                                                     |
+| `php_extensions`          | `""`                                | Comma-separated PHP extensions passed to `shivammathur/setup-php`.                                                                  |
+| `coverage`                | `none`                              | Coverage driver passed to `shivammathur/setup-php`; use `xdebug`, `pcov`, or `none`.                                          |
+| `composer_flags`          | `""`                                | Extra flags appended to Composer install/update commands.                                                                             |
+| `phpstan_memory_limit`    | `1G`                                | PHPStan memory limit used by workflow analysis.                                                                                       |
+| `psalm_threads`           | `1`                                 | Psalm thread count used by workflow analysis.                                                                                         |
+| `run_analysis`            | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.                                                      |
+| `run_svg_report`          | `true`                              | Generates `security-report.svg` and `security-summary.json` with benchmark status, per-version matrix results, and tool versions. |
+| `artifact_retention_days` | `61`                                | Artifact retention days for uploaded `security-report` artifacts.                                                                   |
 
 ### Workflow Input Details
 

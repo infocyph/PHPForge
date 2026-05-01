@@ -31,7 +31,7 @@
 - `phpforge.json` controls native syntax and duplicate paths/excludes; empty `paths` means project-root discovery through Git-aware PHP file finding.
 - Syntax and duplicate scans respect Git ignores plus configured `exclude`/`exclude_paths` entries.
 - Native checker CLI paths override configured `paths`; CLI `--exclude` values are added to configured excludes.
-- Pre-commit runs `composer validate --strict`, `composer normalize --dry-run`, `composer ic:release:audit`, `composer ic:tests`.
+- Pre-commit runs `composer validate --strict`, `composer normalize --dry-run`, `composer ic:release:audit`, `composer ic:ci`.
 - `IC_HOOKS_STRICT=1` is default; use `IC_HOOKS_STRICT=0 composer install` only for best-effort hook install.
 - Workflow: `infocyph/phpforge/.github/workflows/security-standards.yml@main`.
 - Workflow inputs: `php_versions`, `dependency_versions`, `php_extensions`, `coverage`, `composer_flags`, `phpstan_memory_limit`, `psalm_threads`, `run_analysis`, `run_svg_report`, `artifact_retention_days`.
