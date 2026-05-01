@@ -5,17 +5,16 @@ declare(strict_types=1);
 
 use Infocyph\PHPForge\Composer\TaskCatalog;
 use Infocyph\PHPForge\Support\ParallelRunner;
-use Infocyph\PHPForge\Support\TaskDisplay;
-use Infocyph\PHPForge\Support\TaskSkipPolicy;
+use Infocyph\PHPForge\Support\Runner;
 use Symfony\Component\Console\Output\ConsoleOutput;
-use Symfony\Component\Process\Process;
 
 require dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
 
 $task = $argv[1] ?? '';
+$output = new ConsoleOutput();
 
 if ($task === 'tests:parallel') {
-    $exitCode = (new ParallelRunner(new ConsoleOutput()))->run(
+    $exitCode = (new ParallelRunner($output))->run(
         TaskCatalog::syntax(),
         TaskCatalog::testParallel(),
         ParallelRunner::concurrencyFrom($argv[2] ?? null),
@@ -28,50 +27,10 @@ if ($task === 'tests:parallel') {
     return;
 }
 
-$tasks = taskCommands($task);
-$isFirstTask = true;
+$exitCode = (new Runner($output))->run(taskCommands($task));
 
-foreach ($tasks as $command) {
-    if (!$isFirstTask) {
-        fwrite(STDOUT, PHP_EOL);
-    }
-
-    $isFirstTask = false;
-    fwrite(STDOUT, TaskDisplay::heading($command) . PHP_EOL);
-
-    $process = runProcess($command);
-
-    if ($process->isSuccessful()) {
-        continue;
-    }
-
-    if (TaskSkipPolicy::shouldSkipUnavailablePerPreset($command, $process->getOutput(), $process->getErrorOutput())) {
-        fwrite(STDERR, "Pint preset 'per' is unavailable; skipping this Pint task." . PHP_EOL);
-
-        continue;
-    }
-
-    throw new RuntimeException(sprintf('Task "%s" failed with exit code %d.', implode(' ', $command), $process->getExitCode() ?? 1));
-}
-
-/**
- * @param list<string> $command
- */
-function runProcess(array $command): Process
-{
-    $process = new Process($command, getcwd() ?: null);
-    $process->setTimeout(null);
-    $process->run(function (string $type, string $buffer): void {
-        if ($type === Process::ERR) {
-            fwrite(STDERR, $buffer);
-
-            return;
-        }
-
-        fwrite(STDOUT, $buffer);
-    });
-
-    return $process;
+if ($exitCode !== 0) {
+    throw new RuntimeException(sprintf('Task "%s" failed with exit code %d.', $task, $exitCode));
 }
 
 /**

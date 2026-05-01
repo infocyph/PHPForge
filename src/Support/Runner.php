@@ -23,26 +23,21 @@ final class Runner
         $this->renderSystemInfo();
 
         $isFirstTask = true;
+        $results = [];
 
         foreach ($tasks as $task) {
-            if (!$isFirstTask) {
-                $this->output->writeln('');
-            }
-
+            $result = $this->runTask($task, $isFirstTask);
             $isFirstTask = false;
-            $this->output->writeln('<info>' . TaskDisplay::heading($task) . '</info>');
+            $results[] = $result;
 
-            $process = new Process($task, getcwd() ?: null);
-            $process->setTimeout(null);
+            if ($result['status'] === 'FAIL') {
+                QualitySummary::write($results);
 
-            $process->run(function (string $type, string $buffer): void {
-                $this->output->write($buffer, false, $type === Process::ERR ? OutputInterface::OUTPUT_RAW : OutputInterface::OUTPUT_NORMAL);
-            });
-
-            if (!$process->isSuccessful()) {
-                return $process->getExitCode() ?? 1;
+                return $result['exit_code'];
             }
         }
+
+        QualitySummary::write($results);
 
         return 0;
     }
@@ -86,5 +81,46 @@ final class Runner
             $this->output->writeln('Project Root: ' . (getcwd() ?: dirname(__DIR__, 2)));
             $this->output->writeln('');
         }
+    }
+
+    /**
+     * @param list<string> $task
+     * @return array{heading:string,status:string,exit_code:int}
+     */
+    private function runTask(array $task, bool $isFirstTask): array
+    {
+        if (!$isFirstTask) {
+            $this->output->writeln('');
+        }
+
+        $heading = TaskDisplay::heading($task);
+        $this->output->writeln('<info>' . $heading . '</info>');
+
+        $process = new Process($task, getcwd() ?: null);
+        $process->setTimeout(null);
+
+        $stdout = '';
+        $stderr = '';
+        $process->run(function (string $type, string $buffer) use (&$stdout, &$stderr): void {
+            if ($type === Process::ERR) {
+                $stderr .= $buffer;
+            } else {
+                $stdout .= $buffer;
+            }
+
+            $this->output->write($buffer, false, $type === Process::ERR ? OutputInterface::OUTPUT_RAW : OutputInterface::OUTPUT_NORMAL);
+        });
+
+        $isSkipped = !$process->isSuccessful() && TaskSkipPolicy::shouldSkipUnavailablePerPreset($task, $stdout, $stderr);
+
+        if ($isSkipped) {
+            $this->output->writeln("<comment>Pint preset 'per' is unavailable; skipping this Pint task.</comment>");
+        }
+
+        return [
+            'heading' => $heading,
+            'status' => $process->isSuccessful() ? 'PASS' : ($isSkipped ? 'SKIP' : 'FAIL'),
+            'exit_code' => $process->isSuccessful() || $isSkipped ? 0 : ($process->getExitCode() ?? 1),
+        ];
     }
 }
