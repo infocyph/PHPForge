@@ -27,7 +27,7 @@
 
 ## Config And CI
 
-- Config priority: project `pest.xml`/`phpunit.xml`, `phpbench.json`, `phpforge.json`, `phpcs.xml.dist`, `phpstan.neon.dist`, `pint.json`, `psalm.xml`, `rector.php`, `captainhook.json`; then PHPForge defaults.
+- Config priority: project root config first, then `vendor/infocyph/phpforge/resources`, then source-tree `resources/` only when the current project is `infocyph/phpforge`; otherwise missing bundled configs hard fail.
 - `phpforge.json` controls native syntax and duplicate paths/excludes; empty `paths` means project-root discovery through Git-aware PHP file finding.
 - Syntax and duplicate scans respect Git ignores plus configured `exclude`/`exclude_paths` entries.
 - Native checker CLI paths override configured `paths`; CLI `--exclude` values are added to configured excludes.
