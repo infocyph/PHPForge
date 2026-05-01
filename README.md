@@ -14,7 +14,8 @@ PHPForge brings these tools through one package:
 | Pest                        | Test execution                              |
 | Laravel Pint                | Code style checks and fixes                 |
 | PHP_CodeSniffer / PHPCBF    | Semantic sniffing and fixable sniff repairs |
-| PHPForge duplicate detector | Token-based copy/paste detection            |
+| PHPForge syntax checker     | Git-aware PHP syntax validation             |
+| PHPForge duplicate detector | Token, AST, statement and near-miss clone detection |
 | PHPStan                     | Static analysis and cognitive complexity    |
 | Psalm                       | Security and taint analysis                 |
 | Rector                      | Refactor checks and automated refactors     |
@@ -115,11 +116,15 @@ Selector presets include:
 `supported` includes non-EOL PHP minor cycles (>= `8.2`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
 PHP version, dependency matrix, PHP extensions, and Composer flags selectors show resolved values in the prompt and print the final resolved value after selection.
 
-The generated files are:
+Depending on your selections, `ic:init` can generate:
 
 ```text
 captainhook.json
+phpforge.json
 .github/workflows/security-standards.yml
+.gitlab-ci.yml
+bitbucket-pipelines.yml
+.forgejo/workflows/security-standards.yml
 ```
 
 After `ic:init`, run:
@@ -152,48 +157,54 @@ composer ic:init --force
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `composer ic:tests`         | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, PHPStan, Psalm security analysis, and Rector dry run. |
 | `composer ic:tests:all`     | Alias of `ic:tests`.                                                                                                                    |
+| `composer ic:tests:parallel` | Runs syntax first, then executes the remaining quality checks with bounded parallelism and a buffered PASS/FAIL summary.                 |
 | `composer ic:tests:details` | Runs detailed checks without the parallel Pest shortcut.                                                                                  |
-| `composer ic:test:syntax`   | Checks project PHP files while respecting `.gitignore`, `.git/info/exclude`, and global Git ignore rules.                             |
+| `composer ic:test:syntax`   | Runs PHPForge's native syntax checker using `phpforge.json`, Git ignores, and native excludes.                             |
 | `composer ic:test:code`     | Runs Pest.                                                                                                                                |
 | `composer ic:test:lint`     | Runs Pint in check mode.                                                                                                                  |
-| `composer ic:test:sniff`    | Runs PHPCS with a full report.                                                                                                            |
-| `composer ic:test:duplicates` | Detects duplicated PHP code using a token-based scanner.                                                                                |
+| `composer ic:test:sniff`    | Runs PHPCS with a full report against the project root and bundled/project excludes.                                                       |
+| `composer ic:test:duplicates` | Runs PHPForge's native duplicate detector using `phpforge.json`.                                                                       |
 | `composer ic:test:static`   | Runs PHPStan.                                                                                                                             |
 | `composer ic:test:security` | Runs Psalm security analysis.                                                                                                             |
 | `composer ic:test:refactor` | Runs Rector in dry-run mode.                                                                                                              |
 | `composer ic:test:bench`    | Runs PHPBench aggregate benchmarks.                                                                                                       |
 
 Native syntax and duplicate settings live in `phpforge.json`, with the bundled default used when a project-local file is not present.
-Syntax and duplicate checks are root-scoped by default and rely on `exclude` lists in `phpforge.json` (plus Git ignore rules).
-Duplicate detection normalizes variables and literals by default and ignores whitespace/comments.
-The Composer gate uses the configured token window for a quiet CI signal; the lower-level binary exposes deeper audit options and accepts `--config=FILE`.
-Use the lower-level binary for custom scans:
+Both native checks are root-scoped by default because their bundled `paths` lists are empty; Git-aware PHP discovery is then filtered by the configured `exclude` lists.
+Duplicate detection defaults are aligned with PhpStorm-style clone analysis: variable/literal normalization, fuzzy identifier/call anonymization, structural audit mode, near-miss matching, and a mid-sensitivity token window are enabled.
+Use the lower-level binary for custom scans; CLI paths override configured paths, while CLI excludes are added to configured excludes:
 
 ```bash
+php vendor/bin/phpforge syntax --exclude=storage
 php vendor/bin/phpforge duplicates --min-lines=5 --min-tokens=70
 php vendor/bin/phpforge duplicates --mode=audit --near-miss --json --exclude=tests
 php vendor/bin/phpforge duplicates --write-baseline=.phpforge-duplicates-baseline.json
 php vendor/bin/phpforge duplicates --baseline=.phpforge-duplicates-baseline.json
 ```
 
-Useful duplicate options:
+Useful native checker options:
 
-| Option | Purpose |
-| ------ | ------- |
-| `--exact` | Disables variable/literal normalization. |
-| `--fuzzy` | Also normalizes identifiers and calls for renamed-code scans. |
-| `--mode=audit` | Enables statement-window matching in addition to token matching. |
-| `--near-miss` | Enables bounded statement/shape similarity for edited clones. |
-| `--min-similarity=0.85` | Sets the near-miss similarity threshold. |
-| `--exclude=PATH` | Excludes one path (repeatable). |
-| `--baseline=FILE` | Suppresses clone groups already captured in a baseline. |
-| `--write-baseline[=FILE]` | Writes the current clone groups as the baseline and exits successfully. |
+| Option | Applies To | Purpose |
+| ------ | ---------- | ------- |
+| `--config=FILE` | Syntax, duplicates | Reads native checker settings from a custom `phpforge.json` file. |
+| `--exclude=PATH` | Syntax, duplicates | Excludes one path; repeat it for multiple one-off exclusions. |
+| `--exact` | Duplicates | Disables variable/literal normalization. |
+| `--fuzzy` | Duplicates | Also normalizes identifiers and calls for renamed-code scans. |
+| `--mode=audit` | Duplicates | Enables statement-window matching in addition to token matching. |
+| `--near-miss` | Duplicates | Enables bounded statement/shape similarity for edited clones. |
+| `--min-lines=N` | Duplicates | Sets the minimum duplicated line span. |
+| `--min-tokens=N` | Duplicates | Sets the token fingerprint window size. |
+| `--min-statements=N` | Duplicates | Sets the structural statement window size for audit matching. |
+| `--min-similarity=0.85` | Duplicates | Sets the near-miss similarity threshold. |
+| `--baseline=FILE` | Duplicates | Suppresses clone groups already captured in a baseline. |
+| `--write-baseline[=FILE]` | Duplicates | Writes the current clone groups as the baseline and exits successfully. |
+| `--json` | Duplicates | Emits machine-readable JSON. |
 
 ### CI Commands
 
 | Command                            | Purpose                                                                      |
 | ---------------------------------- | ---------------------------------------------------------------------------- |
-| `composer ic:ci`                 | Runs syntax, Pest, Pint, PHPCS, duplicate detection, Rector, PHPStan, and Psalm. |
+| `composer ic:ci`                 | Runs the normal CI suite through the same bounded parallel runner as `ic:tests:parallel`. |
 | `composer ic:ci --prefer-lowest` | Runs the CI set without PHPStan and Psalm for prefer-lowest dependency jobs. |
 
 ### Process Commands
@@ -265,6 +276,95 @@ PHPForge keeps its bundled defaults in `resources/` and resolves them automatica
 | Rector         | `rector.php`, then bundled `rector.php`                   |
 | CaptainHook    | `captainhook.json`, then bundled `captainhook.json`       |
 
+### PHPForge Native Checker Config
+
+`phpforge.json` configures PHPForge's built-in syntax and duplicate-code detectors.
+Both sections use root-scoped discovery when `paths` is empty: PHPForge asks Git for tracked/unignored PHP files, then falls back to recursively scanning the project root if Git is unavailable.
+Use `exclude` to keep tests, generated files, caches, vendor packages, and other noisy paths out of the native checks.
+
+Bundled default:
+
+```json
+{
+  "syntax": {
+    "paths": [],
+    "exclude": [
+      "tests",
+      "vendor",
+      "node_modules",
+      ".git",
+      ".idea",
+      ".vscode",
+      "coverage",
+      ".phpunit.cache",
+      ".psalm-cache",
+      "build",
+      "dist",
+      "tmp",
+      ".tmp",
+      "storage",
+      "bootstrap/cache",
+      "var/cache"
+    ]
+  },
+  "duplicates": {
+    "paths": [],
+    "exclude": [
+      "tests",
+      "vendor",
+      "node_modules",
+      ".git",
+      ".idea",
+      ".vscode",
+      "coverage",
+      ".phpunit.cache",
+      ".psalm-cache",
+      "build",
+      "dist",
+      "tmp",
+      ".tmp",
+      "storage",
+      "bootstrap/cache",
+      "var/cache",
+      "storage/framework/views"
+    ],
+    "mode": "audit",
+    "normalize": true,
+    "fuzzy": true,
+    "near_miss": true,
+    "min_lines": 5,
+    "min_tokens": 90,
+    "min_statements": 4,
+    "min_similarity": 0.85,
+    "baseline": "",
+    "write_baseline": "",
+    "json": false
+  }
+}
+```
+
+| Key | Purpose |
+| --- | ------- |
+| `syntax.paths` | PHP files/directories checked by `phpforge syntax`. Empty means Git-aware project-root discovery. |
+| `syntax.exclude` | Paths removed from syntax discovery. The bundled config excludes tests, vendor, caches, build output, storage, and common IDE/tool directories. |
+| `duplicates.paths` | PHP files/directories scanned by `phpforge duplicates`. Empty means Git-aware project-root discovery. |
+| `duplicates.exclude` | Paths removed from duplicate detection. The bundled config excludes tests, vendor, caches, build output, storage, and generated framework views. |
+| `duplicates.mode` | `audit` enables structural statement matching and near-miss matching; `gate` is a stricter deterministic CI mode. |
+| `duplicates.normalize` | Replaces noisy variable names and literals before matching. Set `false` for exact-style matching. |
+| `duplicates.fuzzy` | Also normalizes identifiers/calls for renamed-code audits. More sensitive, potentially noisier. |
+| `duplicates.near_miss` | Finds edited clones through bounded statement/shape similarity. Mostly useful with audit mode. |
+| `duplicates.min_lines` | Minimum duplicated lines before a clone group can be reported. |
+| `duplicates.min_tokens` | Token fingerprint window size. The bundled `90` is PhpStorm-like middle sensitivity; higher values are quieter, lower values are more sensitive. |
+| `duplicates.min_statements` | Statement-window size used by audit/structural matching. |
+| `duplicates.min_similarity` | Near-miss threshold from `0.0` to `1.0`; `0.85` means 85 percent similar. |
+| `duplicates.baseline` | Baseline file whose known clone fingerprints are suppressed. |
+| `duplicates.write_baseline` | Writes current clone groups to the given baseline and exits successfully. Usually use CLI for this. |
+| `duplicates.json` | Emits machine-readable JSON instead of human text. Best for automation/reporting. |
+
+`exclude_paths` is also accepted as an alias for `exclude` in either section.
+Snake case, kebab case, and camel case are accepted for native checker config keys, so `min_tokens`, `min-tokens`, and `minTokens` resolve to the same setting.
+Explicit CLI paths override configured `paths`; configured and CLI excludes are combined.
+
 Check active config sources:
 
 ```bash
@@ -290,6 +390,8 @@ composer ic:publish-config psalm.xml --force
 | Variable                    | Default | Purpose                                                                                                  |
 | --------------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
 | `IC_PEST_PROCESSES`       | `10`  | Controls Pest parallel processes for `ic:tests`.                                                       |
+| `IC_TEST_CONCURRENCY`     | `3`   | Controls the maximum concurrently running tools for `ic:tests:parallel`.                              |
+| `PHPFORGE_PARALLEL`       | `3`   | Alias for `IC_TEST_CONCURRENCY`; useful in generic CI parallelism settings.                           |
 | `IC_PHPSTAN_MEMORY_LIMIT` | `1G`  | Controls PHPStan memory limit.                                                                           |
 | `IC_PSALM_THREADS`        | `1`   | Controls Psalm thread count.                                                                             |
 | `IC_HOOKS_STRICT`         | `1`   | Fails Composer when automatic CaptainHook install fails. Set to `0` for best-effort hook installation. |
@@ -298,6 +400,7 @@ Example:
 
 ```bash
 IC_PEST_PROCESSES=4 composer ic:tests
+IC_TEST_CONCURRENCY=4 composer ic:tests:parallel
 IC_PHPSTAN_MEMORY_LIMIT=2G composer ic:test:static
 IC_HOOKS_STRICT=0 composer install
 ```
@@ -421,7 +524,8 @@ with:
   dependency_versions: '["prefer-lowest","prefer-stable"]'
 ```
 
-When the matrix entry is `prefer-lowest`, PHPForge runs `composer ic:ci --prefer-lowest`, skipping heavyweight PHPStan and Psalm checks for that entry.
+Normal workflow workers run `composer ic:ci`, which delegates to the same bounded parallel runner as `ic:tests:parallel`.
+When the matrix entry is `prefer-lowest`, PHPForge still runs `composer ic:ci --prefer-lowest`, skipping heavyweight PHPStan and Psalm checks for that dependency edge.
 
 `php_extensions` is passed to `shivammathur/setup-php`:
 
@@ -747,8 +851,10 @@ Then open the workflow run and download `security-report`.
 Publish the relevant config and edit it in the project:
 
 ```bash
+composer ic:publish-config phpforge.json
 composer ic:publish-config phpstan.neon.dist
 composer ic:publish-config psalm.xml
 ```
 
 Project config files always take priority over bundled defaults.
+For native syntax or duplicate detector noise, adjust `phpforge.json` paths/excludes or duplicate thresholds first.

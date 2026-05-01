@@ -11,9 +11,11 @@
 - `composer ic:process` - fixes Composer Normalize, Rector, Pint, PHPCBF issues.
 - `composer ic:tests:details` - detailed step-by-step errors.
 - `composer ic:tests` - full quality suite.
+- `composer ic:tests:parallel` - syntax preflight plus bounded parallel quality checks.
 - `composer ic:release:guard` - release gate.
 - `composer ic:ci` / `composer ic:ci --prefer-lowest` - CI parity.
 - `composer ic:init` / `composer ic:hooks` - project setup and hooks.
+- `composer ic:publish-config phpforge.json` - customize native syntax/duplicate scan policy.
 
 ## Resolution Flow
 
@@ -26,7 +28,9 @@
 ## Config And CI
 
 - Config priority: project `pest.xml`/`phpunit.xml`, `phpbench.json`, `phpforge.json`, `phpcs.xml.dist`, `phpstan.neon.dist`, `pint.json`, `psalm.xml`, `rector.php`, `captainhook.json`; then PHPForge defaults.
-- Syntax scan respects Git ignores, including `vendor`.
+- `phpforge.json` controls native syntax and duplicate paths/excludes; empty `paths` means project-root discovery through Git-aware PHP file finding.
+- Syntax and duplicate scans respect Git ignores plus configured `exclude`/`exclude_paths` entries.
+- Native checker CLI paths override configured `paths`; CLI `--exclude` values are added to configured excludes.
 - Pre-commit runs `composer validate --strict`, `composer normalize --dry-run`, `composer ic:release:audit`, `composer ic:tests`.
 - `IC_HOOKS_STRICT=1` is default; use `IC_HOOKS_STRICT=0 composer install` only for best-effort hook install.
 - Workflow: `infocyph/phpforge/.github/workflows/security-standards.yml@main`.

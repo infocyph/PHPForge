@@ -25,7 +25,7 @@ final readonly class PhpForgeConfig
 
         $decoded = json_decode($contents, true);
 
-        return new self(self::stringKeyedArray($decoded));
+        return new self(ArrayShape::stringKeyed($decoded));
     }
 
     /**
@@ -92,26 +92,6 @@ final readonly class PhpForgeConfig
     public function syntaxPaths(): array
     {
         return $this->stringList($this->value($this->section('syntax'), 'paths'));
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private static function stringKeyedArray(mixed $value): array
-    {
-        if (!is_array($value)) {
-            return [];
-        }
-
-        $array = [];
-
-        foreach ($value as $key => $item) {
-            if (is_string($key)) {
-                $array[$key] = $item;
-            }
-        }
-
-        return $array;
     }
 
     /**
@@ -232,7 +212,7 @@ final readonly class PhpForgeConfig
     {
         $section = $this->config[$name] ?? [];
 
-        return self::stringKeyedArray($section);
+        return ArrayShape::stringKeyed($section);
     }
 
     /**

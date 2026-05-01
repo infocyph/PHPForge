@@ -61,6 +61,7 @@
             "pestphp/pest-plugin": true
         },
         "optimize-autoloader": true,
+        "process-timeout": 0,
         "sort-packages": true
     },
     "extra": {
@@ -91,6 +92,7 @@
         "ic:test:static": "@php bin/run-task.php test:static",
         "ic:test:syntax": "@php bin/run-task.php test:syntax",
         "ic:tests": "@php bin/run-task.php tests",
-        "ic:tests:all": "@ic:tests"
+        "ic:tests:all": "@ic:tests",
+        "ic:tests:parallel": "@php bin/run-task.php tests:parallel"
     }
 }

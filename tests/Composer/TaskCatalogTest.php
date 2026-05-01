@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\PHPForge\Composer\TaskCatalog;
+use Infocyph\PHPForge\Support\TaskDisplay;
 
 it('runs composer normalize as part of process all', function (): void {
     expect(TaskCatalog::processAll()[0])->toBe(['composer', 'normalize']);
@@ -19,6 +20,11 @@ it('runs syntax checks with the native PHPForge config', function (): void {
     expect(TaskCatalog::syntax()[0])->toContain('syntax')
         ->and(TaskCatalog::syntax()[0])->toContain('--config')
         ->and(TaskCatalog::syntax()[0])->toContain(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpforge.json');
+});
+
+it('keeps syntax as preflight for parallel tests', function (): void {
+    expect(TaskCatalog::testParallel())->not()->toContain(TaskCatalog::syntax()[0])
+        ->and(TaskDisplay::heading(TaskCatalog::testParallel()[0]))->toStartWith('Pest');
 });
 
 it('uses the bundled phpbench config directly for consuming projects', function (): void {

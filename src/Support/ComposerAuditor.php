@@ -8,29 +8,18 @@ final class ComposerAuditor
 {
     public function run(): int
     {
-        $process = proc_open('composer audit --format=json --no-interaction --abandoned=report', [
-            0 => ['pipe', 'r'],
-            1 => ['pipe', 'w'],
-            2 => ['pipe', 'w'],
-        ], $pipes);
+        $result = (new ProcRunner())->run('composer audit --format=json --no-interaction --abandoned=report');
 
-        if (!is_resource($process)) {
+        if (!$result instanceof ProcessResult) {
             fwrite(STDERR, 'Failed to start composer audit process.' . PHP_EOL);
 
             return 1;
         }
 
-        fclose($pipes[0]);
-        $stdout = stream_get_contents($pipes[1]) ?: '';
-        $stderr = stream_get_contents($pipes[2]) ?: '';
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-
-        $exitCode = proc_close($process);
-        $decoded = json_decode($stdout, true);
+        $decoded = json_decode($result->stdout, true);
 
         if (!is_array($decoded)) {
-            return $this->invalidJson($stdout, $stderr, $exitCode);
+            return $this->invalidJson($result);
         }
 
         $advisoryCount = $this->advisoryCount($decoded['advisories'] ?? []);
@@ -90,19 +79,19 @@ final class ComposerAuditor
         return $count;
     }
 
-    private function invalidJson(string $stdout, string $stderr, int $exitCode): int
+    private function invalidJson(ProcessResult $result): int
     {
         fwrite(STDERR, 'Unable to parse composer audit JSON output.' . PHP_EOL);
 
-        if (trim($stdout) !== '') {
-            fwrite(STDERR, $stdout . PHP_EOL);
+        if (trim($result->stdout) !== '') {
+            fwrite(STDERR, $result->stdout . PHP_EOL);
         }
 
-        if (trim($stderr) !== '') {
-            fwrite(STDERR, $stderr . PHP_EOL);
+        if (trim($result->stderr) !== '') {
+            fwrite(STDERR, $result->stderr . PHP_EOL);
         }
 
-        return $exitCode !== 0 ? $exitCode : 1;
+        return $result->exitCode !== 0 ? $result->exitCode : 1;
     }
 
     /**

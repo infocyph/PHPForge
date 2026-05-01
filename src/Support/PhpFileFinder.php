@@ -87,28 +87,15 @@ final class PhpFileFinder
             return [];
         }
 
-        $process = proc_open(['git', 'check-ignore', '-z', '--stdin', '--no-index'], [
-            0 => ['pipe', 'r'],
-            1 => ['pipe', 'w'],
-            2 => ['pipe', 'w'],
-        ], $pipes);
+        $result = (new ProcRunner())->run(['git', 'check-ignore', '-z', '--stdin', '--no-index'], implode("\0", $paths) . "\0");
 
-        if (!is_resource($process)) {
+        if (!$result instanceof ProcessResult) {
             return [];
         }
 
-        fwrite($pipes[0], implode("\0", $paths) . "\0");
-        fclose($pipes[0]);
-
-        $stdout = stream_get_contents($pipes[1]) ?: '';
-        stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        proc_close($process);
-
         $ignored = [];
 
-        foreach (explode("\0", $stdout) as $path) {
+        foreach (explode("\0", $result->stdout) as $path) {
             if ($path !== '') {
                 $ignored[$path] = true;
             }
@@ -135,25 +122,17 @@ final class PhpFileFinder
             }
         }
 
-        $process = proc_open($command, [
-            1 => ['pipe', 'w'],
-            2 => ['pipe', 'w'],
-        ], $pipes);
+        $result = (new ProcRunner())->run($command);
 
-        if (!is_resource($process)) {
+        if (!$result instanceof ProcessResult) {
             return null;
         }
 
-        $stdout = stream_get_contents($pipes[1]) ?: '';
-        stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-
-        if (proc_close($process) !== 0) {
+        if (!$result->successful()) {
             return null;
         }
 
-        return $this->filterUnignoredPhpFiles($stdout);
+        return $this->filterUnignoredPhpFiles($result->stdout);
     }
 
     private function normalizePath(string $path): string

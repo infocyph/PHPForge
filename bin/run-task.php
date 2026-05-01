@@ -4,44 +4,48 @@
 declare(strict_types=1);
 
 use Infocyph\PHPForge\Composer\TaskCatalog;
+use Infocyph\PHPForge\Support\ParallelRunner;
+use Infocyph\PHPForge\Support\TaskDisplay;
+use Infocyph\PHPForge\Support\TaskSkipPolicy;
+use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Process\Process;
 
 require dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
 
 $task = $argv[1] ?? '';
 
-$taskMap = [
-    'process:all' => static fn(): array => TaskCatalog::processAll(),
-    'process:lint' => static fn(): array => TaskCatalog::lintFix(),
-    'process:refactor' => static fn(): array => TaskCatalog::refactorFix(),
-    'process:sniff' => static fn(): array => TaskCatalog::sniffFix(),
-    'test:code' => static fn(): array => TaskCatalog::testCode(),
-    'test:duplicates' => static fn(): array => TaskCatalog::duplicates(),
-    'test:lint' => static fn(): array => TaskCatalog::lintCheck(),
-    'test:refactor' => static fn(): array => TaskCatalog::refactorCheck(),
-    'test:security' => static fn(): array => TaskCatalog::security(),
-    'test:sniff' => static fn(): array => TaskCatalog::sniff(),
-    'test:static' => static fn(): array => TaskCatalog::staticAnalysis(),
-    'test:syntax' => static fn(): array => TaskCatalog::syntax(),
-    'tests' => static fn(): array => TaskCatalog::testAll(),
-];
+if ($task === 'tests:parallel') {
+    $exitCode = (new ParallelRunner(new ConsoleOutput()))->run(
+        TaskCatalog::syntax(),
+        TaskCatalog::testParallel(),
+        ParallelRunner::concurrencyFrom($argv[2] ?? null),
+    );
 
-$resolver = $taskMap[$task] ?? null;
+    if ($exitCode !== 0) {
+        throw new RuntimeException(sprintf('Parallel tests failed with exit code %d.', $exitCode));
+    }
 
-if (!is_callable($resolver)) {
-    throw new InvalidArgumentException(sprintf('Unknown task "%s".', $task));
+    return;
 }
 
-$tasks = $resolver();
+$tasks = taskCommands($task);
+$isFirstTask = true;
 
 foreach ($tasks as $command) {
+    if (!$isFirstTask) {
+        fwrite(STDOUT, PHP_EOL);
+    }
+
+    $isFirstTask = false;
+    fwrite(STDOUT, TaskDisplay::heading($command) . PHP_EOL);
+
     $process = runProcess($command);
 
     if ($process->isSuccessful()) {
         continue;
     }
 
-    if (shouldSkipUnavailablePerPreset($command, $process)) {
+    if (TaskSkipPolicy::shouldSkipUnavailablePerPreset($command, $process->getOutput(), $process->getErrorOutput())) {
         fwrite(STDERR, "Pint preset 'per' is unavailable; skipping this Pint task." . PHP_EOL);
 
         continue;
@@ -71,57 +75,24 @@ function runProcess(array $command): Process
 }
 
 /**
- * @param list<string> $command
+ * @return list<list<string>>
  */
-function shouldSkipUnavailablePerPreset(array $command, Process $process): bool
+function taskCommands(string $task): array
 {
-    if (!isPintCommand($command)) {
-        return false;
-    }
-
-    $message = $process->getErrorOutput() . PHP_EOL . $process->getOutput();
-
-    if (!str_contains($message, 'Preset not found')) {
-        return false;
-    }
-
-    $configIndex = array_search('--config', $command, true);
-
-    if ($configIndex === false || !isset($command[$configIndex + 1])) {
-        return false;
-    }
-
-    $configPath = $command[$configIndex + 1];
-
-    if (!is_file($configPath)) {
-        return false;
-    }
-
-    $contents = file_get_contents($configPath);
-
-    if (!is_string($contents) || $contents === '') {
-        return false;
-    }
-
-    $config = json_decode($contents, true);
-
-    if (!is_array($config)) {
-        return false;
-    }
-
-    return ($config['preset'] ?? null) === 'per';
-}
-
-/**
- * @param list<string> $command
- */
-function isPintCommand(array $command): bool
-{
-    foreach ($command as $part) {
-        if (str_ends_with($part, DIRECTORY_SEPARATOR . 'pint') || $part === 'pint') {
-            return true;
-        }
-    }
-
-    return false;
+    return match ($task) {
+        'process:all' => TaskCatalog::processAll(),
+        'process:lint' => TaskCatalog::lintFix(),
+        'process:refactor' => TaskCatalog::refactorFix(),
+        'process:sniff' => TaskCatalog::sniffFix(),
+        'test:code' => TaskCatalog::testCode(),
+        'test:duplicates' => TaskCatalog::duplicates(),
+        'test:lint' => TaskCatalog::lintCheck(),
+        'test:refactor' => TaskCatalog::refactorCheck(),
+        'test:security' => TaskCatalog::security(),
+        'test:sniff' => TaskCatalog::sniff(),
+        'test:static' => TaskCatalog::staticAnalysis(),
+        'test:syntax' => TaskCatalog::syntax(),
+        'tests' => TaskCatalog::testAll(),
+        default => throw new InvalidArgumentException(sprintf('Unknown task "%s".', $task)),
+    };
 }

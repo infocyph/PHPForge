@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Infocyph\PHPForge\Composer;
 
+use Infocyph\PHPForge\Support\ArrayShape;
 use Infocyph\PHPForge\Support\CaptainHook;
 use Infocyph\PHPForge\Support\Paths;
 
@@ -38,7 +39,11 @@ final class TaskCatalog
      */
     public static function ci(bool $skipHeavyAnalysis = false): array
     {
-        $tasks = [
+        if (!$skipHeavyAnalysis) {
+            return self::testAll();
+        }
+
+        return [
             ...self::syntax(),
             ...self::testCode(),
             ...self::lintCheck(),
@@ -46,16 +51,6 @@ final class TaskCatalog
             ...self::duplicates(),
             ...self::refactorCheck(),
         ];
-
-        if (!$skipHeavyAnalysis) {
-            $tasks = [
-                ...$tasks,
-                ...self::staticAnalysis(),
-                ...self::security(),
-            ];
-        }
-
-        return $tasks;
     }
 
     /**
@@ -231,6 +226,14 @@ final class TaskCatalog
         ];
     }
 
+    /**
+     * @return list<list<string>>
+     */
+    public static function testParallel(): array
+    {
+        return array_slice(self::testAll(), count(self::syntax()));
+    }
+
     private static function absoluteProjectPath(string $projectRoot, string $path): string
     {
         if (preg_match('/^[A-Za-z]:[\/\\\\]/', $path) === 1 || str_starts_with($path, DIRECTORY_SEPARATOR)) {
@@ -273,21 +276,7 @@ final class TaskCatalog
             return [];
         }
 
-        $config = json_decode($contents, true);
-
-        if (!is_array($config)) {
-            return [];
-        }
-
-        $stringKeyedConfig = [];
-
-        foreach ($config as $key => $value) {
-            if (is_string($key)) {
-                $stringKeyedConfig[$key] = $value;
-            }
-        }
-
-        return $stringKeyedConfig;
+        return ArrayShape::stringKeyed(json_decode($contents, true));
     }
 
     /**
