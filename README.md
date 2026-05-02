@@ -84,7 +84,7 @@ composer ic:init
 ```text
 Install CaptainHook pre-commit config (validate, audit, parallel CI)?
 Install GitHub Actions workflow wrapper (parallel CI, SARIF, SVG report)?
-Publish customizable PHPForge native syntax and duplicate detector config (phpforge.json)?
+PHPForge native config preset
 Install GitLab CI pipeline (.gitlab-ci.yml)?
 Install Bitbucket pipeline (bitbucket-pipelines.yml)?
 Install Forgejo workflow (.forgejo/workflows/security-standards.yml)?
@@ -112,6 +112,7 @@ Selector presets include:
 | Extra Composer flags  | `none` => `""`, `with-all-dependencies` => `--with-all-dependencies`, `ignore-ext-redis` => `--ignore-platform-req=ext-redis`, or custom. Prompt explains each option effect.          |
 | PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                                                                                                                  |
 | Psalm threads         | `1`, `2`, `4`, or custom                                                                                                                                                                     |
+| PHPForge native config preset | `phpstorm`, `standard`, or `strict`. Asked only when publishing `phpforge.json`.                                                                                              |
 
 `supported` includes non-EOL PHP minor cycles (>= `8.2`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
 PHP version, dependency matrix, PHP extensions, and Composer flags selectors show resolved values in the prompt and print the final resolved value after selection.
@@ -127,7 +128,7 @@ bitbucket-pipelines.yml
 .forgejo/workflows/security-standards.yml
 ```
 
-`phpforge.json` is opt-in during init because PHPForge already uses its bundled native syntax and duplicate detector config when a project-local file is not present. Publish it only when a project needs custom paths, excludes, thresholds, or baselines.
+Interactive init asks for a PHPForge native config preset and publishes `phpforge.json` from that choice. Non-interactive default init still keeps the bundled fallback unless `--phpforge` is passed. Use `composer ic:publish-config phpforge.json` when you only want to publish that file outside init.
 
 After `ic:init`, run:
 
@@ -242,9 +243,10 @@ Useful native checker options:
 
 | Command                                               | Purpose                                                                                                        |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `composer ic:init`                                  | Interactively sets up CaptainHook pre-commit, native syntax/duplicate config, and workflow wrappers.          |
+| `composer ic:init`                                  | Interactively sets up CaptainHook pre-commit, workflow wrappers, and optional native config publishing.       |
 | `composer ic:init --captainhook`                    | Copies only the CaptainHook pre-commit config.                                                               |
 | `composer ic:init --phpforge`                       | Publishes `phpforge.json` only when a project needs custom native syntax or duplicate detection settings.     |
+| `composer ic:init --phpforge --phpforge-preset=standard` | Publishes `phpforge.json` with a named preset: `phpstorm`, `standard`, or `strict`.                      |
 | `composer ic:init --workflow --workflow-ref=main`   | Copies only the GitHub Actions wrapper and points it at the given PHPForge ref.                               |
 | `composer ic:init --gitlab-ci`                      | Copies `.gitlab-ci.yml` starter pipeline.                                                                    |
 | `composer ic:init --bitbucket-ci`                   | Copies `bitbucket-pipelines.yml` starter pipeline.                                                           |
@@ -375,6 +377,19 @@ Bundled default:
 Snake case, kebab case, and camel case are accepted for native checker config keys, so `min_tokens`, `min-tokens`, and `minTokens` resolve to the same setting.
 Explicit CLI paths override configured `paths`; configured and CLI excludes are combined.
 
+PHPForge native config presets are available when publishing `phpforge.json` through `ic:init --phpforge`:
+
+| Preset      | Duplicate Policy                                                                 |
+| ----------- | -------------------------------------------------------------------------------- |
+| `phpstorm`  | PhpStorm-like default: audit mode, normalized/fuzzy tokens, near-miss matching, `min_tokens: 90`. |
+| `standard`  | Balanced CI gate: deterministic gate mode, normalized/fuzzy tokens, no near-miss matching, `min_tokens: 100`. |
+| `strict`    | More sensitive audit mode: near-miss matching enabled with lower size thresholds, `min_tokens: 70`. |
+
+```bash
+composer ic:init --phpforge
+composer ic:init --phpforge --phpforge-preset=standard
+```
+
 Check active config sources:
 
 ```bash
@@ -387,6 +402,23 @@ Publish config only when a project needs custom rules:
 ```bash
 composer ic:publish-config phpforge.json pint.json phpstan.neon.dist
 composer ic:publish-config --all
+```
+
+Supported publishable config files:
+
+```text
+captainhook.json
+pest.xml
+pest.xml.dist
+phpunit.xml
+phpunit.xml.dist
+phpbench.json
+phpcs.xml.dist
+phpforge.json
+phpstan.neon.dist
+pint.json
+psalm.xml
+rector.php
 ```
 
 Use `--force` to overwrite existing files:
