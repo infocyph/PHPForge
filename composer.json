@@ -53,7 +53,10 @@
     "autoload": {
         "psr-4": {
             "Infocyph\\PHPForge\\": "src/"
-        }
+        },
+        "files": [
+            "src/Support/PhpParserCompatibility.php"
+        ]
     },
     "bin": [
         "bin/phpforge"
