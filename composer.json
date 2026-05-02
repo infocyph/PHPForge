@@ -28,7 +28,7 @@
         "captainhook/captainhook": ">=5.0 <6.0",
         "deptrac/deptrac": "^4.6",
         "ergebnis/composer-normalize": ">=2.0 <3.0",
-        "infocyph/phpprobe": ">=0.1 <2.0",
+        "infocyph/phpprobe": ">=0.1.1 <2.0",
         "laravel/pint": ">=1.0 <2.0",
         "nikic/php-parser": ">=5.7 <6.0",
         "pestphp/pest": ">=3.0 <5.0",
@@ -53,7 +53,10 @@
     "autoload": {
         "psr-4": {
             "Infocyph\\PHPForge\\": "src/"
-        }
+        },
+        "files": [
+            "src/Support/PhpParserCompatibility.php"
+        ]
     },
     "bin": [
         "bin/phpforge"

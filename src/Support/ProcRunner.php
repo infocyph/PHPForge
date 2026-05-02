@@ -11,6 +11,8 @@ final class ProcRunner
      */
     public function run(array|string $command, string $stdin = ''): ?ProcessResult
     {
+        $pipes = [];
+
         $process = proc_open($command, [
             0 => ['pipe', 'r'],
             1 => ['pipe', 'w'],
@@ -18,6 +20,12 @@ final class ProcRunner
         ], $pipes);
 
         if (!is_resource($process)) {
+            return null;
+        }
+
+        if (!self::hasProcessPipes($pipes)) {
+            proc_close($process);
+
             return null;
         }
 
@@ -30,5 +38,17 @@ final class ProcRunner
         fclose($pipes[2]);
 
         return new ProcessResult(proc_close($process), $stdout, $stderr);
+    }
+
+    /**
+     * @phpstan-assert-if-true array{0: resource, 1: resource, 2: resource} $pipes
+     */
+    private static function hasProcessPipes(mixed $pipes): bool
+    {
+        return is_array($pipes)
+            && isset($pipes[0], $pipes[1], $pipes[2])
+            && is_resource($pipes[0])
+            && is_resource($pipes[1])
+            && is_resource($pipes[2]);
     }
 }
