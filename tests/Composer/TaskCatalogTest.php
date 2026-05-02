@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\PHPForge\Composer\TaskCatalog;
+use Infocyph\PHPForge\Support\Paths;
 use Infocyph\PHPForge\Support\TaskDisplay;
 
 function mirrorTaskCatalogConfig(string $projectRoot, string $file): string
@@ -48,16 +49,32 @@ it('runs composer normalize as part of process all', function (): void {
 });
 
 it('runs duplicate detection against code paths', function (): void {
-    expect(TaskCatalog::duplicates()[0])->toContain('duplicates')
+    $command = TaskCatalog::duplicates()[0];
+
+    expect(basename(str_replace('\\', '/', $command[1])))->toBe('phpprobe')
+        ->and($command)->toContain('duplicates')
         ->and(TaskCatalog::duplicates()[0])->toContain('--config')
-        ->and(TaskCatalog::duplicates()[0])->toContain(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpforge.json')
+        ->and(TaskCatalog::duplicates()[0])->toContain(Paths::packageFile('resources/phpforge.json'))
         ->and(TaskCatalog::duplicates()[0])->not()->toContain('tests');
 });
 
-it('runs syntax checks with the native PHPForge config', function (): void {
-    expect(TaskCatalog::syntax()[0])->toContain('syntax')
+it('runs syntax checks with the PHPProbe checker config', function (): void {
+    $command = TaskCatalog::syntax()[0];
+
+    expect(basename(str_replace('\\', '/', $command[1])))->toBe('phpprobe')
+        ->and($command)->toContain('syntax')
         ->and(TaskCatalog::syntax()[0])->toContain('--config')
-        ->and(TaskCatalog::syntax()[0])->toContain(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpforge.json');
+        ->and(TaskCatalog::syntax()[0])->toContain(Paths::packageFile('resources/phpforge.json'));
+});
+
+it('runs architecture checks with the bundled deptrac config', function (): void {
+    $command = TaskCatalog::architecture()[0];
+
+    expect(basename(str_replace('\\', '/', $command[1])))->toBe('deptrac')
+        ->and($command)->toContain('--no-cache')
+        ->and($command)->toContain('analyse')
+        ->and($command)->toContain('--config-file='.Paths::packageFile('resources/deptrac.yaml'))
+        ->and($command)->toContain('--no-progress');
 });
 
 it('keeps syntax as preflight for parallel tests', function (): void {
@@ -145,9 +162,7 @@ it('uses the project captainhook config when present', function (): void {
 
 it('lets project phpstan config define analysed paths', function (): void {
     $command = TaskCatalog::staticAnalysis()[0];
-    $packageRoot = realpath(dirname(__DIR__, 2));
-
-    expect($command)->toContain('--configuration='.$packageRoot.DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpstan.neon.dist');
+    expect($command)->toContain('--configuration='.Paths::packageFile('resources/phpstan.neon.dist'));
     expect($command)->not()->toContain('src');
     expect($command)->not()->toContain('app');
 });

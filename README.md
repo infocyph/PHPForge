@@ -14,8 +14,8 @@ PHPForge brings these tools through one package:
 | Pest                        | Test execution                                      |
 | Laravel Pint                | Code style checks and fixes                         |
 | PHP_CodeSniffer / PHPCBF    | Semantic sniffing and fixable sniff repairs         |
-| PHPForge syntax checker     | Git-aware PHP syntax validation                     |
-| PHPForge duplicate detector | Token, AST, statement and near-miss clone detection |
+| PHPProbe                    | Git-aware PHP syntax validation and duplicate detection |
+| Deptrac                     | Architecture boundary checks                        |
 | PHPStan                     | Static analysis and cognitive complexity            |
 | Psalm                       | Security and taint analysis                         |
 | Rector                      | Refactor checks and automated refactors             |
@@ -84,7 +84,8 @@ composer ic:init
 ```text
 Install CaptainHook pre-commit config (validate, audit, parallel CI)?
 Install GitHub Actions workflow wrapper (parallel CI, SARIF, SVG report)?
-Publish customizable PHPForge native syntax and duplicate detector config (phpforge.json)?
+PHPForge checker config preset
+Install Deptrac architecture config (deptrac.yaml)?
 Install GitLab CI pipeline (.gitlab-ci.yml)?
 Install Bitbucket pipeline (bitbucket-pipelines.yml)?
 Install Forgejo workflow (.forgejo/workflows/security-standards.yml)?
@@ -112,6 +113,7 @@ Selector presets include:
 | Extra Composer flags  | `none` => `""`, `with-all-dependencies` => `--with-all-dependencies`, `ignore-ext-redis` => `--ignore-platform-req=ext-redis`, or custom. Prompt explains each option effect.          |
 | PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                                                                                                                  |
 | Psalm threads         | `1`, `2`, `4`, or custom                                                                                                                                                                     |
+| PHPForge checker config preset | `phpstorm`, `standard`, or `strict`. Asked only when publishing `phpforge.json`.                                                                                             |
 
 `supported` includes non-EOL PHP minor cycles (>= `8.2`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
 PHP version, dependency matrix, PHP extensions, and Composer flags selectors show resolved values in the prompt and print the final resolved value after selection.
@@ -121,13 +123,14 @@ Depending on your selections, `ic:init` can generate:
 ```text
 captainhook.json
 phpforge.json
+deptrac.yaml
 .github/workflows/security-standards.yml
 .gitlab-ci.yml
 bitbucket-pipelines.yml
 .forgejo/workflows/security-standards.yml
 ```
 
-`phpforge.json` is opt-in during init because PHPForge already uses its bundled native syntax and duplicate detector config when a project-local file is not present. Publish it only when a project needs custom paths, excludes, thresholds, or baselines.
+Interactive init asks for a PHPForge checker config preset and publishes `phpforge.json` from that choice. It also asks whether to publish `deptrac.yaml`. Non-interactive default init still keeps bundled fallbacks unless `--phpforge` or `--deptrac` is passed. Use `composer ic:publish-config phpforge.json deptrac.yaml` when you only want to publish those files outside init.
 
 After `ic:init`, run:
 
@@ -145,6 +148,7 @@ Use targeted or non-interactive init commands when needed:
 ```bash
 composer ic:init --captainhook
 composer ic:init --phpforge
+composer ic:init --deptrac
 composer ic:init --workflow --workflow-ref=main
 composer ic:init --gitlab-ci
 composer ic:init --bitbucket-ci
@@ -159,38 +163,40 @@ composer ic:init --force
 
 | Command                         | Purpose                                                                                                                                                        |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `composer ic:tests`           | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, PHPStan, Psalm security analysis, and Rector dry run. |
+| `composer ic:tests`           | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, Deptrac, PHPStan, Psalm security analysis, and Rector dry run. |
 | `composer ic:tests:all`       | Alias of `ic:tests`.                                                                                                                                         |
 | `composer ic:tests:parallel`  | Runs syntax first, then executes the remaining quality checks with bounded parallelism and a buffered PASS/FAIL summary.                                       |
 | `composer ic:tests:details`   | Runs detailed checks without the parallel Pest shortcut.                                                                                                       |
-| `composer ic:test:syntax`     | Runs PHPForge's native syntax checker using `phpforge.json`, Git ignores, and native excludes.                                                               |
+| `composer ic:test:syntax`     | Runs the PHP syntax checker using `phpforge.json`, Git ignores, and configured excludes.                                                                     |
 | `composer ic:test:code`       | Runs Pest.                                                                                                                                                     |
 | `composer ic:test:lint`       | Runs Pint in check mode.                                                                                                                                       |
 | `composer ic:test:sniff`      | Runs PHPCS with a full report against the project root and bundled/project excludes.                                                                           |
-| `composer ic:test:duplicates` | Runs PHPForge's native duplicate detector using `phpforge.json`.                                                                                             |
+| `composer ic:test:duplicates` | Runs duplicate detection using `phpforge.json`.                                                                                                              |
+| `composer ic:test:architecture` | Runs Deptrac architecture checks using `deptrac.yaml`.                                                                                                    |
 | `composer ic:test:static`     | Runs PHPStan.                                                                                                                                                  |
 | `composer ic:test:security`   | Runs Psalm security analysis.                                                                                                                                  |
 | `composer ic:test:refactor`   | Runs Rector in dry-run mode.                                                                                                                                   |
 | `composer ic:test:bench`      | Runs PHPBench aggregate benchmarks.                                                                                                                            |
 
-Native syntax and duplicate settings live in `phpforge.json`, with the bundled default used when a project-local file is not present.
-Both native checks are root-scoped by default because their bundled `paths` lists are empty; Git-aware PHP discovery is then filtered by the configured `exclude` lists.
+Syntax and duplicate settings live in `phpforge.json`, with the bundled default used when a project-local file is not present.
+PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax` and `phpforge duplicates` commands are thin compatibility gateways that pass the same config to PHPProbe.
+Both checks are root-scoped by default because their bundled `paths` lists are empty; Git-aware PHP discovery is then filtered by the configured `exclude` lists.
 Duplicate detection defaults are aligned with PhpStorm-style clone analysis: variable/literal normalization, fuzzy identifier/call anonymization, structural audit mode, near-miss matching, and a mid-sensitivity token window are enabled.
 Use the lower-level binary for custom scans; CLI paths override configured paths, while CLI excludes are added to configured excludes:
 
 ```bash
-php vendor/bin/phpforge syntax --exclude=storage
-php vendor/bin/phpforge duplicates --min-lines=5 --min-tokens=70
-php vendor/bin/phpforge duplicates --mode=audit --near-miss --json --exclude=tests
-php vendor/bin/phpforge duplicates --write-baseline=.phpforge-duplicates-baseline.json
-php vendor/bin/phpforge duplicates --baseline=.phpforge-duplicates-baseline.json
+php vendor/bin/phpprobe syntax --config=phpforge.json --exclude=storage
+php vendor/bin/phpprobe duplicates --config=phpforge.json --min-lines=5 --min-tokens=70
+php vendor/bin/phpprobe duplicates --config=phpforge.json --mode=audit --near-miss --json --exclude=tests
+php vendor/bin/phpprobe duplicates --config=phpforge.json --write-baseline=.phpforge-duplicates-baseline.json
+php vendor/bin/phpprobe duplicates --config=phpforge.json --baseline=.phpforge-duplicates-baseline.json
 ```
 
-Useful native checker options:
+Useful checker options:
 
 | Option                      | Applies To         | Purpose                                                                 |
 | --------------------------- | ------------------ | ----------------------------------------------------------------------- |
-| `--config=FILE`           | Syntax, duplicates | Reads native checker settings from a custom `phpforge.json` file.     |
+| `--config=FILE`           | Syntax, duplicates | Reads checker settings from a custom `phpforge.json` file.            |
 | `--exclude=PATH`          | Syntax, duplicates | Excludes one path; repeat it for multiple one-off exclusions.           |
 | `--exact`                 | Duplicates         | Disables variable/literal normalization.                                |
 | `--fuzzy`                 | Duplicates         | Also normalizes identifiers and calls for renamed-code scans.           |
@@ -242,9 +248,11 @@ Useful native checker options:
 
 | Command                                               | Purpose                                                                                                        |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `composer ic:init`                                  | Interactively sets up CaptainHook pre-commit, native syntax/duplicate config, and workflow wrappers.          |
+| `composer ic:init`                                  | Interactively sets up CaptainHook pre-commit, workflow wrappers, and checker config publishing.               |
 | `composer ic:init --captainhook`                    | Copies only the CaptainHook pre-commit config.                                                               |
-| `composer ic:init --phpforge`                       | Publishes `phpforge.json` only when a project needs custom native syntax or duplicate detection settings.     |
+| `composer ic:init --phpforge`                       | Publishes `phpforge.json` only when a project needs custom syntax or duplicate detection settings.            |
+| `composer ic:init --phpforge --phpforge-preset=standard` | Publishes `phpforge.json` with a named preset: `phpstorm`, `standard`, or `strict`.                      |
+| `composer ic:init --deptrac`                        | Copies only the Deptrac architecture config.                                                                  |
 | `composer ic:init --workflow --workflow-ref=main`   | Copies only the GitHub Actions wrapper and points it at the given PHPForge ref.                               |
 | `composer ic:init --gitlab-ci`                      | Copies `.gitlab-ci.yml` starter pipeline.                                                                    |
 | `composer ic:init --bitbucket-ci`                   | Copies `bitbucket-pipelines.yml` starter pipeline.                                                           |
@@ -278,7 +286,8 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Pest / PHPUnit         | `pest.xml`, then `phpunit.xml`, then `pest.xml.dist`, then `phpunit.xml.dist`, then bundled `pest.xml` |
 | PHPBench               | `phpbench.json`, then bundled `phpbench.json`                                                                |
-| PHPForge native checks | `phpforge.json`, then bundled `phpforge.json`                                                                |
+| PHPProbe checker tasks | `phpforge.json`, then bundled `phpforge.json`                                                                |
+| Deptrac                | `deptrac.yaml`, then bundled `deptrac.yaml`                                                                  |
 | PHPCS / PHPCBF         | `phpcs.xml.dist`, then bundled `phpcs.xml.dist`                                                              |
 | PHPStan                | `phpstan.neon.dist`, then bundled `phpstan.neon.dist`                                                        |
 | Pint                   | `pint.json`, then bundled `pint.json`                                                                        |
@@ -286,11 +295,11 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 | Rector                 | `rector.php`, then bundled `rector.php`                                                                      |
 | CaptainHook            | `captainhook.json`, then bundled `captainhook.json`                                                          |
 
-### PHPForge Native Checker Config
+### PHPProbe Checker Config
 
-`phpforge.json` configures PHPForge's built-in syntax and duplicate-code detectors.
-Both sections use root-scoped discovery when `paths` is empty: PHPForge asks Git for tracked/unignored PHP files, then falls back to recursively scanning the project root if Git is unavailable.
-Use `exclude` to keep tests, generated files, caches, vendor packages, and other noisy paths out of the native checks.
+`phpforge.json` configures PHPProbe syntax and duplicate-code checks.
+Both sections use root-scoped discovery when `paths` is empty: PHPProbe asks Git for tracked/unignored PHP files, then falls back to recursively scanning the project root if Git is unavailable.
+Use `exclude` to keep tests, generated files, caches, vendor packages, and other noisy paths out of the checker tasks.
 
 Bundled default:
 
@@ -372,8 +381,31 @@ Bundled default:
 | `duplicates.json`           | Emits machine-readable JSON instead of human text. Best for automation/reporting.                                                                  |
 
 `exclude_paths` is also accepted as an alias for `exclude` in either section.
-Snake case, kebab case, and camel case are accepted for native checker config keys, so `min_tokens`, `min-tokens`, and `minTokens` resolve to the same setting.
+Snake case, kebab case, and camel case are accepted for checker config keys, so `min_tokens`, `min-tokens`, and `minTokens` resolve to the same setting.
 Explicit CLI paths override configured `paths`; configured and CLI excludes are combined.
+
+PHPForge checker config presets are available when publishing `phpforge.json` through `ic:init --phpforge`:
+
+| Preset      | Duplicate Policy                                                                 |
+| ----------- | -------------------------------------------------------------------------------- |
+| `phpstorm`  | PhpStorm-like default: audit mode, normalized/fuzzy tokens, near-miss matching, `min_tokens: 90`. |
+| `standard`  | Balanced CI gate: deterministic gate mode, normalized/fuzzy tokens, no near-miss matching, `min_tokens: 100`. |
+| `strict`    | More sensitive audit mode: near-miss matching enabled with lower size thresholds, `min_tokens: 70`. |
+
+```bash
+composer ic:init --phpforge
+composer ic:init --phpforge --phpforge-preset=standard
+```
+
+### Deptrac Architecture Config
+
+`deptrac.yaml` configures architecture dependency boundaries. The bundled default scans from the project root, excludes the same noisy/generated paths as the other PHPForge configs, and collects project classes through a generic `Project` layer instead of hard-coding a package namespace. Publish it when a project is ready to split that baseline into real domain, package, or framework layers.
+
+```bash
+composer ic:test:architecture
+composer ic:init --deptrac
+composer ic:publish-config deptrac.yaml
+```
 
 Check active config sources:
 
@@ -387,6 +419,22 @@ Publish config only when a project needs custom rules:
 ```bash
 composer ic:publish-config phpforge.json pint.json phpstan.neon.dist
 composer ic:publish-config --all
+```
+
+Supported publishable config files:
+
+```text
+captainhook.json
+deptrac.yaml
+pest.xml
+phpunit.xml
+phpbench.json
+phpcs.xml.dist
+phpforge.json
+phpstan.neon.dist
+pint.json
+psalm.xml
+rector.php
 ```
 
 Use `--force` to overwrite existing files:
@@ -871,4 +919,4 @@ composer ic:publish-config psalm.xml
 ```
 
 Project config files always take priority over bundled defaults.
-For native syntax or duplicate detector noise, adjust `phpforge.json` paths/excludes or duplicate thresholds first.
+For syntax or duplicate detector noise, adjust `phpforge.json` paths/excludes or duplicate thresholds first.

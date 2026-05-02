@@ -44,6 +44,7 @@ function taskCommands(string $task): array
         'process:refactor' => TaskCatalog::refactorFix(),
         'process:sniff' => TaskCatalog::sniffFix(),
         'test:code' => TaskCatalog::testCode(),
+        'test:architecture' => TaskCatalog::architecture(),
         'test:duplicates' => TaskCatalog::duplicates(),
         'test:lint' => TaskCatalog::lintCheck(),
         'test:refactor' => TaskCatalog::refactorCheck(),

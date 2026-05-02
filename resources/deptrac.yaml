@@ -1,0 +1,57 @@
+deptrac:
+  paths:
+    - '%currentWorkingDirectory%'
+  exclude_files:
+    - '#(^|[\\/])vendor([\\/]|$)#'
+    - '#(^|[\\/])node_modules([\\/]|$)#'
+    - '#(^|[\\/])\.git([\\/]|$)#'
+    - '#(^|[\\/])\.idea([\\/]|$)#'
+    - '#(^|[\\/])\.vscode([\\/]|$)#'
+    - '#(^|[\\/])coverage([\\/]|$)#'
+    - '#(^|[\\/])\.phpunit\.cache([\\/]|$)#'
+    - '#(^|[\\/])\.psalm-cache([\\/]|$)#'
+    - '#(^|[\\/])build([\\/]|$)#'
+    - '#(^|[\\/])dist([\\/]|$)#'
+    - '#(^|[\\/])tmp([\\/]|$)#'
+    - '#(^|[\\/])\.tmp([\\/]|$)#'
+    - '#(^|[\\/])storage([\\/]|$)#'
+    - '#(^|[\\/])bootstrap[\\/]cache([\\/]|$)#'
+    - '#(^|[\\/])var[\\/]cache([\\/]|$)#'
+    - '#(^|[\\/])tests([\\/]|$)#'
+    - '#(^|[\\/])resources([\\/]|$)#'
+    - '#(^|[\\/])bin([\\/]|$)#'
+    - '#(^|[\\/])benchmarks([\\/]|$)#'
+    - '#(^|[\\/])examples([\\/]|$)#'
+  layers:
+    - name: Project
+      collectors:
+        - type: directory
+          value: '.*'
+    - name: Vendor
+      collectors:
+        - type: composer
+          composerPath: composer.json
+          composerLockPath: composer.lock
+          packages:
+            - captainhook/captainhook
+            - composer/composer
+            - deptrac/deptrac
+            - ergebnis/composer-normalize
+            - infocyph/phpprobe
+            - laravel/pint
+            - pestphp/pest
+            - pestphp/pest-plugin-drift
+            - phpbench/phpbench
+            - phpstan/phpstan
+            - rector/rector
+            - squizlabs/php_codesniffer
+            - symfony/console
+            - symfony/process
+            - symfony/string
+            - symfony/var-dumper
+            - tomasvotruba/cognitive-complexity
+            - vimeo/psalm
+  ruleset:
+    Project:
+      - Project
+      - Vendor

@@ -13,6 +13,14 @@ final class TaskCatalog
     /**
      * @return list<list<string>>
      */
+    public static function architecture(): array
+    {
+        return [[Paths::php(), Paths::bin('deptrac'), '--no-cache', 'analyse', '--config-file=' . Paths::config('deptrac.yaml'), '--no-progress']];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
     public static function benchChart(): array
     {
         return [self::benchCommand(['--report=chart'])];
@@ -49,6 +57,7 @@ final class TaskCatalog
             ...self::lintCheck(),
             ...self::sniff(),
             ...self::duplicates(),
+            ...self::architecture(),
             ...self::refactorCheck(),
         ];
     }
@@ -58,7 +67,7 @@ final class TaskCatalog
      */
     public static function duplicates(): array
     {
-        return [[Paths::php(), Paths::bin('phpforge'), 'duplicates', '--config', Paths::config('phpforge.json')]];
+        return [[Paths::php(), Paths::bin('phpprobe'), 'duplicates', '--config', Paths::config('phpforge.json')]];
     }
 
     /**
@@ -181,7 +190,7 @@ final class TaskCatalog
      */
     public static function syntax(): array
     {
-        return [[Paths::php(), Paths::bin('phpforge'), 'syntax', '--config', Paths::config('phpforge.json')]];
+        return [[Paths::php(), Paths::bin('phpprobe'), 'syntax', '--config', Paths::config('phpforge.json')]];
     }
 
     /**
@@ -195,6 +204,7 @@ final class TaskCatalog
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
             ...self::duplicates(),
+            ...self::architecture(),
             ...self::staticAnalysis(),
             [Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
             ...self::refactorCheck(),
@@ -220,6 +230,7 @@ final class TaskCatalog
             ...self::lintCheck(),
             ...self::sniff(),
             ...self::duplicates(),
+            ...self::architecture(),
             ...self::staticAnalysis(),
             ...self::security(),
             ...self::refactorCheck(),

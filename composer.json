@@ -26,12 +26,15 @@
         "php": ">=8.2",
         "composer-plugin-api": ">=2.6 <3.0",
         "captainhook/captainhook": ">=5.0 <6.0",
+        "deptrac/deptrac": "^4.6",
         "ergebnis/composer-normalize": ">=2.0 <3.0",
+        "infocyph/phpprobe": ">=0.1.1 <2.0",
         "laravel/pint": ">=1.0 <2.0",
-        "nikic/php-parser": ">=5.0 <6.0",
+        "nikic/php-parser": ">=5.7 <6.0",
         "pestphp/pest": ">=3.0 <5.0",
         "pestphp/pest-plugin-drift": ">=3.0 <5.0",
         "phpbench/phpbench": ">=1.0 <2.0",
+        "phpdocumentor/type-resolver": ">=2.0 <3.0",
         "phpstan/phpstan": ">=2.0 <3.0",
         "rector/rector": ">=2.0 <3.0",
         "squizlabs/php_codesniffer": ">=3.9 <5.0",
@@ -50,7 +53,10 @@
     "autoload": {
         "psr-4": {
             "Infocyph\\PHPForge\\": "src/"
-        }
+        },
+        "files": [
+            "src/Support/PhpParserCompatibility.php"
+        ]
     },
     "bin": [
         "bin/phpforge"
@@ -83,6 +89,7 @@
         "ic:process:sniff": "@php bin/run-task.php process:sniff",
         "ic:process:sniff:fix": "@ic:process:sniff",
         "ic:release:audit": "@php bin/phpforge audit",
+        "ic:test:architecture": "@php bin/run-task.php test:architecture",
         "ic:test:code": "@php bin/run-task.php test:code",
         "ic:test:duplicates": "@php bin/run-task.php test:duplicates",
         "ic:test:lint": "@php bin/run-task.php test:lint",

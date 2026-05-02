@@ -22,23 +22,15 @@ if (!class_exists(Cli::class)) {
     require __DIR__ . '/../src/Support/ArrayShape.php';
     require __DIR__ . '/../src/Support/CaptainHook.php';
     require __DIR__ . '/../src/Support/ComposerAuditor.php';
-    require __DIR__ . '/../src/Support/DuplicateAstBlockIndex.php';
-    require __DIR__ . '/../src/Support/DuplicateCloneReducer.php';
-    require __DIR__ . '/../src/Support/DuplicateCodeIndex.php';
-    require __DIR__ . '/../src/Support/DuplicateDetectionEngine.php';
-    require __DIR__ . '/../src/Support/DuplicateDetector.php';
-    require __DIR__ . '/../src/Support/PhpForgeConfig.php';
     require __DIR__ . '/../src/Support/ProcessResult.php';
     require __DIR__ . '/../src/Support/ProcRunner.php';
     require __DIR__ . '/../src/Support/PhpstanSarifConverter.php';
-    require __DIR__ . '/../src/Support/PhpFileFinder.php';
     require __DIR__ . '/../src/Support/Paths.php';
     require __DIR__ . '/../src/Support/QualitySummary.php';
     require __DIR__ . '/../src/Support/TaskDisplay.php';
     require __DIR__ . '/../src/Support/TaskSkipPolicy.php';
     require __DIR__ . '/../src/Support/ParallelRunner.php';
     require __DIR__ . '/../src/Support/Runner.php';
-    require __DIR__ . '/../src/Support/SyntaxChecker.php';
     require __DIR__ . '/../src/Composer/TaskCatalog.php';
     require __DIR__ . '/../src/Support/Cli.php';
 }

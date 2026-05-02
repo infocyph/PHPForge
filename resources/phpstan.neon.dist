@@ -7,7 +7,7 @@ parameters:
     paths:
         - %currentWorkingDirectory%
     excludePaths:
-        analyse:
+        analyseAndScan:
             - %currentWorkingDirectory%/vendor/*
             - %currentWorkingDirectory%/node_modules/*
             - %currentWorkingDirectory%/coverage/*

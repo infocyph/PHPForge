@@ -52,7 +52,7 @@ final class ConfigInventory
     public static function tools(): array
     {
         return [
-            'pest' => ['pest.xml', 'phpunit.xml', 'pest.xml.dist', 'phpunit.xml.dist'],
+            'pest' => ['pest.xml', 'phpunit.xml'],
             'phpbench' => ['phpbench.json'],
             'phpforge' => ['phpforge.json'],
             'phpcs' => ['phpcs.xml.dist'],
@@ -61,6 +61,7 @@ final class ConfigInventory
             'psalm' => ['psalm.xml'],
             'rector' => ['rector.php'],
             'captainhook' => ['captainhook.json'],
+            'deptrac' => ['deptrac.yaml'],
         ];
     }
 }
