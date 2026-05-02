@@ -346,14 +346,14 @@ final class TaskCatalog
 
     private static function isBundledConfig(string $configPath): bool
     {
-        $packageRoot = realpath(dirname(__DIR__, 2));
         $configRealPath = realpath($configPath);
+        $bundledConfigRealPath = realpath(Paths::bundledConfigFile(basename($configPath)));
 
-        if (!is_string($packageRoot) || !is_string($configRealPath)) {
+        if (!is_string($configRealPath) || !is_string($bundledConfigRealPath)) {
             return false;
         }
 
-        return str_starts_with($configRealPath, $packageRoot . DIRECTORY_SEPARATOR);
+        return $configRealPath === $bundledConfigRealPath;
     }
 
     private static function isBundledConfigInConsumingProject(string $configPath): bool

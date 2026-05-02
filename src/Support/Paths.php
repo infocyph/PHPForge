@@ -23,14 +23,38 @@ final class Paths
 
     public static function bundledConfigFile(string $file): string
     {
-        $resourceFile = self::packageFile('resources/' . ltrim($file, '/'));
+        $resourceFile = self::bundledConfigFileOrNull($file);
 
-        if (is_file($resourceFile)) {
+        if (is_string($resourceFile)) {
             return $resourceFile;
         }
 
-        // Backward compatibility for package trees that still keep configs at root.
-        return self::packageFile($file);
+        throw new \RuntimeException(sprintf(
+            'Missing PHPForge config "%s". Expected project config at "%s" or bundled config at "%s"%s.',
+            $file,
+            self::projectRoot() . DIRECTORY_SEPARATOR . $file,
+            self::vendorResourceFile($file),
+            self::isPhpforgeRootPackage() ? sprintf(' or PHPForge source config at "%s"', self::phpforgeRootResourceFile($file)) : '',
+        ));
+    }
+
+    public static function bundledConfigFileOrNull(string $file): ?string
+    {
+        $vendorResourceFile = self::vendorResourceFile($file);
+
+        if (is_file($vendorResourceFile)) {
+            return $vendorResourceFile;
+        }
+
+        if (self::isPhpforgeRootPackage()) {
+            $phpforgeRootResourceFile = self::phpforgeRootResourceFile($file);
+
+            if (is_file($phpforgeRootResourceFile)) {
+                return $phpforgeRootResourceFile;
+            }
+        }
+
+        return null;
     }
 
     public static function config(string $file): string
@@ -69,9 +93,9 @@ final class Paths
         }
 
         foreach ($files as $file) {
-            $packageFile = self::bundledConfigFile($file);
+            $packageFile = self::bundledConfigFileOrNull($file);
 
-            if (is_file($packageFile)) {
+            if (is_string($packageFile)) {
                 return $packageFile;
             }
         }
@@ -181,8 +205,23 @@ final class Paths
         return ($data['name'] ?? null) === 'infocyph/phpforge';
     }
 
+    private static function phpforgeRootResourceFile(string $file): string
+    {
+        return self::projectRoot() . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . ltrim($file, '/\\');
+    }
+
     private static function projectRoot(): string
     {
         return getcwd() ?: dirname(__DIR__, 2);
+    }
+
+    private static function vendorPackageRoot(): string
+    {
+        return self::vendorDir() . DIRECTORY_SEPARATOR . 'infocyph' . DIRECTORY_SEPARATOR . 'phpforge';
+    }
+
+    private static function vendorResourceFile(string $file): string
+    {
+        return self::vendorPackageRoot() . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . ltrim($file, '/\\');
     }
 }

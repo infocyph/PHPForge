@@ -321,7 +321,14 @@ PHP;
 function makeDuplicateDetectorFixture(): string
 {
     $root = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-duplicates-'.uniqid('', true);
+    $resources = $root.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'infocyph'.DIRECTORY_SEPARATOR.'phpforge'.DIRECTORY_SEPARATOR.'resources';
+
     mkdir($root, 0755, true);
+    mkdir($resources, 0755, true);
+    copy(
+        dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpforge.json',
+        $resources.DIRECTORY_SEPARATOR.'phpforge.json',
+    );
 
     return $root;
 }

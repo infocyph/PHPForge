@@ -31,11 +31,11 @@ final class InitCommand extends Command
     protected function configure(): void
     {
         $this
-            ->setDescription('Copy optional PHPForge project files into the current project.')
-            ->addOption('workflow', null, InputOption::VALUE_NONE, 'Copy the Security & Standards GitHub Actions workflow.')
+            ->setDescription('Set up PHPForge project config, pre-commit hooks, and CI wrappers.')
+            ->addOption('workflow', null, InputOption::VALUE_NONE, 'Copy the Security & Standards GitHub Actions workflow wrapper.')
             ->addOption('workflow-ref', null, InputOption::VALUE_REQUIRED, 'PHPForge Git ref used by generated workflow wrappers.', 'main')
-            ->addOption('captainhook', null, InputOption::VALUE_NONE, 'Copy the default CaptainHook configuration.')
-            ->addOption('phpforge', null, InputOption::VALUE_NONE, 'Copy the default PHPForge native checker configuration.')
+            ->addOption('captainhook', null, InputOption::VALUE_NONE, 'Copy the default CaptainHook pre-commit configuration.')
+            ->addOption('phpforge', null, InputOption::VALUE_NONE, 'Copy the default PHPForge native syntax and duplicate detector configuration.')
             ->addOption('gitlab-ci', null, InputOption::VALUE_NONE, 'Copy a GitLab CI pipeline.')
             ->addOption('bitbucket-ci', null, InputOption::VALUE_NONE, 'Copy a Bitbucket Pipelines configuration.')
             ->addOption('forgejo-workflow', null, InputOption::VALUE_NONE, 'Copy a Forgejo Actions workflow.')
@@ -58,7 +58,7 @@ final class InitCommand extends Command
         $output->writeln('<info>Next steps:</info>');
         $this->renderNextSteps($flags, $output);
 
-        $output->writeln('  - Run composer ic:tests to validate setup');
+        $output->writeln('  - Run composer ic:ci to validate setup');
 
         return 0;
     }
@@ -181,9 +181,9 @@ final class InitCommand extends Command
         OutputInterface $output,
         array $settings,
     ): array {
-        $settings['captainhook'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install CaptainHook config? [Y/n] ', true));
-        $settings['workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitHub Actions workflow wrapper? [Y/n] ', true));
-        $settings['phpforge'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install PHPForge native checker config (phpforge.json)? [Y/n] ', true));
+        $settings['captainhook'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install CaptainHook pre-commit config (validate, audit, parallel CI)? [Y/n] ', true));
+        $settings['workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitHub Actions workflow wrapper (parallel CI, SARIF, SVG report)? [Y/n] ', true));
+        $settings['phpforge'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Publish customizable PHPForge native syntax and duplicate detector config (phpforge.json)? [y/N] ', false));
         $settings['gitlab_ci'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitLab CI pipeline (.gitlab-ci.yml)? [y/N] ', false));
         $settings['bitbucket_ci'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Bitbucket pipeline (bitbucket-pipelines.yml)? [y/N] ', false));
         $settings['forgejo_workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Forgejo workflow (.forgejo/workflows/security-standards.yml)? [y/N] ', false));
@@ -328,7 +328,7 @@ final class InitCommand extends Command
         OutputInterface $output,
         bool $defaultRunAnalysis,
     ): bool {
-        return (bool) $helper->ask($input, $output, new ConfirmationQuestion('Enable SARIF code-scanning analysis? [Y/n] ', $defaultRunAnalysis));
+        return (bool) $helper->ask($input, $output, new ConfirmationQuestion('Enable SARIF code-scanning analysis job? [Y/n] ', $defaultRunAnalysis));
     }
 
     private function askRunSvgReport(
@@ -337,7 +337,7 @@ final class InitCommand extends Command
         OutputInterface $output,
         bool $defaultRunSvgReport,
     ): bool {
-        return (bool) $helper->ask($input, $output, new ConfirmationQuestion('Generate SVG security report artifacts? [Y/n] ', $defaultRunSvgReport));
+        return (bool) $helper->ask($input, $output, new ConfirmationQuestion('Generate SVG security and quality report artifacts? [Y/n] ', $defaultRunSvgReport));
     }
 
     private function askWorkflowRef(
@@ -481,7 +481,7 @@ final class InitCommand extends Command
         return [
             'workflow' => true,
             'captainhook' => true,
-            'phpforge' => true,
+            'phpforge' => false,
             'gitlab_ci' => false,
             'bitbucket_ci' => false,
             'forgejo_workflow' => false,
@@ -618,8 +618,8 @@ final class InitCommand extends Command
     private function renderNextSteps(array $flags, OutputInterface $output): void
     {
         $messages = [
-            'workflow' => '  - Review and commit .github/workflows/security-standards.yml',
-            'phpforge' => '  - Review and commit phpforge.json (syntax/duplicate scan policy)',
+            'workflow' => '  - Review and commit .github/workflows/security-standards.yml (parallel CI, SARIF, SVG settings)',
+            'phpforge' => '  - Review and commit phpforge.json (syntax and PhpStorm-aligned duplicate policy)',
             'gitlab_ci' => '  - Review and commit .gitlab-ci.yml',
             'bitbucket_ci' => '  - Review and commit bitbucket-pipelines.yml',
             'forgejo_workflow' => '  - Review and commit .forgejo/workflows/security-standards.yml',
@@ -666,7 +666,6 @@ final class InitCommand extends Command
         } elseif (!in_array(true, $flags, true)) {
             $flags['workflow'] = true;
             $flags['captainhook'] = true;
-            $flags['phpforge'] = true;
         }
 
         return ['flags' => $flags, 'settings' => $settings];

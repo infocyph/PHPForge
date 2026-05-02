@@ -24,9 +24,11 @@ final class ConfigInventory
 
     public static function resolvedPath(string $file): string
     {
-        return self::source($file) === 'project'
-            ? Paths::projectRootPath() . DIRECTORY_SEPARATOR . $file
-            : Paths::bundledConfigFile($file);
+        if (self::source($file) === 'project') {
+            return Paths::projectRootPath() . DIRECTORY_SEPARATOR . $file;
+        }
+
+        return Paths::bundledConfigFileOrNull($file) ?? '';
     }
 
     public static function source(string $file): string
@@ -37,7 +39,7 @@ final class ConfigInventory
             return 'project';
         }
 
-        if (is_file(Paths::bundledConfigFile($file))) {
+        if (is_string(Paths::bundledConfigFileOrNull($file))) {
             return 'phpforge';
         }
 

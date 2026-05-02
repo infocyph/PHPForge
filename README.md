@@ -82,9 +82,9 @@ composer ic:init
 `ic:init` is interactive by default. It uses selector prompts for common choices and keeps a custom option for project-specific values:
 
 ```text
-Install CaptainHook config?
-Install GitHub Actions workflow wrapper?
-Install PHPForge native checker config (phpforge.json)?
+Install CaptainHook pre-commit config (validate, audit, parallel CI)?
+Install GitHub Actions workflow wrapper (parallel CI, SARIF, SVG report)?
+Publish customizable PHPForge native syntax and duplicate detector config (phpforge.json)?
 Install GitLab CI pipeline (.gitlab-ci.yml)?
 Install Bitbucket pipeline (bitbucket-pipelines.yml)?
 Install Forgejo workflow (.forgejo/workflows/security-standards.yml)?
@@ -96,8 +96,8 @@ Coverage driver
 Extra Composer flags
 PHPStan memory limit
 Psalm threads
-Enable SARIF code-scanning analysis?
-Generate SVG security report artifacts?
+Enable SARIF code-scanning analysis job?
+Generate SVG security and quality report artifacts?
 ```
 
 Selector presets include:
@@ -127,11 +127,15 @@ bitbucket-pipelines.yml
 .forgejo/workflows/security-standards.yml
 ```
 
+`phpforge.json` is opt-in during init because PHPForge already uses its bundled native syntax and duplicate detector config when a project-local file is not present. Publish it only when a project needs custom paths, excludes, thresholds, or baselines.
+
 After `ic:init`, run:
 
 ```bash
-composer ic:tests
+composer ic:ci
 ```
+
+`composer ic:ci` is the same path used by the generated workflow and bundled pre-commit hook; it runs syntax first, then the remaining normal quality checks with bounded parallelism.
 
 If `captainhook.json` was installed, hooks auto-install on the next `composer install` or `composer update`.
 Use `composer ic:hooks` only when you want to install/update hooks immediately.
@@ -238,10 +242,10 @@ Useful native checker options:
 
 | Command                                               | Purpose                                                                                                        |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `composer ic:init`                                  | Interactively sets up CaptainHook, PHPForge native checker config, and the workflow wrapper.                   |
-| `composer ic:init --captainhook`                    | Copies only `captainhook.json`.                                                                              |
-| `composer ic:init --phpforge`                       | Copies only `phpforge.json`.                                                                                 |
-| `composer ic:init --workflow --workflow-ref=main`   | Copies only the workflow wrapper and points it at the given PHPForge ref.                                      |
+| `composer ic:init`                                  | Interactively sets up CaptainHook pre-commit, native syntax/duplicate config, and workflow wrappers.          |
+| `composer ic:init --captainhook`                    | Copies only the CaptainHook pre-commit config.                                                               |
+| `composer ic:init --phpforge`                       | Publishes `phpforge.json` only when a project needs custom native syntax or duplicate detection settings.     |
+| `composer ic:init --workflow --workflow-ref=main`   | Copies only the GitHub Actions wrapper and points it at the given PHPForge ref.                               |
 | `composer ic:init --gitlab-ci`                      | Copies `.gitlab-ci.yml` starter pipeline.                                                                    |
 | `composer ic:init --bitbucket-ci`                   | Copies `bitbucket-pipelines.yml` starter pipeline.                                                           |
 | `composer ic:init --forgejo-workflow`               | Copies `.forgejo/workflows/security-standards.yml` starter workflow.                                         |
@@ -262,7 +266,13 @@ Useful native checker options:
 ## Configuration
 
 Project config files always have priority over PHPForge bundled defaults.
-PHPForge keeps its bundled defaults in `resources/` and resolves them automatically when project-local config files are missing.
+For every bundled PHPForge config in `resources/`, lookup is:
+
+1. Project root config, for example `pint.json` or `phpstan.neon.dist`.
+2. Installed package config under `vendor/infocyph/phpforge/resources`.
+3. PHPForge source-tree `resources/` only when the current project itself is `infocyph/phpforge`.
+
+If none of those exists outside the PHPForge source project, PHPForge fails instead of silently inventing a config path.
 
 | Tool                   | Lookup Order                                                                                                     |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
