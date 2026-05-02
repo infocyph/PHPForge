@@ -35,8 +35,9 @@ final class InitCommand extends Command
             ->addOption('workflow', null, InputOption::VALUE_NONE, 'Copy the Security & Standards GitHub Actions workflow wrapper.')
             ->addOption('workflow-ref', null, InputOption::VALUE_REQUIRED, 'PHPForge Git ref used by generated workflow wrappers.', 'main')
             ->addOption('captainhook', null, InputOption::VALUE_NONE, 'Copy the default CaptainHook pre-commit configuration.')
-            ->addOption('phpforge', null, InputOption::VALUE_NONE, 'Copy the default PHPForge native syntax and duplicate detector configuration.')
-            ->addOption('phpforge-preset', null, InputOption::VALUE_REQUIRED, 'PHPForge native config preset: phpstorm, standard, or strict.')
+            ->addOption('phpforge', null, InputOption::VALUE_NONE, 'Copy the default syntax and duplicate detector configuration.')
+            ->addOption('phpforge-preset', null, InputOption::VALUE_REQUIRED, 'Syntax and duplicate detector preset: phpstorm, standard, or strict.')
+            ->addOption('deptrac', null, InputOption::VALUE_NONE, 'Copy the default Deptrac architecture configuration.')
             ->addOption('gitlab-ci', null, InputOption::VALUE_NONE, 'Copy a GitLab CI pipeline.')
             ->addOption('bitbucket-ci', null, InputOption::VALUE_NONE, 'Copy a Bitbucket Pipelines configuration.')
             ->addOption('forgejo-workflow', null, InputOption::VALUE_NONE, 'Copy a Forgejo Actions workflow.')
@@ -232,6 +233,7 @@ final class InitCommand extends Command
         $settings['workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitHub Actions workflow wrapper (parallel CI, SARIF, SVG report)? [Y/n] ', true));
         $settings['phpforge'] = true;
         $settings['phpforge_preset'] = $this->askPhpforgePreset($input, $output, (string) $settings['phpforge_preset']);
+        $settings['deptrac'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Deptrac architecture config (deptrac.yaml)? [Y/n] ', true));
         $settings['gitlab_ci'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitLab CI pipeline (.gitlab-ci.yml)? [y/N] ', false));
         $settings['bitbucket_ci'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Bitbucket pipeline (bitbucket-pipelines.yml)? [y/N] ', false));
         $settings['forgejo_workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Forgejo workflow (.forgejo/workflows/security-standards.yml)? [y/N] ', false));
@@ -325,7 +327,7 @@ final class InitCommand extends Command
             'strict (more sensitive audit mode)' => 'strict',
         ];
         $choice = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
-            'PHPForge native config preset',
+            'PHPForge checker config preset',
             array_keys($choices),
             match ($defaultPreset) {
                 'standard' => 'standard (balanced deterministic CI gate)',
@@ -519,7 +521,7 @@ final class InitCommand extends Command
             );
         }
 
-        foreach (['captainhook', 'phpforge', 'gitlab_ci', 'bitbucket_ci', 'forgejo_workflow'] as $flag) {
+        foreach (['captainhook', 'phpforge', 'deptrac', 'gitlab_ci', 'bitbucket_ci', 'forgejo_workflow'] as $flag) {
             if ($flags[$flag]) {
                 [$source, $target] = $this->target($flag);
                 $copied += $flag === 'phpforge'
@@ -569,6 +571,7 @@ final class InitCommand extends Command
      *     workflow: bool,
      *     captainhook: bool,
      *     phpforge: bool,
+     *     deptrac: bool,
      *     gitlab_ci: bool,
      *     bitbucket_ci: bool,
      *     forgejo_workflow: bool,
@@ -591,6 +594,7 @@ final class InitCommand extends Command
             'workflow' => true,
             'captainhook' => true,
             'phpforge' => false,
+            'deptrac' => false,
             'gitlab_ci' => false,
             'bitbucket_ci' => false,
             'forgejo_workflow' => false,
@@ -729,7 +733,8 @@ final class InitCommand extends Command
     {
         $messages = [
             'workflow' => '  - Review and commit .github/workflows/security-standards.yml (parallel CI, SARIF, SVG settings)',
-            'phpforge' => '  - Review and commit phpforge.json (native syntax and duplicate policy)',
+            'phpforge' => '  - Review and commit phpforge.json (syntax and duplicate policy)',
+            'deptrac' => '  - Review and commit deptrac.yaml (architecture boundaries)',
             'gitlab_ci' => '  - Review and commit .gitlab-ci.yml',
             'bitbucket_ci' => '  - Review and commit bitbucket-pipelines.yml',
             'forgejo_workflow' => '  - Review and commit .forgejo/workflows/security-standards.yml',
@@ -763,6 +768,7 @@ final class InitCommand extends Command
             'workflow' => (bool) $input->getOption('workflow'),
             'captainhook' => (bool) $input->getOption('captainhook'),
             'phpforge' => (bool) $input->getOption('phpforge'),
+            'deptrac' => (bool) $input->getOption('deptrac'),
             'gitlab_ci' => (bool) $input->getOption('gitlab-ci'),
             'bitbucket_ci' => (bool) $input->getOption('bitbucket-ci'),
             'forgejo_workflow' => (bool) $input->getOption('forgejo-workflow'),
@@ -878,6 +884,7 @@ final class InitCommand extends Command
         return match ($flag) {
             'captainhook' => [Paths::bundledConfigFile('captainhook.json'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'captainhook.json'],
             'phpforge' => [Paths::bundledConfigFile('phpforge.json'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'phpforge.json'],
+            'deptrac' => [Paths::bundledConfigFile('deptrac.yaml'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'deptrac.yaml'],
             'gitlab_ci' => [Paths::packageFile('resources/ci/gitlab-ci.yml'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . '.gitlab-ci.yml'],
             'bitbucket_ci' => [Paths::packageFile('resources/ci/bitbucket-pipelines.yml'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'bitbucket-pipelines.yml'],
             'forgejo_workflow' => [Paths::packageFile('resources/ci/forgejo-security-standards.yml'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . '.forgejo' . DIRECTORY_SEPARATOR . 'workflows' . DIRECTORY_SEPARATOR . 'security-standards.yml'],

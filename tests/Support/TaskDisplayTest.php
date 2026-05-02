@@ -14,6 +14,22 @@ it('formats duplicate checks with a friendly title', function (): void {
         ->toBe('Duplicate Code');
 });
 
+it('formats phpprobe checker tasks with friendly titles', function (): void {
+    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'syntax']))
+        ->toBe('Checking Syntax')
+        ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'duplicates']))
+        ->toBe('Duplicate Code')
+        ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'api']))
+        ->toBe('Public API');
+});
+
+it('formats deptrac tasks with config-file labels', function (): void {
+    $projectConfig = getcwd().DIRECTORY_SEPARATOR.'deptrac.yaml';
+
+    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/deptrac', 'analyse', '--config-file='.$projectConfig]))
+        ->toBe('Deptrac (Config: '.str_replace('\\', '/', $projectConfig).')');
+});
+
 it('formats composer normalize with a friendly title', function (): void {
     expect(TaskDisplay::heading(['composer', 'normalize']))
         ->toBe('Composer Normalize');

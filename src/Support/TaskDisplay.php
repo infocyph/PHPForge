@@ -68,6 +68,7 @@ final class TaskDisplay
     {
         $optionValue = self::optionValue($task, '--configuration')
             ?? self::optionValue($task, '--config')
+            ?? self::optionValue($task, '--config-file')
             ?? self::optionValue($task, '--standard');
 
         return is_string($optionValue) && $optionValue !== '' ? $optionValue : null;
@@ -150,6 +151,9 @@ final class TaskDisplay
         $subcommand = $parsed['subcommand'];
 
         return match (true) {
+            $tool === 'phpprobe' && $subcommand === 'syntax' => 'Checking Syntax',
+            $tool === 'phpprobe' && $subcommand === 'duplicates' => 'Duplicate Code',
+            $tool === 'phpprobe' && $subcommand === 'api' => 'Public API',
             $tool === 'phpforge' && $subcommand === 'syntax' => 'Checking Syntax',
             $tool === 'phpforge' && $subcommand === 'duplicates' => 'Duplicate Code',
             $tool === 'phpforge' && $subcommand === 'audit' => 'Composer Audit',
@@ -163,6 +167,7 @@ final class TaskDisplay
             $tool === 'psalm' => 'Psalm',
             $tool === 'rector' => 'Rector',
             $tool === 'phpbench' => 'PHPBench',
+            $tool === 'deptrac' => 'Deptrac',
             $tool === 'captainhook' => 'CaptainHook',
             default => ucfirst($tool),
         };
