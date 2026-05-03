@@ -67,7 +67,7 @@ final class TaskCatalog
      */
     public static function duplicates(): array
     {
-        return [[Paths::php(), Paths::bin('phpprobe'), 'duplicates', '--config', Paths::config('phpforge.json')]];
+        return [[Paths::php(), Paths::bin('phpprobe'), 'duplicates', '--config', Paths::config('phpprobe.json')]];
     }
 
     /**
@@ -190,7 +190,7 @@ final class TaskCatalog
      */
     public static function syntax(): array
     {
-        return [[Paths::php(), Paths::bin('phpprobe'), 'syntax', '--config', Paths::config('phpforge.json')]];
+        return [[Paths::php(), Paths::bin('phpprobe'), 'syntax', '--config', Paths::config('phpprobe.json')]];
     }
 
     /**

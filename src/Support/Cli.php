@@ -91,6 +91,6 @@ final class Cli
             }
         }
 
-        return ['--config', Paths::config('phpforge.json'), ...$args];
+        return ['--config', Paths::config('phpprobe.json'), ...$args];
     }
 }
