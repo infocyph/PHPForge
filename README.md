@@ -255,6 +255,7 @@ Useful checker options:
 | `composer ic:list-config`                           | Lists config files and their resolution source.                                                                |
 | `composer ic:list-config --json`                    | Outputs config resolution as JSON.                                                                             |
 | `composer ic:publish-config [file...]`              | Copies selected bundled config files into the project.                                                         |
+| `composer ic:publish-config phpprobe.json --phpprobe-preset=strict` | Publishes `phpprobe.json` using a named duplicate-detection preset (`phpstorm`, `standard`, `strict`). |
 | `composer ic:publish-config --all`                  | Copies every bundled config file into the project.                                                             |
 | `composer ic:publish-config --all --force`          | Overwrites all project config files with bundled defaults.                                                     |
 | `composer ic:clean`                                 | Removes known PHPForge output files and cache directories.                                                     |
@@ -373,6 +374,18 @@ Bundled default:
 `exclude_paths` is also accepted as an alias for `exclude` in either section.
 Snake case, kebab case, and camel case are accepted for checker config keys, so `min_tokens`, `min-tokens`, and `minTokens` resolve to the same setting.
 Explicit CLI paths override configured `paths`; configured and CLI excludes are combined.
+
+Presets for `phpprobe.json` publishing:
+
+| Preset      | Duplicate Policy                                                                 |
+| ----------- | -------------------------------------------------------------------------------- |
+| `phpstorm`  | PhpStorm-like default: audit mode, normalized/fuzzy tokens, near-miss matching, `min_tokens: 90`. |
+| `standard`  | Balanced CI gate: deterministic gate mode, normalized/fuzzy tokens, no near-miss matching, `min_tokens: 100`. |
+| `strict`    | More sensitive audit mode: near-miss matching enabled with lower size thresholds, `min_tokens: 70`. |
+
+```bash
+composer ic:publish-config phpprobe.json --phpprobe-preset=standard
+```
 
 ### Deptrac Architecture Config
 
