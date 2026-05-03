@@ -54,7 +54,7 @@ it('runs duplicate detection against code paths', function (): void {
     expect(basename(str_replace('\\', '/', $command[1])))->toBe('phpprobe')
         ->and($command)->toContain('duplicates')
         ->and(TaskCatalog::duplicates()[0])->toContain('--config')
-        ->and(TaskCatalog::duplicates()[0])->toContain(Paths::packageFile('resources/phpforge.json'))
+        ->and(TaskCatalog::duplicates()[0])->toContain(Paths::packageFile('resources/phpprobe.json'))
         ->and(TaskCatalog::duplicates()[0])->not()->toContain('tests');
 });
 
@@ -64,7 +64,7 @@ it('runs syntax checks with the PHPProbe checker config', function (): void {
     expect(basename(str_replace('\\', '/', $command[1])))->toBe('phpprobe')
         ->and($command)->toContain('syntax')
         ->and(TaskCatalog::syntax()[0])->toContain('--config')
-        ->and(TaskCatalog::syntax()[0])->toContain(Paths::packageFile('resources/phpforge.json'));
+        ->and(TaskCatalog::syntax()[0])->toContain(Paths::packageFile('resources/phpprobe.json'));
 });
 
 it('runs architecture checks with the bundled deptrac config', function (): void {

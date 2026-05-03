@@ -35,9 +35,6 @@ final class InitCommand extends Command
             ->addOption('workflow', null, InputOption::VALUE_NONE, 'Copy the Security & Standards GitHub Actions workflow wrapper.')
             ->addOption('workflow-ref', null, InputOption::VALUE_REQUIRED, 'PHPForge Git ref used by generated workflow wrappers.', 'main')
             ->addOption('captainhook', null, InputOption::VALUE_NONE, 'Copy the default CaptainHook pre-commit configuration.')
-            ->addOption('phpforge', null, InputOption::VALUE_NONE, 'Copy the default syntax and duplicate detector configuration.')
-            ->addOption('phpforge-preset', null, InputOption::VALUE_REQUIRED, 'Syntax and duplicate detector preset: phpstorm, standard, or strict.')
-            ->addOption('deptrac', null, InputOption::VALUE_NONE, 'Copy the default Deptrac architecture configuration.')
             ->addOption('gitlab-ci', null, InputOption::VALUE_NONE, 'Copy a GitLab CI pipeline.')
             ->addOption('bitbucket-ci', null, InputOption::VALUE_NONE, 'Copy a Bitbucket Pipelines configuration.')
             ->addOption('forgejo-workflow', null, InputOption::VALUE_NONE, 'Copy a Forgejo Actions workflow.')
@@ -63,52 +60,6 @@ final class InitCommand extends Command
         $output->writeln('  - Run composer ic:ci to validate setup');
 
         return 0;
-    }
-
-    /**
-     * @return array{duplicates: array{mode: string, normalize: bool, fuzzy: bool, near_miss: bool, min_lines: int, min_tokens: int, min_statements: int, min_similarity: float}}
-     */
-    private static function phpforgePreset(string $preset): array
-    {
-        return match ($preset) {
-            'phpstorm' => [
-                'duplicates' => [
-                    'mode' => 'audit',
-                    'normalize' => true,
-                    'fuzzy' => true,
-                    'near_miss' => true,
-                    'min_lines' => 5,
-                    'min_tokens' => 90,
-                    'min_statements' => 4,
-                    'min_similarity' => 0.85,
-                ],
-            ],
-            'standard' => [
-                'duplicates' => [
-                    'mode' => 'gate',
-                    'normalize' => true,
-                    'fuzzy' => true,
-                    'near_miss' => false,
-                    'min_lines' => 6,
-                    'min_tokens' => 100,
-                    'min_statements' => 5,
-                    'min_similarity' => 0.90,
-                ],
-            ],
-            'strict' => [
-                'duplicates' => [
-                    'mode' => 'audit',
-                    'normalize' => true,
-                    'fuzzy' => true,
-                    'near_miss' => true,
-                    'min_lines' => 4,
-                    'min_tokens' => 70,
-                    'min_statements' => 3,
-                    'min_similarity' => 0.80,
-                ],
-            ],
-            default => throw new \InvalidArgumentException(sprintf('Unknown PHPForge preset "%s". Expected phpstorm, standard, or strict.', $preset)),
-        };
     }
 
     /**
@@ -231,9 +182,6 @@ final class InitCommand extends Command
     ): array {
         $settings['captainhook'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install CaptainHook pre-commit config (validate, audit, parallel CI)? [Y/n] ', true));
         $settings['workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitHub Actions workflow wrapper (parallel CI, SARIF, SVG report)? [Y/n] ', true));
-        $settings['phpforge'] = true;
-        $settings['phpforge_preset'] = $this->askPhpforgePreset($input, $output, (string) $settings['phpforge_preset']);
-        $settings['deptrac'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Deptrac architecture config (deptrac.yaml)? [Y/n] ', true));
         $settings['gitlab_ci'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitLab CI pipeline (.gitlab-ci.yml)? [y/N] ', false));
         $settings['bitbucket_ci'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Bitbucket pipeline (bitbucket-pipelines.yml)? [y/N] ', false));
         $settings['forgejo_workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Forgejo workflow (.forgejo/workflows/security-standards.yml)? [y/N] ', false));
@@ -311,32 +259,6 @@ final class InitCommand extends Command
             'custom_default' => $defaultExtensions,
             'resolved_label' => 'Resolved PHP extensions',
         ], $phpExtensionPresets, $extensionChoiceMap);
-    }
-
-    private function askPhpforgePreset(InputInterface $input, OutputInterface $output, string $defaultPreset): string
-    {
-        $helper = $this->getHelper('question');
-
-        if (!$helper instanceof QuestionHelper) {
-            return $defaultPreset;
-        }
-
-        $choices = [
-            'phpstorm (PhpStorm-like duplicate detection; recommended)' => 'phpstorm',
-            'standard (balanced deterministic CI gate)' => 'standard',
-            'strict (more sensitive audit mode)' => 'strict',
-        ];
-        $choice = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
-            'PHPForge checker config preset',
-            array_keys($choices),
-            match ($defaultPreset) {
-                'standard' => 'standard (balanced deterministic CI gate)',
-                'strict' => 'strict (more sensitive audit mode)',
-                default => 'phpstorm (PhpStorm-like duplicate detection; recommended)',
-            },
-        )), $defaultPreset);
-
-        return $choices[$choice] ?? $defaultPreset;
     }
 
     private function askPhpstanMemoryLimit(
@@ -464,45 +386,6 @@ final class InitCommand extends Command
         return $this->write($contents, $target, $force, $output);
     }
 
-    private function copyPhpforgeConfig(string $source, string $target, string $preset, bool $force, OutputInterface $output): int
-    {
-        if ($preset === 'phpstorm') {
-            return $this->copy($source, $target, $force, $output);
-        }
-
-        if (!is_file($source)) {
-            $output->writeln(sprintf('<error>Missing template: %s</error>', $source));
-
-            return 0;
-        }
-
-        $contents = file_get_contents($source);
-
-        if (!is_string($contents)) {
-            $output->writeln(sprintf('<error>Unable to read template: %s</error>', $source));
-
-            return 0;
-        }
-
-        $config = json_decode($contents, true);
-
-        if (!is_array($config)) {
-            $output->writeln(sprintf('<error>Unable to decode template: %s</error>', $source));
-
-            return 0;
-        }
-
-        $contents = json_encode(array_replace_recursive($config, self::phpforgePreset($preset)), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-
-        if (!is_string($contents)) {
-            $output->writeln(sprintf('<error>Unable to encode preset config: %s</error>', $preset));
-
-            return 0;
-        }
-
-        return $this->write($contents . PHP_EOL, $target, $force, $output);
-    }
-
     /**
      * @param array<string, bool> $flags
      * @param array<string, bool|string> $settings
@@ -521,12 +404,10 @@ final class InitCommand extends Command
             );
         }
 
-        foreach (['captainhook', 'phpforge', 'deptrac', 'gitlab_ci', 'bitbucket_ci', 'forgejo_workflow'] as $flag) {
+        foreach (['captainhook', 'gitlab_ci', 'bitbucket_ci', 'forgejo_workflow'] as $flag) {
             if ($flags[$flag]) {
                 [$source, $target] = $this->target($flag);
-                $copied += $flag === 'phpforge'
-                    ? $this->copyPhpforgeConfig($source, $target, (string) $settings['phpforge_preset'], $force, $output)
-                    : $this->copy($source, $target, $force, $output);
+                $copied += $this->copy($source, $target, $force, $output);
             }
         }
 
@@ -570,8 +451,6 @@ final class InitCommand extends Command
      * @return array{
      *     workflow: bool,
      *     captainhook: bool,
-     *     phpforge: bool,
-     *     deptrac: bool,
      *     gitlab_ci: bool,
      *     bitbucket_ci: bool,
      *     forgejo_workflow: bool,
@@ -581,7 +460,6 @@ final class InitCommand extends Command
      *     php_extensions: string,
      *     coverage: string,
      *     composer_flags: string,
-     *     phpforge_preset: string,
      *     phpstan_memory_limit: string,
      *     psalm_threads: string,
      *     run_analysis: bool,
@@ -593,8 +471,6 @@ final class InitCommand extends Command
         return [
             'workflow' => true,
             'captainhook' => true,
-            'phpforge' => false,
-            'deptrac' => false,
             'gitlab_ci' => false,
             'bitbucket_ci' => false,
             'forgejo_workflow' => false,
@@ -604,7 +480,6 @@ final class InitCommand extends Command
             'php_extensions' => '',
             'coverage' => 'none',
             'composer_flags' => '',
-            'phpforge_preset' => 'phpstorm',
             'phpstan_memory_limit' => '1G',
             'psalm_threads' => '1',
             'run_analysis' => true,
@@ -733,8 +608,6 @@ final class InitCommand extends Command
     {
         $messages = [
             'workflow' => '  - Review and commit .github/workflows/security-standards.yml (parallel CI, SARIF, SVG settings)',
-            'phpforge' => '  - Review and commit phpforge.json (syntax and duplicate policy)',
-            'deptrac' => '  - Review and commit deptrac.yaml (architecture boundaries)',
             'gitlab_ci' => '  - Review and commit .gitlab-ci.yml',
             'bitbucket_ci' => '  - Review and commit bitbucket-pipelines.yml',
             'forgejo_workflow' => '  - Review and commit .forgejo/workflows/security-standards.yml',
@@ -762,13 +635,9 @@ final class InitCommand extends Command
      */
     private function resolvedSelection(InputInterface $input, OutputInterface $output, array $settings): array
     {
-        $requestedPhpforgePreset = $this->stringValue($input->getOption('phpforge-preset'), '');
-        $settings['phpforge_preset'] = $requestedPhpforgePreset !== '' ? $requestedPhpforgePreset : $settings['phpforge_preset'];
         $flags = [
             'workflow' => (bool) $input->getOption('workflow'),
             'captainhook' => (bool) $input->getOption('captainhook'),
-            'phpforge' => (bool) $input->getOption('phpforge'),
-            'deptrac' => (bool) $input->getOption('deptrac'),
             'gitlab_ci' => (bool) $input->getOption('gitlab-ci'),
             'bitbucket_ci' => (bool) $input->getOption('bitbucket-ci'),
             'forgejo_workflow' => (bool) $input->getOption('forgejo-workflow'),
@@ -784,10 +653,6 @@ final class InitCommand extends Command
         } elseif (!in_array(true, $flags, true)) {
             $flags['workflow'] = true;
             $flags['captainhook'] = true;
-        }
-
-        if ($explicit && $flags['phpforge'] && $input->isInteractive() && $requestedPhpforgePreset === '' && !(bool) $input->getOption('no-interaction-defaults')) {
-            $settings['phpforge_preset'] = $this->askPhpforgePreset($input, $output, (string) $settings['phpforge_preset']);
         }
 
         return ['flags' => $flags, 'settings' => $settings];
@@ -883,8 +748,6 @@ final class InitCommand extends Command
     {
         return match ($flag) {
             'captainhook' => [Paths::bundledConfigFile('captainhook.json'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'captainhook.json'],
-            'phpforge' => [Paths::bundledConfigFile('phpforge.json'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'phpforge.json'],
-            'deptrac' => [Paths::bundledConfigFile('deptrac.yaml'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'deptrac.yaml'],
             'gitlab_ci' => [Paths::packageFile('resources/ci/gitlab-ci.yml'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . '.gitlab-ci.yml'],
             'bitbucket_ci' => [Paths::packageFile('resources/ci/bitbucket-pipelines.yml'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'bitbucket-pipelines.yml'],
             'forgejo_workflow' => [Paths::packageFile('resources/ci/forgejo-security-standards.yml'), Paths::projectRootPath() . DIRECTORY_SEPARATOR . '.forgejo' . DIRECTORY_SEPARATOR . 'workflows' . DIRECTORY_SEPARATOR . 'security-standards.yml'],

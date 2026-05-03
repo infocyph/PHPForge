@@ -34,8 +34,8 @@ it('falls back to bundled defaults when project config is missing', function ():
 });
 
 it('falls back to bundled PHPProbe checker config', function (): void {
-    expect(Paths::config('phpforge.json'))
-        ->toBe(Paths::packageFile('resources/phpforge.json'));
+    expect(Paths::config('phpprobe.json'))
+        ->toBe(Paths::packageFile('resources/phpprobe.json'));
 });
 
 it('uses bundled config when project config from list is missing', function (): void {
