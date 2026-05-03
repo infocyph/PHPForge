@@ -490,7 +490,7 @@ This package also has a root `post-autoload-dump` script:
 "post-autoload-dump": "@php bin/install-captainhook.php"
 ```
 
-That helper keeps hooks installed for this repository. Consuming projects get automatic hook installation from the PHPForge Composer plugin with project `captainhook.json` when present, otherwise with the bundled PHPForge `captainhook.json`.
+That helper keeps hooks installed for this repository. Consuming projects get automatic hook installation from the PHPForge Composer plugin: it uses project `captainhook.json` when present, otherwise it copies the bundled `captainhook.json` into project root and installs hooks from there.
 
 ## GitHub Actions
 

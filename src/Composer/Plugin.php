@@ -52,29 +52,60 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
 
     public function installHooks(Event $event): void
     {
-        $configPath = Paths::config('captainhook.json');
+        try {
+            $configPath = $this->ensureProjectCaptainHookConfig();
 
-        if (!is_file($configPath)) {
-            return;
-        }
+            if (!is_string($configPath)) {
+                return;
+            }
 
-        $process = new Process(CaptainHook::installCommand($configPath), getcwd() ?: null);
-        $process->setTimeout(null);
-        $process->run();
+            $process = new Process(CaptainHook::installCommand($configPath), getcwd() ?: null);
+            $process->setTimeout(null);
+            $process->run();
 
-        if (!$process->isSuccessful()) {
+            if ($process->isSuccessful()) {
+                return;
+            }
+
             $message = (trim($process->getErrorOutput()) ?: trim($process->getOutput())) ?: 'CaptainHook install failed.';
 
+            throw new \RuntimeException($message);
+        } catch (\RuntimeException $exception) {
             if (getenv('IC_HOOKS_STRICT') !== '0') {
-                throw new \RuntimeException($message);
+                throw $exception;
             }
 
             $event->getIO()->writeError('<warning>PHPForge could not install CaptainHook hooks; continuing because IC_HOOKS_STRICT=0.</warning>');
-            $event->getIO()->writeError($message);
+            $event->getIO()->writeError($exception->getMessage());
         }
     }
 
     public function uninstall(Composer $composer, IOInterface $io): void {}
+
+    private function ensureProjectCaptainHookConfig(): ?string
+    {
+        $projectConfig = Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'captainhook.json';
+
+        if (is_file($projectConfig)) {
+            return $projectConfig;
+        }
+
+        $bundledConfig = Paths::bundledConfigFileOrNull('captainhook.json');
+
+        if (!is_string($bundledConfig) || !is_file($bundledConfig)) {
+            return null;
+        }
+
+        if (!copy($bundledConfig, $projectConfig)) {
+            throw new \RuntimeException(sprintf(
+                'Failed to copy bundled CaptainHook config from "%s" to "%s".',
+                $bundledConfig,
+                $projectConfig,
+            ));
+        }
+
+        return $projectConfig;
+    }
 
     private function reportMissingAllowPlugins(): void
     {
