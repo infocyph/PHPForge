@@ -99,6 +99,7 @@
         "ic:test:syntax": "@php bin/run-task.php test:syntax",
         "ic:tests": "@php bin/run-task.php tests",
         "ic:tests:all": "@ic:tests",
+        "ic:tests:details": "@php bin/run-task.php tests:details",
         "ic:tests:parallel": "@php bin/run-task.php tests:parallel"
     }
 }

@@ -79,10 +79,11 @@ COMMANDS;
     private function infocyphCommands(string $group): array
     {
         $commands = [];
+        $failFast = $group !== 'quality';
 
         foreach ($this->commandRows() as [$rowGroup, $name, $description, $taskMethod]) {
             if ($rowGroup === $group) {
-                $commands[] = new InfocyphCommand($name, $description, $this->tasks($taskMethod));
+                $commands[] = new InfocyphCommand($name, $description, $this->tasks($taskMethod), false, [], $failFast);
             }
         }
 
