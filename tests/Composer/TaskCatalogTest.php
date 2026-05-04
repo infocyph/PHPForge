@@ -44,6 +44,29 @@ function removeTaskCatalogTree(string $path): void
     rmdir($path);
 }
 
+function withTaskCatalogEnv(string $name, ?string $value, callable $callback): void
+{
+    $previous = getenv($name);
+
+    if ($value === null) {
+        putenv($name);
+    } else {
+        putenv($name.'='.$value);
+    }
+
+    try {
+        $callback();
+    } finally {
+        if ($previous === false) {
+            putenv($name);
+
+            return;
+        }
+
+        putenv($name.'='.$previous);
+    }
+}
+
 it('runs composer normalize as part of process all', function (): void {
     expect(TaskCatalog::processAll()[0])->toBe(['composer', 'normalize']);
 });
@@ -80,6 +103,38 @@ it('runs architecture checks with the bundled deptrac config', function (): void
 it('keeps syntax as preflight for parallel tests', function (): void {
     expect(TaskCatalog::testParallel())->not()->toContain(TaskCatalog::syntax()[0])
         ->and(TaskDisplay::heading(TaskCatalog::testParallel()[0]))->toStartWith('Pest');
+});
+
+it('runs pest in parallel by default for full test suites', function (): void {
+    withTaskCatalogEnv('IC_PEST_PARALLEL', null, function (): void {
+        withTaskCatalogEnv('IC_PEST_PROCESSES', null, function (): void {
+            $command = TaskCatalog::testAll()[1];
+
+            expect($command)->toContain('--parallel')
+                ->and($command)->toContain('--processes=10');
+        });
+    });
+});
+
+it('allows disabling pest parallel in full test suites', function (): void {
+    withTaskCatalogEnv('IC_PEST_PARALLEL', '0', function (): void {
+        withTaskCatalogEnv('IC_PEST_PROCESSES', '7', function (): void {
+            $command = TaskCatalog::testAll()[1];
+
+            $hasProcesses = false;
+
+            foreach ($command as $argument) {
+                if (str_starts_with($argument, '--processes=')) {
+                    $hasProcesses = true;
+
+                    break;
+                }
+            }
+
+            expect($command)->not()->toContain('--parallel')
+                ->and($hasProcesses)->toBeFalse();
+        });
+    });
 });
 
 it('uses the bundled phpbench config directly for consuming projects', function (): void {

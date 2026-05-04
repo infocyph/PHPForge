@@ -200,7 +200,7 @@ final class TaskCatalog
     {
         return [
             ...self::syntax(),
-            [Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), '--parallel', '--processes=' . self::pestProcesses()],
+            [Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), ...self::pestParallelArgs()],
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
             ...self::duplicates(),
@@ -398,6 +398,29 @@ final class TaskCatalog
         }
 
         return [...$args, ...Paths::existingProjectPaths('tests')];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function pestParallelArgs(): array
+    {
+        if (!self::pestParallelEnabled()) {
+            return [];
+        }
+
+        return ['--parallel', '--processes=' . self::pestProcesses()];
+    }
+
+    private static function pestParallelEnabled(): bool
+    {
+        $value = getenv('IC_PEST_PARALLEL');
+
+        if (!is_string($value) || $value === '') {
+            return true;
+        }
+
+        return !in_array(strtolower(trim($value)), ['0', 'false', 'off', 'no'], true);
     }
 
     private static function pestProcesses(): string

@@ -1,39 +1,35 @@
 # PHPForge Agent Notes
 
-- Applies to PHP projects using `infocyph/phpforge`.
-- First inspect with `composer ic:doctor` and `composer ic:list-config` (`--json` is available).
-- Do not edit `vendor/` or commit cache/coverage/benchmark/generated output unless tracked.
-- Keep edits scoped to the request and existing project architecture.
-- Project config always overrides PHPForge defaults.
+- For projects using `infocyph/phpforge`.
+- Run `composer ic:doctor` and `composer ic:list-config` first.
+- Keep changes scoped; do not edit `vendor/`.
 
-## Commands
+## Core Flow
 
-- `composer ic:process` - fixes Composer Normalize, Rector, Pint, PHPCBF issues.
-- `composer ic:tests:details` - detailed step-by-step errors.
-- `composer ic:tests` - full quality suite.
-- `composer ic:tests:parallel` - syntax preflight plus bounded parallel quality checks.
-- `composer ic:test:architecture` - Deptrac architecture boundary checks.
-- `composer ic:release:guard` - release gate.
-- `composer ic:ci` / `composer ic:ci --prefer-lowest` - CI parity.
-- `composer ic:init` / `composer ic:hooks` - project setup and hooks.
-- `composer ic:publish-config phpprobe.json` - customize syntax/duplicate scan policy.
+- `composer ic:process` (unless read-only task).
+- `composer ic:tests:details`, fix issues, then re-run.
+- Final check: `composer ic:tests` or `composer ic:release:guard`.
+- If blocked, report the exact failing command + key error.
 
-## Resolution Flow
+## Agent Behavior
 
-- Run `composer ic:process` first unless the task is read-only.
-- Run `composer ic:tests:details` and use its output for remaining fixes.
-- Re-run `composer ic:tests:details` after edits.
-- Finish with `composer ic:tests` or `composer ic:release:guard` when relevant.
-- If blocked, report the failing command and key error.
+- Execute the flow by default; do not ask for routine step confirmation.
+- Ask only for destructive/risky actions, unclear product decisions, or missing secrets.
+- Run routine commands directly and report concise results.
 
-## Config And CI
+## Key Commands
 
-- Config priority: project root config first, then `vendor/infocyph/phpforge/resources`, then source-tree `resources/` only when the current project is `infocyph/phpforge`; otherwise missing bundled configs hard fail.
-- `phpprobe.json` controls PHPProbe syntax and duplicate paths/excludes; empty `paths` means project-root discovery through Git-aware PHP file finding.
-- Syntax and duplicate scans run through `vendor/bin/phpprobe` and respect Git ignores plus configured `exclude`/`exclude_paths` entries.
-- Checker CLI paths override configured `paths`; CLI `--exclude` values are added to configured excludes.
-- `deptrac.yaml` controls architecture boundary checks.
-- Pre-commit runs `composer validate --strict`, `composer normalize --dry-run`, `composer ic:release:audit`, `composer ic:ci`.
-- `IC_HOOKS_STRICT=1` is default; use `IC_HOOKS_STRICT=0 composer install` only for best-effort hook install.
-- Workflow: `infocyph/phpforge/.github/workflows/security-standards.yml@main`.
-- Workflow inputs: `php_versions`, `dependency_versions`, `php_extensions`, `coverage`, `composer_flags`, `phpstan_memory_limit`, `psalm_threads`, `run_analysis`, `run_svg_report`, `artifact_retention_days`.
+- `composer ic:process`
+- `composer ic:tests:details`
+- `composer ic:tests`
+- `composer ic:tests:parallel`
+- `composer ic:ci` / `composer ic:ci --prefer-lowest`
+- `composer ic:release:guard`
+- `composer ic:init`, `composer ic:hooks`
+
+## CI Notes
+
+- Config precedence: project root -> `vendor/infocyph/phpforge/resources` -> source `resources/` (only in `infocyph/phpforge` repo).
+- Pest parallel is on by default for `ic:tests`/`ic:ci`.
+- Use `IC_PEST_PARALLEL=0` to disable Pest parallel in unstable CI.
+- Optional tuning: `IC_PEST_PROCESSES`, `IC_PSALM_THREADS`, `IC_PHPSTAN_MEMORY_LIMIT`.
