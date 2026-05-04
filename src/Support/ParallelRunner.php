@@ -97,6 +97,20 @@ final readonly class ParallelRunner
     }
 
     /**
+     * @param list<string> $task
+     */
+    private function isPestParallelTask(array $task): bool
+    {
+        if ($task === []) {
+            return false;
+        }
+
+        $tool = strtolower(basename(str_replace('\\', '/', $task[1] ?? $task[0])));
+
+        return $tool === 'pest' && in_array('--parallel', $task, true);
+    }
+
+    /**
      * @param array{process:Process,task:list<string>,heading:string,stdout:string,stderr:string,started_at:float} $entry
      * @return array{heading:string,exit_code:int,status:string}
      */
@@ -109,6 +123,10 @@ final readonly class ParallelRunner
         if (!$process->isSuccessful() && TaskSkipPolicy::shouldSkipUnavailablePerPreset($entry['task'], $entry['stdout'], $entry['stderr'])) {
             $exitCode = 0;
             $status = 'SKIP';
+        }
+
+        if ($status === 'FAIL' && $this->shouldRetryPestWithoutParallel($entry['task'], $entry['stdout'], $entry['stderr'])) {
+            return $this->retryPestWithoutParallel($entry);
         }
 
         $this->output->writeln(sprintf('<info>%s</info>', $entry['heading']));
@@ -153,6 +171,57 @@ final readonly class ParallelRunner
     }
 
     /**
+     * @param list<string> $task
+     * @return array{heading:string,status:string,exit_code:int}
+     */
+    private function resultFromProcess(Process $process, array $task, string $stdout, string $stderr, string $heading): array
+    {
+        if ($process->isSuccessful() || TaskSkipPolicy::shouldSkipUnavailablePerPreset($task, $stdout, $stderr)) {
+            return [
+                'heading' => $heading,
+                'status' => $process->isSuccessful() ? 'PASS' : 'SKIP',
+                'exit_code' => 0,
+            ];
+        }
+
+        return [
+            'heading' => $heading,
+            'status' => 'FAIL',
+            'exit_code' => $process->getExitCode() ?? 1,
+        ];
+    }
+
+    /**
+     * @param array{process:Process,task:list<string>,heading:string,stdout:string,stderr:string,started_at:float} $entry
+     * @return array{heading:string,exit_code:int,status:string}
+     */
+    private function retryPestWithoutParallel(array $entry): array
+    {
+        $this->output->writeln(sprintf('<info>%s</info>', $entry['heading']));
+        $this->writeBuffered($entry['stdout'], false);
+        $this->writeBuffered($entry['stderr'], true);
+        $this->output->writeln('<comment>Pest parallel worker crashed; retrying this task without Pest internal parallelization.</comment>');
+
+        $fallbackTask = $this->withoutPestParallelArgs($entry['task']);
+        $startedAt = microtime(true);
+        $heading = $entry['heading'] . ' [retry: no-pest-parallel]';
+        $result = $this->runSynchronousCheck($fallbackTask, $heading);
+        $status = $result['status'];
+
+        $this->output->writeln(sprintf(
+            '<%s>%s</%s> %s (%0.2fs)',
+            $status === 'FAIL' ? 'error' : 'info',
+            $status,
+            $status === 'FAIL' ? 'error' : 'info',
+            $result['heading'],
+            microtime(true) - $startedAt,
+        ));
+        $this->output->writeln('');
+
+        return $result;
+    }
+
+    /**
      * @param list<list<string>> $tasks
      * @param list<array{heading:string,status:string,exit_code:int}> $preflightResults
      */
@@ -194,6 +263,26 @@ final readonly class ParallelRunner
         $heading = TaskDisplay::heading($task);
         $this->output->writeln(sprintf('<info>%s</info>', $heading));
 
+        return $this->runSynchronousCheck($task, $heading);
+    }
+
+    /**
+     * @param list<string> $task
+     * @return array{heading:string,status:string,exit_code:int}
+     */
+    private function runSynchronousCheck(array $task, string $heading): array
+    {
+        $run = $this->runSynchronousTask($task);
+
+        return $this->resultFromProcess($run['process'], $task, $run['stdout'], $run['stderr'], $heading);
+    }
+
+    /**
+     * @param list<string> $task
+     * @return array{process:Process,stdout:string,stderr:string}
+     */
+    private function runSynchronousTask(array $task): array
+    {
         $stdout = '';
         $stderr = '';
         $process = new Process($task, getcwd() ?: null);
@@ -210,19 +299,27 @@ final readonly class ParallelRunner
             $this->output->write($buffer);
         });
 
-        if ($process->isSuccessful() || TaskSkipPolicy::shouldSkipUnavailablePerPreset($task, $stdout, $stderr)) {
-            return [
-                'heading' => $heading,
-                'status' => $process->isSuccessful() ? 'PASS' : 'SKIP',
-                'exit_code' => 0,
-            ];
+        return [
+            'process' => $process,
+            'stdout' => $stdout,
+            'stderr' => $stderr,
+        ];
+    }
+
+    /**
+     * @param list<string> $task
+     */
+    private function shouldRetryPestWithoutParallel(array $task, string $stdout, string $stderr): bool
+    {
+        if (!$this->isPestParallelTask($task)) {
+            return false;
         }
 
-        return [
-            'heading' => $heading,
-            'status' => 'FAIL',
-            'exit_code' => $process->getExitCode() ?? 1,
-        ];
+        $combined = $stdout . "\n" . $stderr;
+
+        return str_contains($combined, 'WorkerCrashedException')
+            || str_contains($combined, 'The test "PARATEST=')
+            || str_contains($combined, 'paratest [');
     }
 
     /**
@@ -243,6 +340,38 @@ final readonly class ParallelRunner
             'stderr' => '',
             'started_at' => microtime(true),
         ];
+    }
+
+    /**
+     * @param list<string> $task
+     * @return list<string>
+     */
+    private function withoutPestParallelArgs(array $task): array
+    {
+        $filtered = [];
+        $count = count($task);
+
+        for ($index = 0; $index < $count; $index++) {
+            $argument = $task[$index];
+
+            if ($argument === '--parallel') {
+                continue;
+            }
+
+            if ($argument === '--processes') {
+                $index++;
+
+                continue;
+            }
+
+            if (str_starts_with($argument, '--processes=')) {
+                continue;
+            }
+
+            $filtered[] = $argument;
+        }
+
+        return $filtered;
     }
 
     private function writeBuffered(string $buffer, bool $error): void
