@@ -27,7 +27,8 @@ if ($task === 'tests:parallel') {
     return;
 }
 
-$exitCode = (new Runner($output))->run(taskCommands($task));
+$failFast = !in_array($task, ['tests', 'tests:details'], true);
+$exitCode = (new Runner($output, $failFast))->run(taskCommands($task));
 
 if ($exitCode !== 0) {
     throw new RuntimeException(sprintf('Task "%s" failed with exit code %d.', $task, $exitCode));
@@ -53,6 +54,7 @@ function taskCommands(string $task): array
         'test:static' => TaskCatalog::staticAnalysis(),
         'test:syntax' => TaskCatalog::syntax(),
         'tests' => TaskCatalog::testAll(),
+        'tests:details' => TaskCatalog::testDetails(),
         default => throw new InvalidArgumentException(sprintf('Unknown task "%s".', $task)),
     };
 }

@@ -37,7 +37,7 @@ final class Cli
             return (new ParallelRunner($output))->run(TaskCatalog::syntax(), TaskCatalog::testParallel());
         }
 
-        return (new Runner($output))->run(TaskCatalog::ci(true));
+        return (new Runner($output, false))->run(TaskCatalog::ci(true));
     }
 
     private function help(): int

@@ -22,6 +22,7 @@ final class InfocyphCommand extends Command
         private readonly array $tasks,
         private readonly bool $parallel = false,
         private readonly array $preflightTasks = [],
+        private readonly bool $failFast = true,
     ) {
         parent::__construct($commandName);
     }
@@ -40,6 +41,6 @@ final class InfocyphCommand extends Command
             return (new ParallelRunner($output))->run($this->preflightTasks, $this->tasks);
         }
 
-        return (new Runner($output))->run($this->tasks);
+        return (new Runner($output, $this->failFast))->run($this->tasks);
     }
 }

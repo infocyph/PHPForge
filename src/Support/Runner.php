@@ -13,6 +13,7 @@ final class Runner
 
     public function __construct(
         private readonly OutputInterface $output,
+        private readonly bool $failFast = true,
     ) {}
 
     /**
@@ -24,6 +25,7 @@ final class Runner
 
         $isFirstTask = true;
         $results = [];
+        $failureExitCode = 0;
 
         foreach ($tasks as $task) {
             $result = $this->runTask($task, $isFirstTask);
@@ -31,15 +33,21 @@ final class Runner
             $results[] = $result;
 
             if ($result['status'] === 'FAIL') {
-                QualitySummary::write($results);
+                if ($failureExitCode === 0) {
+                    $failureExitCode = $result['exit_code'];
+                }
 
-                return $result['exit_code'];
+                if ($this->failFast) {
+                    QualitySummary::write($results);
+
+                    return $result['exit_code'];
+                }
             }
         }
 
         QualitySummary::write($results);
 
-        return 0;
+        return $failureExitCode;
     }
 
     private function detectComposerVersion(): string
