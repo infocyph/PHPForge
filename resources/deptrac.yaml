@@ -34,7 +34,6 @@ deptrac:
           composerLockPath: composer.lock
           packages:
             - captainhook/captainhook
-            - composer/composer
             - deptrac/deptrac
             - ergebnis/composer-normalize
             - infocyph/phpprobe
