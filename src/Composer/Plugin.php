@@ -145,6 +145,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
 
         $wanted = [
             'infocyph/phpforge',
+            'ergebnis/composer-normalize',
             'pestphp/pest-plugin',
         ];
 

@@ -198,6 +198,29 @@ final class Paths
         return ArrayShape::stringKeyed($data);
     }
 
+    private static function findProjectRootFrom(string $start): ?string
+    {
+        $current = realpath($start);
+
+        if ($current === false) {
+            return null;
+        }
+
+        while (true) {
+            if (is_file($current . DIRECTORY_SEPARATOR . 'composer.json')) {
+                return $current;
+            }
+
+            $parent = dirname($current);
+
+            if ($parent === $current) {
+                return null;
+            }
+
+            $current = $parent;
+        }
+    }
+
     private static function isPhpforgeRootPackage(): bool
     {
         $data = self::composerData();
@@ -212,7 +235,15 @@ final class Paths
 
     private static function projectRoot(): string
     {
-        return getcwd() ?: dirname(__DIR__, 2);
+        $cwd = getcwd();
+
+        if ($cwd === false) {
+            return dirname(__DIR__, 2);
+        }
+
+        $resolved = self::findProjectRootFrom($cwd);
+
+        return $resolved ?? $cwd;
     }
 
     private static function vendorPackageRoot(): string

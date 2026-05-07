@@ -13,17 +13,17 @@ final class TaskCatalog
     /**
      * @return list<list<string>>
      */
-    public static function architecture(): array
+    public static function api(): array
     {
-        return [[Paths::php(), Paths::bin('deptrac'), '--no-cache', 'analyse', '--config-file=' . Paths::config('deptrac.yaml'), '--no-progress']];
+        return [[Paths::php(), Paths::bin('phpprobe'), 'api', '--config', Paths::config('phpprobe.json')]];
     }
 
     /**
      * @return list<list<string>>
      */
-    public static function api(): array
+    public static function architecture(): array
     {
-        return [[Paths::php(), Paths::bin('phpprobe'), 'api', '--config', Paths::config('phpprobe.json')]];
+        return [[Paths::php(), Paths::bin('deptrac'), '--no-cache', 'analyse', '--config-file=' . Paths::config('deptrac.yaml'), '--no-progress']];
     }
 
     /**

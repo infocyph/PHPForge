@@ -28,6 +28,7 @@ final class DoctorCommand extends Command
 
     private const PLUGINS = [
         'infocyph/phpforge',
+        'ergebnis/composer-normalize',
         'pestphp/pest-plugin',
     ];
 

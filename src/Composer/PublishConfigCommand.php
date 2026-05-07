@@ -37,6 +37,12 @@ final class PublishConfigCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $files = $this->resolveFiles($input);
+        $validatedFiles = $this->validatedFiles($files, $output);
+
+        if (!is_array($validatedFiles)) {
+            return 1;
+        }
+
         $force = (bool) $input->getOption('force');
 
         $phpprobePreset = $this->resolvePhpprobePreset($input, $output);
@@ -47,7 +53,7 @@ final class PublishConfigCommand extends Command
 
         $published = 0;
 
-        foreach ($files as $file) {
+        foreach ($validatedFiles as $file) {
             if ($this->publishFile($file, $force, $phpprobePreset, $output)) {
                 $published++;
             }
@@ -131,7 +137,11 @@ final class PublishConfigCommand extends Command
             }
         }
 
-        file_put_contents($target, $contents);
+        if (file_put_contents($target, $contents) === false) {
+            $output->writeln(sprintf('<error>Unable to write config file: %s</error>', $file));
+
+            return false;
+        }
 
         $output->writeln(sprintf('<info>Published config: %s</info>', $file));
 
@@ -179,5 +189,30 @@ final class PublishConfigCommand extends Command
     private function stringOption(mixed $value): string
     {
         return is_string($value) ? $value : '';
+    }
+
+    /**
+     * @param list<string> $files
+     * @return list<string>|null
+     */
+    private function validatedFiles(array $files, OutputInterface $output): ?array
+    {
+        $supported = ConfigInventory::files();
+        $invalid = array_values(array_filter(
+            $files,
+            static fn(string $file): bool => !in_array($file, $supported, true),
+        ));
+
+        if ($invalid === []) {
+            return $files;
+        }
+
+        $output->writeln(sprintf(
+            '<error>Invalid config file selection: %s. Supported files: %s</error>',
+            implode(', ', $invalid),
+            implode(', ', $supported),
+        ));
+
+        return null;
     }
 }
