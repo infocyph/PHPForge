@@ -85,7 +85,14 @@ final class TaskCatalog
      */
     public static function duplicates(): array
     {
-        return [[Paths::php(), Paths::bin('phpprobe'), 'duplicates', '--config', Paths::config('phpprobe.json')]];
+        return [[
+            Paths::php(),
+            Paths::bin('phpprobe'),
+            'duplicates',
+            '--config',
+            Paths::config('phpprobe.json'),
+            '--cache-file=' . self::duplicatesCacheFile(),
+        ]];
     }
 
     /**
@@ -364,6 +371,24 @@ final class TaskCatalog
         return self::isBundledConfigInConsumingProject($configPath)
             ? Paths::existingProjectPaths('.')
             : [];
+    }
+
+    private static function duplicatesCacheFile(): string
+    {
+        $configured = getenv('IC_PHPPROBE_DUPLICATES_CACHE_FILE');
+
+        if (is_string($configured) && trim($configured) !== '') {
+            return trim($configured);
+        }
+
+        $projectRoot = realpath(Paths::projectRootPath());
+        $projectKey = is_string($projectRoot) ? strtolower($projectRoot) : Paths::projectRootPath();
+
+        return rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR
+            . 'phpprobe-duplicates-cache-'
+            . md5($projectKey)
+            . '.json';
     }
 
     private static function envInt(string $name, int $default, int $minimum, int $maximum): string

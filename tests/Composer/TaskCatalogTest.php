@@ -73,12 +73,24 @@ it('runs composer normalize as part of process all', function (): void {
 
 it('runs duplicate detection against code paths', function (): void {
     $command = TaskCatalog::duplicates()[0];
+    $cacheArg = null;
+
+    foreach ($command as $argument) {
+        if (str_starts_with($argument, '--cache-file=')) {
+            $cacheArg = $argument;
+
+            break;
+        }
+    }
 
     expect(basename(str_replace('\\', '/', $command[1])))->toBe('phpprobe')
         ->and($command)->toContain('duplicates')
         ->and(TaskCatalog::duplicates()[0])->toContain('--config')
         ->and(TaskCatalog::duplicates()[0])->toContain(Paths::packageFile('resources/phpprobe.json'))
-        ->and(TaskCatalog::duplicates()[0])->not()->toContain('tests');
+        ->and(TaskCatalog::duplicates()[0])->not()->toContain('tests')
+        ->and(is_string($cacheArg))->toBeTrue()
+        ->and($cacheArg)->toStartWith('--cache-file=')
+        ->and($cacheArg)->toContain('phpprobe-duplicates-cache-');
 });
 
 it('runs api snapshot checks with the PHPProbe checker config', function (): void {
