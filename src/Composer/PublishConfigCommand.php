@@ -17,7 +17,7 @@ final class PublishConfigCommand extends Command
     /**
      * @var non-empty-list<string>
      */
-    private const PHPPROBE_PRESETS = ['phpstorm', 'standard', 'strict'];
+    private const PHPPROBE_PRESETS = ['default', 'standard', 'ci', 'strict', 'phpstorm', 'legacy-standard'];
 
     public function __construct()
     {
@@ -30,13 +30,19 @@ final class PublishConfigCommand extends Command
             ->setDescription('Publish bundled PHPForge config files into the project.')
             ->addArgument('files', InputArgument::IS_ARRAY, 'Specific config files to publish.')
             ->addOption('all', null, InputOption::VALUE_NONE, 'Publish all bundled config files.')
-            ->addOption('phpprobe-preset', null, InputOption::VALUE_REQUIRED, 'Apply a PHPProbe preset when publishing phpprobe.json: phpstorm, standard, or strict.')
+            ->addOption('phpprobe-preset', null, InputOption::VALUE_REQUIRED, 'Apply a PHPProbe preset when publishing phpprobe.json: default, standard, ci, or strict (legacy aliases: phpstorm, legacy-standard).')
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing project files.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $files = $this->resolveFiles($input);
+        $validatedFiles = $this->validatedFiles($files, $output);
+
+        if (!is_array($validatedFiles)) {
+            return 1;
+        }
+
         $force = (bool) $input->getOption('force');
 
         $phpprobePreset = $this->resolvePhpprobePreset($input, $output);
@@ -47,7 +53,7 @@ final class PublishConfigCommand extends Command
 
         $published = 0;
 
-        foreach ($files as $file) {
+        foreach ($validatedFiles as $file) {
             if ($this->publishFile($file, $force, $phpprobePreset, $output)) {
                 $published++;
             }
@@ -59,48 +65,15 @@ final class PublishConfigCommand extends Command
     }
 
     /**
-     * @return array{duplicates: array{mode: string, normalize: bool, fuzzy: bool, near_miss: bool, min_lines: int, min_tokens: int, min_statements: int, min_similarity: float}}
+     * @return array{preset: string}
      */
     private static function phpprobePreset(string $preset): array
     {
         return match ($preset) {
-            'phpstorm' => [
-                'duplicates' => [
-                    'mode' => 'audit',
-                    'normalize' => true,
-                    'fuzzy' => true,
-                    'near_miss' => true,
-                    'min_lines' => 5,
-                    'min_tokens' => 90,
-                    'min_statements' => 4,
-                    'min_similarity' => 0.85,
-                ],
-            ],
-            'standard' => [
-                'duplicates' => [
-                    'mode' => 'gate',
-                    'normalize' => true,
-                    'fuzzy' => true,
-                    'near_miss' => false,
-                    'min_lines' => 6,
-                    'min_tokens' => 100,
-                    'min_statements' => 5,
-                    'min_similarity' => 0.90,
-                ],
-            ],
-            'strict' => [
-                'duplicates' => [
-                    'mode' => 'audit',
-                    'normalize' => true,
-                    'fuzzy' => true,
-                    'near_miss' => true,
-                    'min_lines' => 4,
-                    'min_tokens' => 70,
-                    'min_statements' => 3,
-                    'min_similarity' => 0.80,
-                ],
-            ],
-            default => throw new \InvalidArgumentException(sprintf('Unknown PHPProbe preset "%s". Expected phpstorm, standard, or strict.', $preset)),
+            'default', 'standard', 'ci', 'strict' => ['preset' => $preset],
+            'phpstorm' => ['preset' => 'standard'],
+            'legacy-standard' => ['preset' => 'ci'],
+            default => throw new \InvalidArgumentException(sprintf('Unknown PHPProbe preset "%s". Expected one of: %s.', $preset, implode(', ', self::PHPPROBE_PRESETS))),
         };
     }
 
@@ -164,7 +137,11 @@ final class PublishConfigCommand extends Command
             }
         }
 
-        file_put_contents($target, $contents);
+        if (file_put_contents($target, $contents) === false) {
+            $output->writeln(sprintf('<error>Unable to write config file: %s</error>', $file));
+
+            return false;
+        }
 
         $output->writeln(sprintf('<info>Published config: %s</info>', $file));
 
@@ -212,5 +189,30 @@ final class PublishConfigCommand extends Command
     private function stringOption(mixed $value): string
     {
         return is_string($value) ? $value : '';
+    }
+
+    /**
+     * @param list<string> $files
+     * @return list<string>|null
+     */
+    private function validatedFiles(array $files, OutputInterface $output): ?array
+    {
+        $supported = ConfigInventory::files();
+        $invalid = array_values(array_filter(
+            $files,
+            static fn(string $file): bool => !in_array($file, $supported, true),
+        ));
+
+        if ($invalid === []) {
+            return $files;
+        }
+
+        $output->writeln(sprintf(
+            '<error>Invalid config file selection: %s. Supported files: %s</error>',
+            implode(', ', $invalid),
+            implode(', ', $supported),
+        ));
+
+        return null;
     }
 }

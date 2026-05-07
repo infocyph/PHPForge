@@ -14,11 +14,23 @@ it('formats duplicate checks with a friendly title', function (): void {
         ->toBe('Duplicate Code');
 });
 
+it('formats api checks with a friendly title', function (): void {
+    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpforge', 'api']))
+        ->toBe('Public API');
+});
+
+it('formats comment checks with a friendly title', function (): void {
+    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpforge', 'comments']))
+        ->toBe('Comment Policy');
+});
+
 it('formats phpprobe checker tasks with friendly titles', function (): void {
     expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'syntax']))
         ->toBe('Checking Syntax')
         ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'duplicates']))
         ->toBe('Duplicate Code')
+        ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'comments']))
+        ->toBe('Comment Policy')
         ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'api']))
         ->toBe('Public API');
 });

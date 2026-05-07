@@ -156,7 +156,7 @@ composer ic:init --force
 
 | Command                         | Purpose                                                                                                                                                        |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `composer ic:tests`           | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, Deptrac, PHPStan, Psalm security analysis, and Rector dry run. |
+| `composer ic:tests`           | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, API snapshot checks, comment policy checks, Deptrac, PHPStan, Psalm security analysis, and Rector dry run. |
 | `composer ic:tests:all`       | Alias of `ic:tests`.                                                                                                                                         |
 | `composer ic:tests:parallel`  | Runs syntax first, then executes the remaining quality checks with bounded parallelism and a buffered PASS/FAIL summary.                                       |
 | `composer ic:tests:details`   | Runs detailed checks without the parallel Pest shortcut.                                                                                                       |
@@ -165,22 +165,25 @@ composer ic:init --force
 | `composer ic:test:lint`       | Runs Pint in check mode.                                                                                                                                       |
 | `composer ic:test:sniff`      | Runs PHPCS with a full report against the project root and bundled/project excludes.                                                                           |
 | `composer ic:test:duplicates` | Runs duplicate detection using `phpprobe.json`.                                                                                                              |
+| `composer ic:test:api`        | Runs API snapshot checks using `phpprobe.json`.                                                                                                              |
+| `composer ic:test:comments`   | Runs comment policy checks using `phpprobe.json`.                                                                                                            |
 | `composer ic:test:architecture` | Runs Deptrac architecture checks using `deptrac.yaml`.                                                                                                    |
 | `composer ic:test:static`     | Runs PHPStan.                                                                                                                                                  |
 | `composer ic:test:security`   | Runs Psalm security analysis.                                                                                                                                  |
 | `composer ic:test:refactor`   | Runs Rector in dry-run mode.                                                                                                                                   |
 | `composer ic:test:bench`      | Runs PHPBench aggregate benchmarks.                                                                                                                            |
 
-Syntax and duplicate settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
-PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax` and `phpforge duplicates` commands are thin compatibility gateways that pass the same config to PHPProbe.
-Both checks are root-scoped by default because their bundled `paths` lists are empty; Git-aware PHP discovery is then filtered by the configured `exclude` lists.
-Duplicate detection defaults are aligned with PhpStorm-style clone analysis: variable/literal normalization, fuzzy identifier/call anonymization, structural audit mode, near-miss matching, and a mid-sensitivity token window are enabled.
+Syntax, duplicates, API snapshot, and comments settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
+PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge api`, and `phpforge comments` commands are thin compatibility gateways that pass the same config to PHPProbe.
+By default the bundled config uses preset-based behavior, so defaults come from the selected PHPProbe preset and can still be overridden per section in `phpprobe.json`.
 Use the lower-level binary for custom scans; CLI paths override configured paths, while CLI excludes are added to configured excludes:
 
 ```bash
 php vendor/bin/phpprobe syntax --config=phpprobe.json --exclude=storage
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --min-lines=5 --min-tokens=70
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --mode=audit --near-miss --json --exclude=tests
+php vendor/bin/phpprobe api --config=phpprobe.json --baseline=.phpprobe-api-baseline.json
+php vendor/bin/phpprobe comments --config=phpprobe.json --fail-on=warning
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --write-baseline=.phpprobe-duplicates-baseline.json
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --baseline=.phpprobe-duplicates-baseline.json
 ```
@@ -189,8 +192,9 @@ Useful checker options:
 
 | Option                      | Applies To         | Purpose                                                                 |
 | --------------------------- | ------------------ | ----------------------------------------------------------------------- |
-| `--config=FILE`           | Syntax, duplicates | Reads checker settings from a custom `phpprobe.json` file.            |
-| `--exclude=PATH`          | Syntax, duplicates | Excludes one path; repeat it for multiple one-off exclusions.           |
+| `--config=FILE`           | Syntax, duplicates, api, comments | Reads checker settings from a custom `phpprobe.json` file.            |
+| `--preset=NAME`           | Syntax, duplicates, api, comments | Applies a runtime preset (`default`, `standard`, `ci`, `strict`).     |
+| `--exclude=PATH`          | Syntax, duplicates, api, comments | Excludes one path; repeat it for multiple one-off exclusions.           |
 | `--exact`                 | Duplicates         | Disables variable/literal normalization.                                |
 | `--fuzzy`                 | Duplicates         | Also normalizes identifiers and calls for renamed-code scans.           |
 | `--mode=audit`            | Duplicates         | Enables statement-window matching in addition to token matching.        |
@@ -199,8 +203,9 @@ Useful checker options:
 | `--min-tokens=N`          | Duplicates         | Sets the token fingerprint window size.                                 |
 | `--min-statements=N`      | Duplicates         | Sets the structural statement window size for audit matching.           |
 | `--min-similarity=0.85`   | Duplicates         | Sets the near-miss similarity threshold.                                |
-| `--baseline=FILE`         | Duplicates         | Suppresses clone groups already captured in a baseline.                 |
-| `--write-baseline[=FILE]` | Duplicates         | Writes the current clone groups as the baseline and exits successfully. |
+| `--baseline=FILE`         | Duplicates, api    | Suppresses known clone groups or compares API snapshots against a baseline. |
+| `--write-baseline[=FILE]` | Duplicates, api    | Writes duplicate-clone or API snapshot baselines and exits successfully. |
+| `--strict`                | Comments           | Escalates commented-out-code policy severities.                         |
 | `--json`                  | Duplicates         | Emits machine-readable JSON.                                            |
 
 ### CI Commands
@@ -255,7 +260,7 @@ Useful checker options:
 | `composer ic:list-config`                           | Lists config files and their resolution source.                                                                |
 | `composer ic:list-config --json`                    | Outputs config resolution as JSON.                                                                             |
 | `composer ic:publish-config [file...]`              | Copies selected bundled config files into the project.                                                         |
-| `composer ic:publish-config phpprobe.json --phpprobe-preset=strict` | Publishes `phpprobe.json` using a named duplicate-detection preset (`phpstorm`, `standard`, `strict`). |
+| `composer ic:publish-config phpprobe.json --phpprobe-preset=strict` | Publishes `phpprobe.json` with a named PHPProbe preset (`default`, `standard`, `ci`, `strict`). |
 | `composer ic:publish-config --all`                  | Copies every bundled config file into the project.                                                             |
 | `composer ic:publish-config --all --force`          | Overwrites all project config files with bundled defaults.                                                     |
 | `composer ic:clean`                                 | Removes known PHPForge output files and cache directories.                                                     |
@@ -288,100 +293,29 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 
 ### PHPProbe Checker Config
 
-`phpprobe.json` configures PHPProbe syntax and duplicate-code checks.
-Both sections use root-scoped discovery when `paths` is empty: PHPProbe asks Git for tracked/unignored PHP files, then falls back to recursively scanning the project root if Git is unavailable.
-Use `exclude` to keep tests, generated files, caches, vendor packages, and other noisy paths out of the checker tasks.
+`phpprobe.json` configures PHPProbe syntax, duplicate-code, API snapshot, and comments checks.
+PHPProbe 0.3 is preset-first, and PHPForge now follows that model.
 
 Bundled default:
 
 ```json
 {
-  "syntax": {
-    "paths": [],
-    "exclude": [
-      "tests",
-      "vendor",
-      "node_modules",
-      ".git",
-      ".idea",
-      ".vscode",
-      "coverage",
-      ".phpunit.cache",
-      ".psalm-cache",
-      "build",
-      "dist",
-      "tmp",
-      ".tmp",
-      "storage",
-      "bootstrap/cache",
-      "var/cache"
-    ]
-  },
-  "duplicates": {
-    "paths": [],
-    "exclude": [
-      "tests",
-      "vendor",
-      "node_modules",
-      ".git",
-      ".idea",
-      ".vscode",
-      "coverage",
-      ".phpunit.cache",
-      ".psalm-cache",
-      "build",
-      "dist",
-      "tmp",
-      ".tmp",
-      "storage",
-      "bootstrap/cache",
-      "var/cache",
-      "storage/framework/views"
-    ],
-    "mode": "audit",
-    "normalize": true,
-    "fuzzy": true,
-    "near_miss": true,
-    "min_lines": 5,
-    "min_tokens": 90,
-    "min_statements": 4,
-    "min_similarity": 0.85,
-    "baseline": "",
-    "write_baseline": "",
-    "json": false
-  }
+  "preset": "standard"
 }
 ```
 
-| Key                           | Purpose                                                                                                                                            |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `syntax.paths`              | PHP files/directories checked by `phpforge syntax`. Empty means Git-aware project-root discovery.                                                |
-| `syntax.exclude`            | Paths removed from syntax discovery. The bundled config excludes tests, vendor, caches, build output, storage, and common IDE/tool directories.    |
-| `duplicates.paths`          | PHP files/directories scanned by `phpforge duplicates`. Empty means Git-aware project-root discovery.                                            |
-| `duplicates.exclude`        | Paths removed from duplicate detection. The bundled config excludes tests, vendor, caches, build output, storage, and generated framework views.   |
-| `duplicates.mode`           | `audit` enables structural statement matching and near-miss matching; `gate` is a stricter deterministic CI mode.                              |
-| `duplicates.normalize`      | Replaces noisy variable names and literals before matching. Set `false` for exact-style matching.                                                |
-| `duplicates.fuzzy`          | Also normalizes identifiers/calls for renamed-code audits. More sensitive, potentially noisier.                                                    |
-| `duplicates.near_miss`      | Finds edited clones through bounded statement/shape similarity. Mostly useful with audit mode.                                                     |
-| `duplicates.min_lines`      | Minimum duplicated lines before a clone group can be reported.                                                                                     |
-| `duplicates.min_tokens`     | Token fingerprint window size. The bundled `90` is PhpStorm-like middle sensitivity; higher values are quieter, lower values are more sensitive. |
-| `duplicates.min_statements` | Statement-window size used by audit/structural matching.                                                                                           |
-| `duplicates.min_similarity` | Near-miss threshold from `0.0` to `1.0`; `0.85` means 85 percent similar.                                                                    |
-| `duplicates.baseline`       | Baseline file whose known clone fingerprints are suppressed.                                                                                       |
-| `duplicates.write_baseline` | Writes current clone groups to the given baseline and exits successfully. Usually use CLI for this.                                                |
-| `duplicates.json`           | Emits machine-readable JSON instead of human text. Best for automation/reporting.                                                                  |
-
-`exclude_paths` is also accepted as an alias for `exclude` in either section.
-Snake case, kebab case, and camel case are accepted for checker config keys, so `min_tokens`, `min-tokens`, and `minTokens` resolve to the same setting.
-Explicit CLI paths override configured `paths`; configured and CLI excludes are combined.
+You can still add section overrides (`syntax`, `duplicates`, `api`, `comments`, `commented_out_code`) when a project needs custom thresholds or exclusions.
 
 Presets for `phpprobe.json` publishing:
 
-| Preset      | Duplicate Policy                                                                 |
-| ----------- | -------------------------------------------------------------------------------- |
-| `phpstorm`  | PhpStorm-like default: audit mode, normalized/fuzzy tokens, near-miss matching, `min_tokens: 90`. |
-| `standard`  | Balanced CI gate: deterministic gate mode, normalized/fuzzy tokens, no near-miss matching, `min_tokens: 100`. |
-| `strict`    | More sensitive audit mode: near-miss matching enabled with lower size thresholds, `min_tokens: 70`. |
+| Preset      | Summary |
+| ----------- | ------- |
+| `default`   | Raw engine defaults. |
+| `standard`  | Recommended balanced preset. |
+| `ci`        | Quieter CI gate with stricter duplicate thresholds. |
+| `strict`    | Sensitive audit preset across duplicates and comments. |
+| `phpstorm`  | Legacy alias resolved to `standard`. |
+| `legacy-standard` | Legacy alias resolved to `ci`. |
 
 ```bash
 composer ic:publish-config phpprobe.json --phpprobe-preset=standard

@@ -4,6 +4,7 @@
 .vscode
 .windsurf
 .codex
+.phpprobe-duplicates-cache.json
 *~
 *.patch
 *.txt

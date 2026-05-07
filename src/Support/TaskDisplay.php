@@ -153,9 +153,12 @@ final class TaskDisplay
         return match (true) {
             $tool === 'phpprobe' && $subcommand === 'syntax' => 'Checking Syntax',
             $tool === 'phpprobe' && $subcommand === 'duplicates' => 'Duplicate Code',
+            $tool === 'phpprobe' && $subcommand === 'comments' => 'Comment Policy',
             $tool === 'phpprobe' && $subcommand === 'api' => 'Public API',
             $tool === 'phpforge' && $subcommand === 'syntax' => 'Checking Syntax',
             $tool === 'phpforge' && $subcommand === 'duplicates' => 'Duplicate Code',
+            $tool === 'phpforge' && $subcommand === 'api' => 'Public API',
+            $tool === 'phpforge' && $subcommand === 'comments' => 'Comment Policy',
             $tool === 'phpforge' && $subcommand === 'audit' => 'Composer Audit',
             $tool === 'composer' && $subcommand === 'validate' => 'Composer Validate',
             $tool === 'composer' && $subcommand === 'normalize' => 'Composer Normalize',

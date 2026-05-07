@@ -6,6 +6,7 @@ namespace Infocyph\PHPForge\Composer;
 
 use Composer\Command\BaseCommand as Command;
 use Infocyph\PHPForge\Support\Paths;
+use Infocyph\PHPForge\Support\WorkflowWrapper;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -433,16 +434,45 @@ final class InitCommand extends Command
             return 0;
         }
 
-        $contents = str_replace('@main', '@' . $settings['workflow_ref'], $contents);
-        $contents = str_replace('php_versions: \'["8.2","8.3","8.4","8.5"]\'', "php_versions: '" . $settings['php_versions'] . "'", $contents);
-        $contents = str_replace('dependency_versions: \'["prefer-lowest","prefer-stable"]\'', "dependency_versions: '" . $settings['dependency_versions'] . "'", $contents);
-        $contents = str_replace('php_extensions: ""', 'php_extensions: "' . $settings['php_extensions'] . '"', $contents);
-        $contents = str_replace('coverage: "none"', 'coverage: "' . $settings['coverage'] . '"', $contents);
-        $contents = str_replace('composer_flags: ""', 'composer_flags: "' . $settings['composer_flags'] . '"', $contents);
-        $contents = str_replace('phpstan_memory_limit: "1G"', 'phpstan_memory_limit: "' . $settings['phpstan_memory_limit'] . '"', $contents);
-        $contents = str_replace('psalm_threads: "1"', 'psalm_threads: "' . $settings['psalm_threads'] . '"', $contents);
-        $contents = str_replace('run_analysis: true', 'run_analysis: ' . ($settings['run_analysis'] ? 'true' : 'false'), $contents);
-        $contents = str_replace('run_svg_report: true', 'run_svg_report: ' . ($settings['run_svg_report'] ? 'true' : 'false'), $contents);
+        $workflowRef = $this->validatedWorkflowRef((string) $settings['workflow_ref'], $output);
+        $phpVersions = $this->normalizedJsonStringList((string) $settings['php_versions'], 'php_versions', $output);
+        $dependencyVersions = $this->normalizedJsonStringList((string) $settings['dependency_versions'], 'dependency_versions', $output);
+        $phpExtensions = $this->singleLineValue((string) $settings['php_extensions'], 'php_extensions', $output);
+        $coverage = $this->singleLineValue((string) $settings['coverage'], 'coverage', $output);
+        $composerFlags = $this->singleLineValue((string) $settings['composer_flags'], 'composer_flags', $output);
+        $phpstanMemoryLimit = $this->singleLineValue((string) $settings['phpstan_memory_limit'], 'phpstan_memory_limit', $output);
+        $psalmThreads = $this->singleLineValue((string) $settings['psalm_threads'], 'psalm_threads', $output);
+
+        if (
+            !is_string($workflowRef)
+            || !is_string($phpVersions)
+            || !is_string($dependencyVersions)
+            || !is_string($phpExtensions)
+            || !is_string($coverage)
+            || !is_string($composerFlags)
+            || !is_string($phpstanMemoryLimit)
+            || !is_string($psalmThreads)
+        ) {
+            return 0;
+        }
+
+        $contents = WorkflowWrapper::update($contents, $workflowRef, [
+            'php_versions' => WorkflowWrapper::yamlSingleQuoted($phpVersions),
+            'dependency_versions' => WorkflowWrapper::yamlSingleQuoted($dependencyVersions),
+            'php_extensions' => WorkflowWrapper::yamlDoubleQuoted($phpExtensions),
+            'coverage' => WorkflowWrapper::yamlDoubleQuoted($coverage),
+            'composer_flags' => WorkflowWrapper::yamlDoubleQuoted($composerFlags),
+            'phpstan_memory_limit' => WorkflowWrapper::yamlDoubleQuoted($phpstanMemoryLimit),
+            'psalm_threads' => WorkflowWrapper::yamlDoubleQuoted($psalmThreads),
+            'run_analysis' => $settings['run_analysis'] ? 'true' : 'false',
+            'run_svg_report' => $settings['run_svg_report'] ? 'true' : 'false',
+        ]);
+
+        if (!is_string($contents)) {
+            $output->writeln('<error>Unable to patch workflow template: missing or invalid "with" block.</error>');
+
+            return 0;
+        }
 
         return $this->write($contents, $target, $force, $output);
     }
@@ -554,6 +584,35 @@ final class InitCommand extends Command
         return $eolDate >= $today;
     }
 
+    private function normalizedJsonStringList(string $value, string $name, OutputInterface $output): ?string
+    {
+        $decoded = json_decode($value, true);
+
+        if (!is_array($decoded) || !array_is_list($decoded)) {
+            $output->writeln(sprintf('<error>Invalid %s value. Expected a JSON array string.</error>', $name));
+
+            return null;
+        }
+
+        foreach ($decoded as $item) {
+            if (!is_string($item) || str_contains($item, "'") || str_contains($item, "\n") || str_contains($item, "\r")) {
+                $output->writeln(sprintf('<error>Invalid %s entry. Values must be single-line strings without single quotes.</error>', $name));
+
+                return null;
+            }
+        }
+
+        $encoded = json_encode($decoded, JSON_UNESCAPED_SLASHES);
+
+        if (!is_string($encoded)) {
+            $output->writeln(sprintf('<error>Invalid %s value. Could not encode JSON.</error>', $name));
+
+            return null;
+        }
+
+        return $encoded;
+    }
+
     private function parseDate(mixed $value): ?\DateTimeImmutable
     {
         if (!is_string($value) || $value === '') {
@@ -658,6 +717,17 @@ final class InitCommand extends Command
         return ['flags' => $flags, 'settings' => $settings];
     }
 
+    private function singleLineValue(string $value, string $name, OutputInterface $output): ?string
+    {
+        if (str_contains($value, "\n") || str_contains($value, "\r")) {
+            $output->writeln(sprintf('<error>Invalid %s value: newlines are not allowed.</error>', $name));
+
+            return null;
+        }
+
+        return $value;
+    }
+
     private function stringValue(mixed $value, string $default): string
     {
         return is_string($value) ? $value : $default;
@@ -755,6 +825,17 @@ final class InitCommand extends Command
         };
     }
 
+    private function validatedWorkflowRef(string $value, OutputInterface $output): ?string
+    {
+        if ($value === '' || preg_match('/^[A-Za-z0-9._\/-]+$/', $value) !== 1) {
+            $output->writeln(sprintf('<error>Invalid workflow_ref "%s". Use a plain git ref (letters, numbers, ".", "_", "-", "/").</error>', $value));
+
+            return null;
+        }
+
+        return $value;
+    }
+
     private function write(string $contents, string $target, bool $force, OutputInterface $output): int
     {
         if (is_file($target) && !$force) {
@@ -765,11 +846,18 @@ final class InitCommand extends Command
 
         $directory = dirname($target);
 
-        if (!is_dir($directory)) {
-            mkdir($directory, 0777, true);
+        if (!is_dir($directory) && !mkdir($directory, 0777, true) && !is_dir($directory)) {
+            $output->writeln(sprintf('<error>Unable to create directory: %s</error>', $directory));
+
+            return 0;
         }
 
-        file_put_contents($target, $contents);
+        if (file_put_contents($target, $contents) === false) {
+            $output->writeln(sprintf('<error>Unable to write file: %s</error>', $target));
+
+            return 0;
+        }
+
         $output->writeln(sprintf('<info>Copied: %s</info>', $target));
 
         return 1;

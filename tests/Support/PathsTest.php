@@ -167,3 +167,29 @@ it('resolves package files from the PHPForge package root', function (): void {
     expect(Paths::packageFile('bin/phpforge'))
         ->toEndWith(DIRECTORY_SEPARATOR.'bin'.DIRECTORY_SEPARATOR.'phpforge');
 });
+
+it('resolves project root from subdirectories with composer.json ancestor', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-paths-subdir-'.uniqid('', true);
+    $nested = $projectRoot.DIRECTORY_SEPARATOR.'a'.DIRECTORY_SEPARATOR.'b';
+    $vendorResources = $projectRoot.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'infocyph'.DIRECTORY_SEPARATOR.'phpforge'.DIRECTORY_SEPARATOR.'resources';
+    $configFile = $vendorResources.DIRECTORY_SEPARATOR.'pint.json';
+
+    mkdir($nested, 0755, true);
+    mkdir($vendorResources, 0755, true);
+    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
+    file_put_contents($configFile, '{}');
+
+    chdir($nested);
+
+    try {
+        expect(Paths::projectRootPath())->toBe($projectRoot)
+            ->and(Paths::config('pint.json'))->toBe($configFile);
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        removePathsTestTree($projectRoot);
+    }
+});

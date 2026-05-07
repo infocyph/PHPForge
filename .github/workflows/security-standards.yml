@@ -673,6 +673,10 @@ jobs:
           append_chip "Psalm" "$(quality_tool_status psalm "$analyze_result")"
           append_chip "Rector" "$(quality_tool_status rector "$run_result")"
 
+          if [ "$benchmark_command" != "none" ]; then
+            append_chip "Benchmark" "$benchmark_result"
+          fi
+
           footer_y=$((chip_y + 64))
           tools_svg=""
           tool_line=""

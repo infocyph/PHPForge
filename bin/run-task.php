@@ -47,6 +47,8 @@ function taskCommands(string $task): array
         'test:code' => TaskCatalog::testCode(),
         'test:architecture' => TaskCatalog::architecture(),
         'test:duplicates' => TaskCatalog::duplicates(),
+        'test:api' => TaskCatalog::api(),
+        'test:comments' => TaskCatalog::comments(),
         'test:lint' => TaskCatalog::lintCheck(),
         'test:refactor' => TaskCatalog::refactorCheck(),
         'test:security' => TaskCatalog::security(),
