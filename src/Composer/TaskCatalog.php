@@ -21,6 +21,14 @@ final class TaskCatalog
     /**
      * @return list<list<string>>
      */
+    public static function api(): array
+    {
+        return [[Paths::php(), Paths::bin('phpprobe'), 'api', '--config', Paths::config('phpprobe.json')]];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
     public static function benchChart(): array
     {
         return [self::benchCommand(['--report=chart'])];
@@ -57,9 +65,19 @@ final class TaskCatalog
             ...self::lintCheck(),
             ...self::sniff(),
             ...self::duplicates(),
+            ...self::api(),
+            ...self::comments(),
             ...self::architecture(),
             ...self::refactorCheck(),
         ];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    public static function comments(): array
+    {
+        return [[Paths::php(), Paths::bin('phpprobe'), 'comments', '--config', Paths::config('phpprobe.json')]];
     }
 
     /**
@@ -204,6 +222,8 @@ final class TaskCatalog
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
             ...self::duplicates(),
+            ...self::api(),
+            ...self::comments(),
             ...self::architecture(),
             ...self::staticAnalysis(),
             [Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
@@ -230,6 +250,8 @@ final class TaskCatalog
             ...self::lintCheck(),
             ...self::sniff(),
             ...self::duplicates(),
+            ...self::api(),
+            ...self::comments(),
             ...self::architecture(),
             ...self::staticAnalysis(),
             ...self::security(),

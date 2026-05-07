@@ -81,6 +81,24 @@ it('runs duplicate detection against code paths', function (): void {
         ->and(TaskCatalog::duplicates()[0])->not()->toContain('tests');
 });
 
+it('runs api snapshot checks with the PHPProbe checker config', function (): void {
+    $command = TaskCatalog::api()[0];
+
+    expect(basename(str_replace('\\', '/', $command[1])))->toBe('phpprobe')
+        ->and($command)->toContain('api')
+        ->and(TaskCatalog::api()[0])->toContain('--config')
+        ->and(TaskCatalog::api()[0])->toContain(Paths::packageFile('resources/phpprobe.json'));
+});
+
+it('runs comment policy checks with the PHPProbe checker config', function (): void {
+    $command = TaskCatalog::comments()[0];
+
+    expect(basename(str_replace('\\', '/', $command[1])))->toBe('phpprobe')
+        ->and($command)->toContain('comments')
+        ->and(TaskCatalog::comments()[0])->toContain('--config')
+        ->and(TaskCatalog::comments()[0])->toContain(Paths::packageFile('resources/phpprobe.json'));
+});
+
 it('runs syntax checks with the PHPProbe checker config', function (): void {
     $command = TaskCatalog::syntax()[0];
 
@@ -114,6 +132,20 @@ it('runs pest in parallel by default for full test suites', function (): void {
                 ->and($command)->toContain('--processes=10');
         });
     });
+});
+
+it('includes comment policy checks in full and detailed quality suites', function (): void {
+    $commentsTask = TaskCatalog::comments()[0];
+
+    expect(TaskCatalog::testAll())->toContain($commentsTask)
+        ->and(TaskCatalog::testDetails())->toContain($commentsTask);
+});
+
+it('includes api snapshot checks in full and detailed quality suites', function (): void {
+    $apiTask = TaskCatalog::api()[0];
+
+    expect(TaskCatalog::testAll())->toContain($apiTask)
+        ->and(TaskCatalog::testDetails())->toContain($apiTask);
 });
 
 it('allows disabling pest parallel in full test suites', function (): void {

@@ -17,7 +17,7 @@ final class PublishConfigCommand extends Command
     /**
      * @var non-empty-list<string>
      */
-    private const PHPPROBE_PRESETS = ['phpstorm', 'standard', 'strict'];
+    private const PHPPROBE_PRESETS = ['default', 'standard', 'ci', 'strict', 'phpstorm', 'legacy-standard'];
 
     public function __construct()
     {
@@ -30,7 +30,7 @@ final class PublishConfigCommand extends Command
             ->setDescription('Publish bundled PHPForge config files into the project.')
             ->addArgument('files', InputArgument::IS_ARRAY, 'Specific config files to publish.')
             ->addOption('all', null, InputOption::VALUE_NONE, 'Publish all bundled config files.')
-            ->addOption('phpprobe-preset', null, InputOption::VALUE_REQUIRED, 'Apply a PHPProbe preset when publishing phpprobe.json: phpstorm, standard, or strict.')
+            ->addOption('phpprobe-preset', null, InputOption::VALUE_REQUIRED, 'Apply a PHPProbe preset when publishing phpprobe.json: default, standard, ci, or strict (legacy aliases: phpstorm, legacy-standard).')
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing project files.');
     }
 
@@ -59,48 +59,15 @@ final class PublishConfigCommand extends Command
     }
 
     /**
-     * @return array{duplicates: array{mode: string, normalize: bool, fuzzy: bool, near_miss: bool, min_lines: int, min_tokens: int, min_statements: int, min_similarity: float}}
+     * @return array{preset: string}
      */
     private static function phpprobePreset(string $preset): array
     {
         return match ($preset) {
-            'phpstorm' => [
-                'duplicates' => [
-                    'mode' => 'audit',
-                    'normalize' => true,
-                    'fuzzy' => true,
-                    'near_miss' => true,
-                    'min_lines' => 5,
-                    'min_tokens' => 90,
-                    'min_statements' => 4,
-                    'min_similarity' => 0.85,
-                ],
-            ],
-            'standard' => [
-                'duplicates' => [
-                    'mode' => 'gate',
-                    'normalize' => true,
-                    'fuzzy' => true,
-                    'near_miss' => false,
-                    'min_lines' => 6,
-                    'min_tokens' => 100,
-                    'min_statements' => 5,
-                    'min_similarity' => 0.90,
-                ],
-            ],
-            'strict' => [
-                'duplicates' => [
-                    'mode' => 'audit',
-                    'normalize' => true,
-                    'fuzzy' => true,
-                    'near_miss' => true,
-                    'min_lines' => 4,
-                    'min_tokens' => 70,
-                    'min_statements' => 3,
-                    'min_similarity' => 0.80,
-                ],
-            ],
-            default => throw new \InvalidArgumentException(sprintf('Unknown PHPProbe preset "%s". Expected phpstorm, standard, or strict.', $preset)),
+            'default', 'standard', 'ci', 'strict' => ['preset' => $preset],
+            'phpstorm' => ['preset' => 'standard'],
+            'legacy-standard' => ['preset' => 'ci'],
+            default => throw new \InvalidArgumentException(sprintf('Unknown PHPProbe preset "%s". Expected one of: %s.', $preset, implode(', ', self::PHPPROBE_PRESETS))),
         };
     }
 

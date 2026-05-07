@@ -27,9 +27,7 @@
     <exclude-pattern>*/bootstrap/cache/*</exclude-pattern>
     <exclude-pattern>*/var/cache/*</exclude-pattern>
 
-    <!-- Commenting and naming -->
-    <rule ref="Generic.Commenting.Fixme"/>
-    <rule ref="Generic.Commenting.Todo"/>
+    <!-- Naming -->
     <rule ref="Generic.NamingConventions.UpperCaseConstantName"/>
 
     <!-- Code quality and safety -->
