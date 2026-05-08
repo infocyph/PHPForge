@@ -1,5 +1,10 @@
 # PHPForge
 
+[![PHPForge](https://github.com/infocyph/PHPForge/actions/workflows/phpforge.yml/badge.svg)](https://github.com/infocyph/PHPForge/actions/workflows/phpforge.yml)
+![Packagist Downloads](https://img.shields.io/packagist/dt/infocyph/PHPForge?color=green\&link=https%3A%2F%2Fpackagist.org%2Fpackages%2Finfocyph%2FPHPForge)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+![GitHub Code Size](https://img.shields.io/github/languages/code-size/infocyph/PHPForge)
+
 Shared Composer-powered QA, refactoring, benchmark, release, hook and CI tooling for Infocyph PHP projects.
 
 PHPForge is installed as a dev dependency in PHP libraries and packages. It provides Composer commands under the `ic:*` namespace, ships default tool configuration, installs CaptainHook hooks, exposes a reusable GitHub Actions workflow and includes starter templates for GitLab CI, Bitbucket Pipelines and Forgejo Actions.
