@@ -466,6 +466,8 @@ jobs:
           tools_json="$(jq -nc \
             --arg captainhook "$(package_version 'captainhook/captainhook')" \
             --arg composer_normalize "$(package_version 'ergebnis/composer-normalize')" \
+            --arg deptrac "$(package_version 'deptrac/deptrac')" \
+            --arg phpprobe "$(package_version 'infocyph/phpprobe')" \
             --arg pest "$(package_version 'pestphp/pest')" \
             --arg pint "$(package_version 'laravel/pint')" \
             --arg phpcs "$(package_version 'squizlabs/php_codesniffer')" \
@@ -476,6 +478,8 @@ jobs:
             '[
               {name: "CaptainHook", package: "captainhook/captainhook", version: $captainhook},
               {name: "Composer Normalize", package: "ergebnis/composer-normalize", version: $composer_normalize},
+              {name: "Deptrac", package: "deptrac/deptrac", version: $deptrac},
+              {name: "PHPProbe", package: "infocyph/phpprobe", version: $phpprobe},
               {name: "Pest", package: "pestphp/pest", version: $pest},
               {name: "Pint", package: "laravel/pint", version: $pint},
               {name: "PHP_CodeSniffer", package: "squizlabs/php_codesniffer", version: $phpcs},
