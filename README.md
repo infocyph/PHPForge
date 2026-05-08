@@ -601,13 +601,14 @@ When enabled on `main` or `master`, the workflow uploads one artifact:
 
 - `tested_php_versions`
 - `matrix_results` (per PHP version: `code_analysis_prefer_lowest`, `code_analysis_prefer_stable`, `security_analysis`)
-- `quality_results` (uploaded per-tool JSON summaries from CI workers when available)
+- `check_results` (flat per-check rows with `test`, `dependency_mode`, `php_version`, `status`, `source_job`, `generated_by`)
+- `rollup` (aggregated status for `code_analysis_prefer_lowest`, `code_analysis_prefer_stable`, `security_analysis`)
 - `benchmark_result`
 - `benchmark_command`
 - `benchmark_php_version`
 - `tools` (tool `name`, package, resolved version)
 
-`security-report.svg` renders the same high-level status, per-version matrix check results, per-tool quality chips when quality summaries are available, and resolved tool versions.
+`security-report.svg` renders the same high-level status, per-version matrix check results, rollup quality gates (`Code Lowest`, `Code Stable`, `Security`), and resolved tool versions.
 
 ### Workflow Examples
 
