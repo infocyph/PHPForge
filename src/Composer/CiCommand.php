@@ -31,6 +31,6 @@ final class CiCommand extends Command
             return (new Runner($output, false))->run(TaskCatalog::ci(true));
         }
 
-        return (new ParallelRunner($output))->run(TaskCatalog::syntax(), TaskCatalog::testParallel());
+        return (new ParallelRunner($output))->run(TaskCatalog::syntax(), TaskCatalog::testParallelCi());
     }
 }
