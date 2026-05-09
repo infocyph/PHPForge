@@ -183,6 +183,8 @@ while IFS=$'\t' read -r benchmark_job_id benchmark_job_name benchmark_job_conclu
     -H "Accept: application/vnd.github+json" \
     -L "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/jobs/${benchmark_job_id}/logs" > "$benchmark_job_log" 2>/dev/null; then
     parse_benchmark_json_rows "$benchmark_job_log" "$benchmark_php_version" "$benchmark_status" "$benchmark_job_name" >> "$benchmark_rows_file"
+  else
+    echo "::warning::Unable to download logs for benchmark job ${benchmark_job_id} (${benchmark_job_name})."
   fi
 
   after_count="$(wc -l < "$benchmark_rows_file")"
