@@ -253,10 +253,57 @@ jobs:
             exit 1
           fi
 
+  benchmark:
+    needs: prepare
+    if: inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    name: Benchmark - PHP ${{ matrix.php-versions }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-versions: ${{ fromJson(needs.prepare.outputs.php_versions) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-versions }}
+          tools: composer:v2
+          extensions: ${{ inputs.php_extensions }}
+          coverage: none
+
+      - name: Resolve dependencies (prefer-stable)
+        run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable ${{ inputs.composer_flags }}
+
+      - name: Run benchmark command
+        shell: bash
+        run: |
+          benchmark_command="none"
+
+          if composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:bench:quick$'; then
+            benchmark_command="ic:bench:quick"
+          elif composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:test:bench$'; then
+            benchmark_command="ic:test:bench"
+          elif composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:benchmark$'; then
+            benchmark_command="ic:benchmark"
+          elif composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:bench:run$'; then
+            benchmark_command="ic:bench:run"
+          fi
+
+          if [ "$benchmark_command" = "none" ]; then
+            echo "No benchmark command found (expected one of: ic:bench:quick, ic:test:bench, ic:benchmark, ic:bench:run)."
+            exit 0
+          fi
+
+          composer "$benchmark_command"
+
   svg-report:
     needs:
       - run
       - analyze
+      - benchmark
     if: always() && inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     name: Security SVG Report
     runs-on: ubuntu-latest
@@ -288,38 +335,6 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress ${{ inputs.composer_flags }}
 
-      - name: Run benchmark
-        id: benchmark
-        shell: bash
-        run: |
-          mkdir -p .phpforge-report/out
-          benchmark_result="skipped"
-          benchmark_command="none"
-
-          if composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:bench:quick$'; then
-            benchmark_command="ic:bench:quick"
-          elif composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:test:bench$'; then
-            benchmark_command="ic:test:bench"
-          fi
-
-          if [ "$benchmark_command" = "none" ]; then
-            echo "No benchmark command found (expected ic:bench:quick or ic:test:bench)." | tee .phpforge-report/out/benchmark.log
-          else
-            set +e
-            composer "$benchmark_command" | tee .phpforge-report/out/benchmark.log
-            command_exit_code=$?
-            set -e
-
-            if [ "$command_exit_code" -eq 0 ]; then
-              benchmark_result="success"
-            else
-              benchmark_result="failure"
-            fi
-          fi
-
-          echo "benchmark_result=${benchmark_result}" >> "$GITHUB_OUTPUT"
-          echo "benchmark_command=${benchmark_command}" >> "$GITHUB_OUTPUT"
-
       - name: Build SVG report artifacts
         shell: bash
         env:
@@ -331,9 +346,7 @@ jobs:
 
           run_result="${{ needs.run.result }}"
           analyze_result="${{ needs.analyze.result }}"
-          benchmark_result="${{ steps.benchmark.outputs.benchmark_result }}"
-          benchmark_command="${{ steps.benchmark.outputs.benchmark_command }}"
-          benchmark_php_version="${{ steps.report_php.outputs.php_version }}"
+          benchmark_job_result="${{ needs.benchmark.result }}"
           generated_at="$(date -u +"%Y-%m-%d %H:%M UTC")"
           jobs_api_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100"
           short_sha="${GITHUB_SHA::7}"
@@ -426,6 +439,65 @@ jobs:
             ]
           ' <<< "$matrix_results_json")"
 
+          benchmark_command="none"
+
+          if composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:bench:quick$'; then
+            benchmark_command="ic:bench:quick"
+          elif composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:test:bench$'; then
+            benchmark_command="ic:test:bench"
+          elif composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:benchmark$'; then
+            benchmark_command="ic:benchmark"
+          elif composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:bench:run$'; then
+            benchmark_command="ic:bench:run"
+          fi
+
+          benchmark_results_json="$(jq -c '
+            def ts: if . == null or . == "" then null else (fromdateiso8601? // null) end;
+            def dur($start; $end):
+              (($start | ts) as $s | ($end | ts) as $e | if ($s != null and $e != null and $e >= $s) then ((($e - $s) * 1000) | round) else null end);
+            [
+              .jobs // []
+              | map(select(.name | test("(^| / )Benchmark - PHP [0-9]+(\\.[0-9]+)*$")))
+              | .[]
+              | (.name | capture("Benchmark - PHP (?<v>[0-9]+(\\.[0-9]+)*)").v) as $php
+              | ((.steps // []) | map(select(.name == "Run benchmark command")) | first) as $step
+              | {
+                  test: "benchmark",
+                  php_version: $php,
+                  status: (.conclusion // "missing"),
+                  source_job: .name,
+                  generated_by: "benchmark",
+                  duration_ms: (
+                    if ($step | type) == "object"
+                    then dur($step.started_at; $step.completed_at)
+                    else dur(.started_at; .completed_at)
+                    end
+                  )
+                }
+            ]
+            | sort_by(.php_version | split(".") | map(tonumber))
+            | . as $rows
+            | to_entries
+            | map(.value + {
+                delta_ms: (
+                  if .key == 0 or .value.duration_ms == null or $rows[.key - 1].duration_ms == null
+                  then null
+                  else (.value.duration_ms - $rows[.key - 1].duration_ms)
+                  end
+                ),
+                trend: (
+                  if .key == 0 or .value.duration_ms == null or $rows[.key - 1].duration_ms == null
+                  then "baseline"
+                  elif .value.duration_ms < $rows[.key - 1].duration_ms
+                  then "improved"
+                  elif .value.duration_ms > $rows[.key - 1].duration_ms
+                  then "degraded"
+                  else "unchanged"
+                  end
+                )
+              })
+          ' <<< "$jobs_json")"
+
           aggregate_matrix_field() {
             local key="$1"
             local statuses
@@ -450,6 +522,25 @@ jobs:
           code_lowest_rollup="$(aggregate_matrix_field "code_analysis_prefer_lowest")"
           code_stable_rollup="$(aggregate_matrix_field "code_analysis_prefer_stable")"
           security_rollup="$(aggregate_matrix_field "security_analysis")"
+          benchmark_rollup="$(jq -r '
+            if length == 0 then "skipped"
+            else
+              ([.[].status] | unique | join(" ")) as $statuses
+              | if ($statuses | contains("failure")) or ($statuses | contains("cancelled")) or ($statuses | contains("timed_out")) or ($statuses | contains("action_required")) then
+                  "failure"
+                elif ($statuses | contains("missing")) then
+                  "missing"
+                elif ($statuses | contains("success")) and ($statuses | contains("skipped")) then
+                  "partial"
+                elif ($statuses | contains("skipped")) then
+                  "skipped"
+                elif ($statuses | contains("success")) then
+                  "success"
+                else
+                  "partial"
+                end
+            end
+          ' <<< "$benchmark_results_json")"
 
           package_version() {
             local package_name="$1"
@@ -497,33 +588,35 @@ jobs:
             --arg overall_state "$overall_state" \
             --arg run_result "$run_result" \
             --arg analyze_result "$analyze_result" \
+            --arg benchmark_job_result "$benchmark_job_result" \
             --argjson tested_php_versions "$php_versions_input" \
             --argjson matrix_results "$matrix_results_json" \
-            --arg benchmark_result "$benchmark_result" \
             --arg benchmark_command "$benchmark_command" \
-            --arg benchmark_php_version "$benchmark_php_version" \
             --arg code_lowest_rollup "$code_lowest_rollup" \
             --arg code_stable_rollup "$code_stable_rollup" \
             --arg security_rollup "$security_rollup" \
+            --arg benchmark_rollup "$benchmark_rollup" \
             --argjson tools "$tools_json" \
             --argjson check_results "$check_results_json" \
+            --argjson benchmark_results "$benchmark_results_json" \
             '{
               schema: "phpforge-security-summary-v2",
               generated_at: $generated_at,
               overall_state: $overall_state,
               run_result: $run_result,
               analyze_result: $analyze_result,
+              benchmark_job_result: $benchmark_job_result,
               tested_php_versions: $tested_php_versions,
               matrix_results: $matrix_results,
               check_results: $check_results,
+              benchmark_results: $benchmark_results,
               rollup: {
                 code_analysis_prefer_lowest: $code_lowest_rollup,
                 code_analysis_prefer_stable: $code_stable_rollup,
-                security_analysis: $security_rollup
+                security_analysis: $security_rollup,
+                benchmark: $benchmark_rollup
               },
-              benchmark_result: $benchmark_result,
               benchmark_command: $benchmark_command,
-              benchmark_php_version: $benchmark_php_version,
               tools: $tools
             }' > .phpforge-report/out/security-summary.json
 
@@ -686,12 +779,62 @@ jobs:
           append_chip "Code Lowest" "$code_lowest_rollup"
           append_chip "Code Stable" "$code_stable_rollup"
           append_chip "Security" "$security_rollup"
+          append_chip "Benchmark" "$benchmark_rollup"
 
-          if [ "$benchmark_command" != "none" ]; then
-            append_chip "Benchmark" "$benchmark_result"
+          benchmark_title_y=$((chip_y + 54))
+          benchmark_card_y=$((benchmark_title_y + 16))
+          benchmark_chart_svg=""
+          benchmark_row_y=$((benchmark_card_y + 32))
+          benchmark_row_count=0
+          max_benchmark_ms="$(jq -r '[.[].duration_ms // 0] | max // 0' <<< "$benchmark_results_json")"
+
+          if [ "$max_benchmark_ms" = "0" ]; then
+            benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${benchmark_card_y}\" width=\"712\" height=\"54\" rx=\"12\" class=\"section-card\"/>"$'\n'
+            benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"$((benchmark_card_y + 34))\" class=\"matrix-line small-text\">No benchmark timings available.</text>"$'\n'
+            benchmark_row_count=1
+          else
+            while IFS=$'\t' read -r bench_php bench_status bench_duration bench_delta bench_trend; do
+              [ -z "$bench_php" ] && continue
+
+              benchmark_row_count=$((benchmark_row_count + 1))
+              row_height=36
+              row_y=$((benchmark_row_y + (benchmark_row_count - 1) * row_height))
+              row_card_y=$((row_y - 18))
+              label_y=$((row_y + 4))
+              duration_label="${bench_duration} ms"
+              delta_label="n/a"
+              trend_label="baseline"
+
+              if [ "$bench_delta" != "null" ] && [ -n "$bench_delta" ]; then
+                if [ "${bench_delta#-}" != "$bench_delta" ]; then
+                  delta_label="${bench_delta#-} ms faster"
+                elif [ "$bench_delta" = "0" ]; then
+                  delta_label="no change"
+                else
+                  delta_label="${bench_delta} ms slower"
+                fi
+              fi
+
+              if [ -n "$bench_trend" ] && [ "$bench_trend" != "null" ]; then
+                trend_label="$bench_trend"
+              fi
+
+              bar_width=$((bench_duration * 360 / max_benchmark_ms))
+              if [ "$bar_width" -lt 6 ]; then
+                bar_width=6
+              fi
+
+              benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${row_card_y}\" width=\"712\" height=\"30\" rx=\"10\" class=\"section-card\"/>"$'\n'
+              benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"238\" y=\"$((row_card_y + 8))\" width=\"${bar_width}\" height=\"14\" rx=\"7\" fill=\"$(status_fill "$bench_status")\" fill-opacity=\"0.85\"/>"$'\n'
+              benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"${label_y}\" class=\"matrix-line small-text\">PHP $(xml_escape "$bench_php")</text>"$'\n'
+              benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"214\" y=\"${label_y}\" text-anchor=\"end\" class=\"matrix-line small-text\">${duration_label}</text>"$'\n'
+              benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"612\" y=\"${label_y}\" class=\"matrix-line small-text\">$(xml_escape "$delta_label")</text>"$'\n'
+              benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"742\" y=\"${label_y}\" text-anchor=\"end\" class=\"matrix-line small-text\">$(xml_escape "$trend_label")</text>"$'\n'
+            done < <(jq -r '.[] | [.php_version, .status, (.duration_ms // 0), (.delta_ms // "null"), .trend] | @tsv' <<< "$benchmark_results_json")
           fi
 
-          footer_y=$((chip_y + 64))
+          benchmark_section_height=$((benchmark_row_count * 36 + 26))
+          footer_y=$((benchmark_card_y + benchmark_section_height + 18))
           tools_svg=""
           tool_line=""
           tool_line_y=$((footer_y + 34))
@@ -809,6 +952,8 @@ jobs:
           ${matrix_cards_svg}
             <text x="44" y="${quality_title_y}" class="section-title small-text">QUALITY GATES</text>
           ${quality_chips_svg}
+            <text x="44" y="${benchmark_title_y}" class="section-title small-text">BENCHMARK BY PHP VERSION</text>
+          ${benchmark_chart_svg}
             <line x1="44" y1="${footer_y}" x2="756" y2="${footer_y}" class="divider"/>
             <text x="44" y="${tools_label_y}" class="tools-label small-text">Tools:</text>
           ${tools_svg}
@@ -830,7 +975,8 @@ jobs:
             echo "- Run matrix: \`${run_result}\`"
             echo "- Analysis job: \`${analyze_result}\`"
             echo "- Tested PHP versions: \`${tested_versions}\`"
-            echo "- Benchmark: \`${benchmark_result}\` (command: ${benchmark_command}, PHP ${benchmark_php_version})"
+            echo "- Benchmark job: \`${benchmark_job_result}\` (command: ${benchmark_command})"
+            echo "- Benchmark entries: \`$(jq 'length' <<< "$benchmark_results_json")\`"
             echo "- Check entries: \`$(jq 'length' <<< "$check_results_json")\`"
             echo "- Tools: ${tool_versions}"
             echo "- Artifacts: \`security-report.svg\`, \`security-summary.json\`"
