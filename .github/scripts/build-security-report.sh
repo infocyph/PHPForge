@@ -110,75 +110,114 @@ elif composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:bench:run
   benchmark_command="ic:bench:run"
 fi
 
-benchmark_results_json="$(jq -c '
-  def ts: if . == null or . == "" then null else (fromdateiso8601? // null) end;
-  def dur($start; $end):
-    (($start | ts) as $s | ($end | ts) as $e | if ($s != null and $e != null and $e >= $s) then ((($e - $s) * 1000) | round) else null end);
-  def marker:
-    capture("^Benchmark timing marker \\(command=(?<cmd>[^,]+), duration=(?<ms>[0-9]+) ms(?:, metric_ns=(?<metric>[0-9]+), metric_source=(?<source>[a-z_]+))?\\)$");
-  [
-    .jobs // []
-    | map(select(.name | test("(^| / )Benchmark - PHP [0-9]+(\\.[0-9]+)*$")))
-    | .[]
-    | (.name | capture("Benchmark - PHP (?<v>[0-9]+(\\.[0-9]+)*)").v) as $php
-    | ((.steps // []) | map(.name | select(type == "string" and test("^Benchmark timing marker \\(")) | marker) | first) as $marker
-    | ((.steps // []) | map(select(.name == "Run benchmark command")) | first) as $step
-    | {
+benchmark_rows_file=".phpforge-report/out/benchmark-results.ndjson"
+: > "$benchmark_rows_file"
+
+parse_benchmark_json_rows() {
+  local log_file="$1"
+  local php_version="$2"
+  local benchmark_status="$3"
+  local source_job="$4"
+
+  jq -R -s -c \
+    --arg php_version "$php_version" \
+    --arg status "$benchmark_status" \
+    --arg source_job "$source_job" '
+      def normalize_line:
+        if startswith("[") then .
+        else (capture("^(?<prefix>.*)(?<json>\\[\\{.*\\}\\])$")?.json // .)
+        end;
+      def extract_json_array:
+        split("\n")
+        | map(gsub("\r"; ""))
+        | map(sub("[[:space:]]+$"; ""))
+        | map(normalize_line)
+        | map(fromjson? | select(type == "array"))
+        | if length == 0 then null else .[-1] end;
+      (extract_json_array // [])[]
+      | {
+          test: "benchmark",
+          php_version: $php_version,
+          status: $status,
+          source_job: $source_job,
+          generated_by: "benchmark",
+          benchmark: (.benchmark // .benchmark_name // null),
+          subject: (.subject // .subject_name // null),
+          set: (if (.set // "") == "" then null else (.set | tostring) end),
+          revs: ((.revs // null) | if . == null then null else (tonumber? // null) end),
+          its: ((.its // null) | if . == null then null else (tonumber? // null) end),
+          mem_peak: (
+            .mem_peak // .memory_peak // .memory // null
+            | if . == null then null else tostring end
+          ),
+          mode: (
+            .mode // .time_avg // .mean // null
+            | if . == null then null else tostring end
+          ),
+          rstdev: (
+            .rstdev // null
+            | if . == null then null else tostring end
+          )
+        }
+      | select(.subject != null and .mode != null)
+    ' < "$log_file"
+}
+
+while IFS=$'\t' read -r benchmark_job_id benchmark_job_name benchmark_job_conclusion benchmark_php_version; do
+  [ -z "$benchmark_job_id" ] && continue
+
+  benchmark_status="$benchmark_job_conclusion"
+  if [ -z "$benchmark_status" ] || [ "$benchmark_status" = "null" ]; then
+    benchmark_status="missing"
+  fi
+
+  benchmark_job_log=".phpforge-report/out/benchmark-job-${benchmark_job_id}.log"
+  before_count="$(wc -l < "$benchmark_rows_file")"
+
+  if curl -fsSL \
+    -H "Authorization: Bearer ${GH_TOKEN}" \
+    -H "Accept: application/vnd.github+json" \
+    -L "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/jobs/${benchmark_job_id}/logs" > "$benchmark_job_log" 2>/dev/null; then
+    parse_benchmark_json_rows "$benchmark_job_log" "$benchmark_php_version" "$benchmark_status" "$benchmark_job_name" >> "$benchmark_rows_file"
+  fi
+
+  after_count="$(wc -l < "$benchmark_rows_file")"
+  if [ "$after_count" -eq "$before_count" ]; then
+    jq -nc \
+      --arg php_version "$benchmark_php_version" \
+      --arg status "$benchmark_status" \
+      --arg source_job "$benchmark_job_name" \
+      '{
         test: "benchmark",
-        php_version: $php,
-        status: (
-          if ($marker | type) == "object" and ($marker.cmd == "none") then "skipped"
-          else (.conclusion // "missing")
-          end
-        ),
-        source_job: .name,
+        php_version: $php_version,
+        status: $status,
+        source_job: $source_job,
         generated_by: "benchmark",
-        benchmark_metric_ns: (
-          if ($marker | type) == "object" and ($marker.metric? != null) and ($marker.metric != "")
-          then ($marker.metric | tonumber)
-          else null
-          end
-        ),
-        benchmark_metric_source: (
-          if ($marker | type) == "object" and ($marker.source? != null) and ($marker.source != "")
-          then $marker.source
-          else "step_timing"
-          end
-        ),
-        duration_ms: (
-          if ($marker | type) == "object" and ($marker.metric? != null) and ($marker.metric != "")
-          then (($marker.metric | tonumber) / 1000000 | round)
-          elif ($marker | type) == "object"
-          then ($marker.ms | tonumber)
-          elif ($step | type) == "object"
-          then dur($step.started_at; $step.completed_at)
-          else dur(.started_at; .completed_at)
-          end
-        )
-      }
-  ]
-  | sort_by(.php_version | split(".") | map(tonumber))
-  | . as $rows
-  | to_entries
-  | map(.value + {
-      delta_ms: (
-        if .key == 0 or .value.duration_ms == null or $rows[.key - 1].duration_ms == null
-        then null
-        else (.value.duration_ms - $rows[.key - 1].duration_ms)
-        end
-      ),
-      trend: (
-        if .key == 0 or .value.duration_ms == null or $rows[.key - 1].duration_ms == null
-        then "baseline"
-        elif .value.duration_ms < $rows[.key - 1].duration_ms
-        then "improved"
-        elif .value.duration_ms > $rows[.key - 1].duration_ms
-        then "degraded"
-        else "unchanged"
-        end
-      )
-    })
-' <<< "$jobs_json")"
+        benchmark: null,
+        subject: null,
+        set: null,
+        revs: null,
+        its: null,
+        mem_peak: null,
+        mode: null,
+        rstdev: null
+      }' >> "$benchmark_rows_file"
+  fi
+done < <(jq -r '
+  .jobs // []
+  | map(select(.name | test("(^| / )Benchmark - PHP [0-9]+(\\.[0-9]+)*$")))
+  | sort_by((.name | capture("Benchmark - PHP (?<v>[0-9]+(\\.[0-9]+)*)").v | split(".") | map(tonumber)))
+  | .[]
+  | [
+      (.id | tostring),
+      .name,
+      (.conclusion // "missing"),
+      (.name | capture("Benchmark - PHP (?<v>[0-9]+(\\.[0-9]+)*)").v)
+    ]
+  | @tsv
+' <<< "$jobs_json")
+
+benchmark_results_json="$(jq -sc 'sort_by(.php_version | split(".") | map(tonumber), .benchmark // "", .subject // "")' "$benchmark_rows_file")"
 
 aggregate_matrix_field() {
   local key="$1"
@@ -468,54 +507,41 @@ benchmark_card_y=$((benchmark_title_y + 16))
 benchmark_chart_svg=""
 benchmark_row_y=$((benchmark_card_y + 32))
 benchmark_row_count=0
-max_benchmark_ms="$(jq -r '[.[].duration_ms // 0] | max // 0' <<< "$benchmark_results_json")"
+benchmark_display_rows="$(jq -r '
+  .[]
+  | select(.subject != null and .mode != null)
+  | [.php_version, .status, .subject, .mode, (.rstdev // "n/a")]
+  | @tsv
+' <<< "$benchmark_results_json")"
 
-if [ "$max_benchmark_ms" = "0" ]; then
+if [ -z "$benchmark_display_rows" ]; then
   benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${benchmark_card_y}\" width=\"712\" height=\"54\" rx=\"12\" class=\"section-card\"/>"$'\n'
-  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"$((benchmark_card_y + 34))\" class=\"matrix-line small-text\">No benchmark timings available.</text>"$'\n'
+  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"$((benchmark_card_y + 34))\" class=\"matrix-line small-text\">No ic:bench:quick benchmark rows detected.</text>"$'\n'
   benchmark_row_count=1
 else
-  while IFS=$'\t' read -r bench_php bench_status bench_duration bench_delta bench_trend; do
-    [ -z "$bench_php" ] && continue
+  benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"$((benchmark_card_y - 2))\" width=\"712\" height=\"24\" rx=\"8\" class=\"section-card\"/>"$'\n'
+  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"$((benchmark_card_y + 14))\" class=\"matrix-line small-text\">PHP</text>"$'\n'
+  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"154\" y=\"$((benchmark_card_y + 14))\" class=\"matrix-line small-text\">Subject</text>"$'\n'
+  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"612\" y=\"$((benchmark_card_y + 14))\" text-anchor=\"end\" class=\"matrix-line small-text\">Mode</text>"$'\n'
+  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"742\" y=\"$((benchmark_card_y + 14))\" text-anchor=\"end\" class=\"matrix-line small-text\">RSD</text>"$'\n'
 
+  while IFS=$'\t' read -r bench_php bench_status bench_subject bench_mode bench_rstdev; do
+    [ -z "$bench_subject" ] && continue
     benchmark_row_count=$((benchmark_row_count + 1))
-    row_height=36
+    row_height=32
     row_y=$((benchmark_row_y + (benchmark_row_count - 1) * row_height))
-    row_card_y=$((row_y - 18))
-    label_y=$((row_y + 4))
-    duration_label="${bench_duration} ms"
-    delta_label="n/a"
-    trend_label="baseline"
-
-    if [ "$bench_delta" != "null" ] && [ -n "$bench_delta" ]; then
-      if [ "${bench_delta#-}" != "$bench_delta" ]; then
-        delta_label="${bench_delta#-} ms faster"
-      elif [ "$bench_delta" = "0" ]; then
-        delta_label="no change"
-      else
-        delta_label="${bench_delta} ms slower"
-      fi
-    fi
-
-    if [ -n "$bench_trend" ] && [ "$bench_trend" != "null" ]; then
-      trend_label="$bench_trend"
-    fi
-
-    bar_width=$((bench_duration * 360 / max_benchmark_ms))
-    if [ "$bar_width" -lt 6 ]; then
-      bar_width=6
-    fi
-
+    row_card_y=$((row_y - 16))
+    label_y=$((row_y + 3))
     benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${row_card_y}\" width=\"712\" height=\"30\" rx=\"10\" class=\"section-card\"/>"$'\n'
-    benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"238\" y=\"$((row_card_y + 8))\" width=\"${bar_width}\" height=\"14\" rx=\"7\" fill=\"$(status_fill "$bench_status")\" fill-opacity=\"0.85\"/>"$'\n'
-    benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"${label_y}\" class=\"matrix-line small-text\">PHP $(xml_escape "$bench_php")</text>"$'\n'
-    benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"214\" y=\"${label_y}\" text-anchor=\"end\" class=\"matrix-line small-text\">${duration_label}</text>"$'\n'
-    benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"612\" y=\"${label_y}\" class=\"matrix-line small-text\">$(xml_escape "$delta_label")</text>"$'\n'
-    benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"742\" y=\"${label_y}\" text-anchor=\"end\" class=\"matrix-line small-text\">$(xml_escape "$trend_label")</text>"$'\n'
-  done < <(jq -r '.[] | [.php_version, .status, (.duration_ms // 0), (.delta_ms // "null"), .trend] | @tsv' <<< "$benchmark_results_json")
+    benchmark_chart_svg="${benchmark_chart_svg}  <circle cx=\"54\" cy=\"${label_y}\" r=\"5\" fill=\"$(status_fill "$bench_status")\"/>"$'\n'
+    benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"${label_y}\" class=\"matrix-line small-text\">$(xml_escape "$bench_php")</text>"$'\n'
+    benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"154\" y=\"${label_y}\" class=\"matrix-line small-text\">$(xml_escape "$bench_subject")</text>"$'\n'
+    benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"612\" y=\"${label_y}\" text-anchor=\"end\" class=\"matrix-line small-text\">$(xml_escape "$bench_mode")</text>"$'\n'
+    benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"742\" y=\"${label_y}\" text-anchor=\"end\" class=\"matrix-line small-text\">$(xml_escape "$bench_rstdev")</text>"$'\n'
+  done <<< "$benchmark_display_rows"
 fi
 
-benchmark_section_height=$((benchmark_row_count * 36 + 26))
+benchmark_section_height=$((benchmark_row_count * 32 + 54))
 footer_y=$((benchmark_card_y + benchmark_section_height + 18))
 tools_svg=""
 tool_line=""
@@ -634,7 +660,7 @@ cat > .phpforge-report/out/security-report.svg <<SVG
 ${matrix_cards_svg}
   <text x="44" y="${quality_title_y}" class="section-title small-text">QUALITY GATES</text>
 ${quality_chips_svg}
-  <text x="44" y="${benchmark_title_y}" class="section-title small-text">BENCHMARK BY PHP VERSION</text>
+  <text x="44" y="${benchmark_title_y}" class="section-title small-text">BENCHMARK RESULTS (IC:BENCH:QUICK)</text>
 ${benchmark_chart_svg}
   <line x1="44" y1="${footer_y}" x2="756" y2="${footer_y}" class="divider"/>
   <text x="44" y="${tools_label_y}" class="tools-label small-text">Tools:</text>
