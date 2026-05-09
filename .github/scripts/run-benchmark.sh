@@ -73,7 +73,7 @@ for bench_path in \
   fi
 done
 
-echo "Running PHPBench directly: ${phpbench_bin} ${phpbench_args[*]}"
+echo "Running PHPBench JSON command: ${phpbench_bin} ${phpbench_args[*]}"
 
 start_ms="$(date +%s%3N)"
 set +e
@@ -83,55 +83,58 @@ set -e
 end_ms="$(date +%s%3N)"
 duration_ms=$((end_ms - start_ms))
 
-if [ "$command_exit_code" -ne 0 ]; then
-  echo "Direct PHPBench run failed; falling back to composer ${benchmark_command}."
-  start_ms="$(date +%s%3N)"
-  set +e
-  composer "$benchmark_command" 2>&1 | tee "$benchmark_log"
-  command_exit_code="${PIPESTATUS[0]}"
-  set -e
-  end_ms="$(date +%s%3N)"
-  duration_ms=$((end_ms - start_ms))
-fi
-
 if [ "$command_exit_code" -eq 0 ] && [ -f "$benchmark_log" ]; then
   parsed_metric_ns="$(jq -R -s -r '
-    split("\n")
-    | map(fromjson? | select(type == "array"))
-    | if length == 0 then null else .[-1] end
-    | if . == null then null else
-        [ .[]
-          | (.mode? // .mean? // empty)
-          | if type == "number" then .
-            elif type == "string" then
-              (gsub("μs"; "us") | gsub("µs"; "us")
-              | capture("^(?<value>[0-9]+(?:\\.[0-9]+)?)\\s*(?<unit>ns|us|ms|s)$")?) as $m
-              | if $m == null then null
-                else
-                  ($m.value | tonumber) *
-                  (if $m.unit == "ns" then 1
-                   elif $m.unit == "us" then 1000
-                   elif $m.unit == "ms" then 1000000
-                   else 1000000000
-                   end)
-                end
-            else null
-            end
+    def maybe_json_line:
+      if startswith("[") then .
+      else (capture("^(?<prefix>.*)(?<json>\\[\\{.*\\}\\])$")?.json // .)
+      end;
+    def extract_json_array:
+      split("\n")
+      | map(gsub("\r"; ""))
+      | map(sub("[[:space:]]+$"; ""))
+      | map(maybe_json_line)
+      | map(fromjson? | select(type == "array"))
+      | if length == 0 then null else .[-1] end;
+    def to_ns:
+      if type == "number" then (. * 1000)
+      elif type == "string" then
+        (gsub("μs"; "us") | gsub("µs"; "us")
+        | capture("^(?<value>[0-9]+(?:\\.[0-9]+)?)\\s*(?<unit>ns|us|ms|s)$")?) as $m
+        | if $m == null then null
+          else
+            ($m.value | tonumber) *
+            (if $m.unit == "ns" then 1
+             elif $m.unit == "us" then 1000
+             elif $m.unit == "ms" then 1000000
+             else 1000000000
+             end)
+          end
+      else null
+      end;
+    (extract_json_array) as $rows
+    | if $rows == null then ""
+      else
+        [
+          $rows[]
+          | (.mode? // .mean? // .time_avg? // empty)
+          | to_ns
         ]
         | map(select(. != null))
-        | if length == 0 then null else (add / length | round) end
+        | if length == 0 then "" else (add / length | round | tostring) end
       end
-    | if . == null then "" else tostring end
   ' < "$benchmark_log")"
 
   if [ -n "$parsed_metric_ns" ] && [ "$parsed_metric_ns" != "null" ]; then
     benchmark_metric_ns="$parsed_metric_ns"
     benchmark_metric_source="phpbench_json"
+  else
+    benchmark_metric_ns=$((duration_ms * 1000000))
+    benchmark_metric_source="elapsed"
   fi
-fi
-
-if [ "$benchmark_metric_source" = "elapsed" ]; then
+else
   benchmark_metric_ns=$((duration_ms * 1000000))
+  benchmark_metric_source="elapsed"
 fi
 
 echo "benchmark_command=${benchmark_command}" >> "$GITHUB_OUTPUT"
