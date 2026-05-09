@@ -475,7 +475,7 @@ final class TaskCatalog
      */
     private static function pestConfigArgs(): array
     {
-        $configPath = Paths::firstConfig(['pest.xml', 'phpunit.xml', 'pest.xml.dist', 'phpunit.xml.dist']);
+        $configPath = Paths::firstConfig(['pest.xml', 'pest.xml.dist', 'phpunit.xml', 'phpunit.xml.dist']);
         $args = ['--configuration', $configPath];
 
         if (!self::isBundledConfig($configPath)) {
