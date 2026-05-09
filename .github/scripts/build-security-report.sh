@@ -125,16 +125,13 @@ parse_benchmark_json_rows() {
     --arg source_job "$source_job" '
       def flatten_rows:
         if type == "array" then .[] | flatten_rows else . end;
-      def normalize_line:
-        if startswith("[") then .
-        else ((capture("(?<json>\\[\\{.*\\}\\])") | .json)? // .)
-        end;
       def extract_json_array:
-        split("\n")
-        | map(gsub("\r"; ""))
-        | map(gsub("\u001b\\[[0-9;]*[A-Za-z]"; ""))
-        | map(sub("[[:space:]]+$"; ""))
-        | map(normalize_line)
+        (gsub("\r"; "") | gsub("\u001b\\[[0-9;]*[A-Za-z]"; "")) as $clean
+        | [
+            $clean
+            | match("\\[\\{.*?\\}\\]"; "gm")
+            | .string
+          ]
         | map(fromjson? | select(type == "array"))
         | if length == 0 then null else .[-1] end;
       ((extract_json_array // []) | flatten_rows)
@@ -176,13 +173,25 @@ while IFS=$'\t' read -r benchmark_job_id benchmark_job_name benchmark_job_conclu
   fi
 
   benchmark_job_log=".phpforge-report/out/benchmark-job-${benchmark_job_id}.log"
+  benchmark_job_rows=".phpforge-report/out/benchmark-job-${benchmark_job_id}.rows.ndjson"
   before_count="$(wc -l < "$benchmark_rows_file")"
 
   if curl -fsSL \
     -H "Authorization: Bearer ${GH_TOKEN}" \
     -H "Accept: application/vnd.github+json" \
     -L "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/jobs/${benchmark_job_id}/logs" > "$benchmark_job_log" 2>/dev/null; then
-    parse_benchmark_json_rows "$benchmark_job_log" "$benchmark_php_version" "$benchmark_status" "$benchmark_job_name" >> "$benchmark_rows_file"
+    parse_benchmark_json_rows "$benchmark_job_log" "$benchmark_php_version" "$benchmark_status" "$benchmark_job_name" > "$benchmark_job_rows"
+    parsed_row_count="$(wc -l < "$benchmark_job_rows")"
+    if [ "$parsed_row_count" -gt 0 ]; then
+      cat "$benchmark_job_rows" >> "$benchmark_rows_file"
+    else
+      sample_json_line="$(grep -Eo '\[\{.*\}\]' "$benchmark_job_log" | head -n 1 || true)"
+      if [ -n "$sample_json_line" ]; then
+        echo "::warning::Benchmark log ${benchmark_job_id} contained JSON-like payload, but parser produced zero rows."
+      else
+        echo "::warning::Benchmark log ${benchmark_job_id} did not contain detectable JSON payload."
+      fi
+    fi
   else
     echo "::warning::Unable to download logs for benchmark job ${benchmark_job_id} (${benchmark_job_name})."
   fi
