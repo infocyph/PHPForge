@@ -33,7 +33,6 @@ it('applies strict phpprobe preset to bundled config json', function (): void {
     $command = new PublishConfigCommand();
     $source = file_get_contents(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpprobe.json');
     $method = new ReflectionMethod(PublishConfigCommand::class, 'applyPhpprobePreset');
-    $method->setAccessible(true);
     $result = $method->invoke($command, $source, 'strict');
 
     $decoded = is_string($result) ? json_decode($result, true) : null;
@@ -46,7 +45,6 @@ it('normalizes legacy phpprobe preset aliases to current preset names', function
     $command = new PublishConfigCommand();
     $source = '{"preset":"standard"}';
     $method = new ReflectionMethod(PublishConfigCommand::class, 'applyPhpprobePreset');
-    $method->setAccessible(true);
 
     $phpstorm = $method->invoke($command, $source, 'phpstorm');
     $legacyStandard = $method->invoke($command, $source, 'legacy-standard');
@@ -58,7 +56,6 @@ it('normalizes legacy phpprobe preset aliases to current preset names', function
 it('returns null when phpprobe config content is invalid json', function (): void {
     $command = new PublishConfigCommand();
     $method = new ReflectionMethod(PublishConfigCommand::class, 'applyPhpprobePreset');
-    $method->setAccessible(true);
     $result = $method->invoke($command, '{broken', 'strict');
 
     expect($result)->toBeNull();
@@ -66,7 +63,6 @@ it('returns null when phpprobe config content is invalid json', function (): voi
 
 it('throws for unknown phpprobe preset definitions', function (): void {
     $method = new ReflectionMethod(PublishConfigCommand::class, 'phpprobePreset');
-    $method->setAccessible(true);
 
     expect(fn () => $method->invoke(null, 'nope'))->toThrow(InvalidArgumentException::class);
 });
@@ -74,7 +70,6 @@ it('throws for unknown phpprobe preset definitions', function (): void {
 it('rejects unsupported file selections for publish-config', function (): void {
     $command = new PublishConfigCommand();
     $method = new ReflectionMethod(PublishConfigCommand::class, 'validatedFiles');
-    $method->setAccessible(true);
     $output = new BufferedOutput();
 
     $result = $method->invoke($command, ['../outside.txt'], $output);
@@ -100,7 +95,6 @@ it('fails publish when target config path is not writable', function (): void {
     try {
         $command = new PublishConfigCommand();
         $method = new ReflectionMethod(PublishConfigCommand::class, 'publishFile');
-        $method->setAccessible(true);
         $output = new BufferedOutput();
 
         set_error_handler(static fn (): bool => true);
