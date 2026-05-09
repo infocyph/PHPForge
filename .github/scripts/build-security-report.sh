@@ -134,7 +134,10 @@ parse_benchmark_json_rows() {
         | map(normalize_line)
         | map(fromjson? | select(type == "array"))
         | if length == 0 then null else .[-1] end;
-      (extract_json_array // [])[]
+      (
+        (extract_json_array // [])
+        | map(if type == "array" then .[] else . end)
+      )[]
       | {
           test: "benchmark",
           php_version: $php_version,
@@ -217,7 +220,24 @@ done < <(jq -r '
   | @tsv
 ' <<< "$jobs_json")
 
-benchmark_results_json="$(jq -sc 'sort_by(.php_version | split(".") | map(tonumber), .benchmark // "", .subject // "")' "$benchmark_rows_file")"
+benchmark_results_json="$(jq -sc '
+  map(
+    if type == "array" then .[]
+    else .
+    end
+  )
+  | map(select(type == "object"))
+  | sort_by(.php_version | split(".") | map(tonumber), .benchmark // "", .subject // "")
+' "$benchmark_rows_file")"
+
+if jq -e '
+  ([ .[] | select(.test == "benchmark") | .status ] | unique) as $statuses
+  | (([ .[] | select(.test == "benchmark" and .subject != null and .mode != null) ] | length) == 0) as $no_rows
+  | ($statuses | index("success") != null) and $no_rows
+' >/dev/null <<< "$benchmark_results_json"; then
+  echo "::error::Benchmark job succeeded, but no benchmark rows were parsed from PHPBench JSON output."
+  exit 1
+fi
 
 aggregate_matrix_field() {
   local key="$1"
