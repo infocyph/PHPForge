@@ -112,6 +112,49 @@ fi
 
 benchmark_rows_file=".phpforge-report/out/benchmark-results.ndjson"
 : > "$benchmark_rows_file"
+benchmark_artifact_dir=".phpforge-report/in/benchmark"
+
+parse_benchmark_results_file() {
+  local results_file="$1"
+  local php_version="$2"
+  local benchmark_status="$3"
+  local source_job="$4"
+
+  jq -c \
+    --arg php_version "$php_version" \
+    --arg status "$benchmark_status" \
+    --arg source_job "$source_job" '
+      def flatten_rows:
+        if type == "array" then .[] | flatten_rows else . end;
+      ((. // []) | flatten_rows)
+      | select(type == "object")
+      | {
+          test: "benchmark",
+          php_version: $php_version,
+          status: $status,
+          source_job: $source_job,
+          generated_by: "benchmark",
+          benchmark: (.benchmark // .benchmark_name // null),
+          subject: (.subject // .subject_name // null),
+          set: (if (.set // "") == "" then null else (.set | tostring) end),
+          revs: ((.revs // null) | if . == null then null else (tonumber? // null) end),
+          its: ((.its // null) | if . == null then null else (tonumber? // null) end),
+          mem_peak: (
+            .mem_peak // .memory_peak // .memory // null
+            | if . == null then null else tostring end
+          ),
+          mode: (
+            .mode // .time_avg // .mean // null
+            | if . == null then null else tostring end
+          ),
+          rstdev: (
+            .rstdev // null
+            | if . == null then null else tostring end
+          )
+        }
+      | select(.subject != null and .mode != null)
+    ' < "$results_file"
+}
 
 parse_benchmark_json_rows() {
   local log_file="$1"
@@ -174,9 +217,18 @@ while IFS=$'\t' read -r benchmark_job_id benchmark_job_name benchmark_job_conclu
 
   benchmark_job_log=".phpforge-report/out/benchmark-job-${benchmark_job_id}.log"
   benchmark_job_rows=".phpforge-report/out/benchmark-job-${benchmark_job_id}.rows.ndjson"
+  benchmark_artifact_file="${benchmark_artifact_dir}/benchmark-results-php-${benchmark_php_version}.json"
   before_count="$(wc -l < "$benchmark_rows_file")"
 
-  if curl -fsSL \
+  if [ -f "$benchmark_artifact_file" ]; then
+    parse_benchmark_results_file "$benchmark_artifact_file" "$benchmark_php_version" "$benchmark_status" "$benchmark_job_name" > "$benchmark_job_rows"
+    parsed_row_count="$(wc -l < "$benchmark_job_rows")"
+    if [ "$parsed_row_count" -gt 0 ]; then
+      cat "$benchmark_job_rows" >> "$benchmark_rows_file"
+    else
+      echo "::warning::Benchmark artifact for PHP ${benchmark_php_version} had no parseable rows."
+    fi
+  elif curl -fsSL \
     -H "Authorization: Bearer ${GH_TOKEN}" \
     -H "Accept: application/vnd.github+json" \
     -L "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/jobs/${benchmark_job_id}/logs" > "$benchmark_job_log" 2>/dev/null; then
@@ -193,7 +245,7 @@ while IFS=$'\t' read -r benchmark_job_id benchmark_job_name benchmark_job_conclu
       fi
     fi
   else
-    echo "::warning::Unable to download logs for benchmark job ${benchmark_job_id} (${benchmark_job_name})."
+    echo "::warning::No benchmark artifact for PHP ${benchmark_php_version}, and unable to download logs for job ${benchmark_job_id} (${benchmark_job_name})."
   fi
 
   after_count="$(wc -l < "$benchmark_rows_file")"
