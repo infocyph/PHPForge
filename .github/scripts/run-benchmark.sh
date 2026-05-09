@@ -87,7 +87,7 @@ if [ "$command_exit_code" -eq 0 ] && [ -f "$benchmark_log" ]; then
   parsed_metric_ns="$(jq -R -s -r '
     def maybe_json_line:
       if startswith("[") then .
-      else (capture("^(?<prefix>.*)(?<json>\\[\\{.*\\}\\])$")?.json // .)
+      else ((capture("^(?<prefix>.*)(?<json>\\[\\{.*\\}\\])$") | .json)? // .)
       end;
     def extract_json_array:
       split("\n")

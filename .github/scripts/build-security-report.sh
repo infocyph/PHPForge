@@ -125,7 +125,7 @@ parse_benchmark_json_rows() {
     --arg source_job "$source_job" '
       def normalize_line:
         if startswith("[") then .
-        else (capture("^(?<prefix>.*)(?<json>\\[\\{.*\\}\\])$")?.json // .)
+        else ((capture("^(?<prefix>.*)(?<json>\\[\\{.*\\}\\])$") | .json)? // .)
         end;
       def extract_json_array:
         split("\n")
