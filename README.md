@@ -170,6 +170,7 @@ composer ic:init --force
 | `composer ic:test:lint`       | Runs Pint in check mode.                                                                                                                                       |
 | `composer ic:test:sniff`      | Runs PHPCS with a full report against the project root and bundled/project excludes.                                                                           |
 | `composer ic:test:duplicates` | Runs duplicate detection using `phpprobe.json`.                                                                                                              |
+| `composer ic:test:probe`      | Runs aggregate PHPProbe checks (syntax, duplicates, api, comments) using `phpprobe.json`.                                                                  |
 | `composer ic:test:api`        | Runs API snapshot checks using `phpprobe.json`.                                                                                                              |
 | `composer ic:test:comments`   | Runs comment policy checks using `phpprobe.json`.                                                                                                            |
 | `composer ic:test:architecture` | Runs Deptrac architecture checks using `deptrac.yaml`.                                                                                                    |
@@ -179,16 +180,18 @@ composer ic:init --force
 | `composer ic:test:bench`      | Runs PHPBench aggregate benchmarks.                                                                                                                            |
 
 Syntax, duplicates, API snapshot, and comments settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
-PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge api`, and `phpforge comments` commands are thin compatibility gateways that pass the same config to PHPProbe.
+PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge api`, `phpforge comments`, and `phpforge check` commands are thin compatibility gateways that pass the same config to PHPProbe.
 By default the bundled config uses preset-based behavior, so defaults come from the selected PHPProbe preset and can still be overridden per section in `phpprobe.json`.
 Use the lower-level binary for custom scans; CLI paths override configured paths, while CLI excludes are added to configured excludes:
 
 ```bash
 php vendor/bin/phpprobe syntax --config=phpprobe.json --exclude=storage
+php vendor/bin/phpprobe check --config=phpprobe.json
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --min-lines=5 --min-tokens=70
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --mode=audit --near-miss --json --exclude=tests
 php vendor/bin/phpprobe api --config=phpprobe.json --baseline=.phpprobe-api-baseline.json
 php vendor/bin/phpprobe comments --config=phpprobe.json --fail-on=warning
+php vendor/bin/phpprobe comments --config=phpprobe.json --ci
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --write-baseline=.phpprobe-duplicates-baseline.json
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --baseline=.phpprobe-duplicates-baseline.json
 ```
@@ -197,8 +200,8 @@ Useful checker options:
 
 | Option                      | Applies To         | Purpose                                                                 |
 | --------------------------- | ------------------ | ----------------------------------------------------------------------- |
-| `--config=FILE`           | Syntax, duplicates, api, comments | Reads checker settings from a custom `phpprobe.json` file.            |
-| `--preset=NAME`           | Syntax, duplicates, api, comments | Applies a runtime preset (`default`, `standard`, `ci`, `strict`).     |
+| `--config=FILE`           | Syntax, duplicates, api, comments, check | Reads checker settings from a custom `phpprobe.json` file.       |
+| `--preset=NAME`           | Syntax, duplicates, api, comments, check | Applies a runtime preset (`default`, `standard`, `ci`, `strict`). |
 | `--exclude=PATH`          | Syntax, duplicates, api, comments | Excludes one path; repeat it for multiple one-off exclusions.           |
 | `--exact`                 | Duplicates         | Disables variable/literal normalization.                                |
 | `--fuzzy`                 | Duplicates         | Also normalizes identifiers and calls for renamed-code scans.           |
@@ -211,6 +214,7 @@ Useful checker options:
 | `--baseline=FILE`         | Duplicates, api    | Suppresses known clone groups or compares API snapshots against a baseline. |
 | `--write-baseline[=FILE]` | Duplicates, api    | Writes duplicate-clone or API snapshot baselines and exits successfully. |
 | `--strict`                | Comments           | Escalates commented-out-code policy severities.                         |
+| `--ci`                    | Comments           | Emits only error-level findings (clean CI logs).                        |
 | `--json`                  | Duplicates         | Emits machine-readable JSON.                                            |
 
 ### CI Commands
@@ -514,6 +518,7 @@ with:
 ```
 
 Normal workflow workers run `composer ic:ci`, which delegates to the same bounded parallel runner as `ic:tests:parallel`.
+The CI path uses `phpprobe comments --ci`, so comment-policy output stays error-focused in workflow logs.
 When the matrix entry is `prefer-lowest`, PHPForge still runs `composer ic:ci --prefer-lowest`, skipping heavyweight PHPStan and Psalm checks for that dependency edge.
 
 `php_extensions` is passed to `shivammathur/setup-php`:

@@ -24,11 +24,18 @@ it('formats comment checks with a friendly title', function (): void {
         ->toBe('Comment Policy');
 });
 
+it('formats aggregate PHPProbe checks with a friendly title', function (): void {
+    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpforge', 'check']))
+        ->toBe('PHPProbe Checks');
+});
+
 it('formats phpprobe checker tasks with friendly titles', function (): void {
     expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'syntax']))
         ->toBe('Checking Syntax')
         ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'duplicates']))
         ->toBe('Duplicate Code')
+        ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'check']))
+        ->toBe('PHPProbe Checks')
         ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'comments']))
         ->toBe('Comment Policy')
         ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'api']))
@@ -36,10 +43,10 @@ it('formats phpprobe checker tasks with friendly titles', function (): void {
 });
 
 it('formats deptrac tasks with config-file labels', function (): void {
-    $projectConfig = getcwd().DIRECTORY_SEPARATOR.'deptrac.yaml';
+    $projectConfig = getcwd() . DIRECTORY_SEPARATOR . 'deptrac.yaml';
 
-    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/deptrac', 'analyse', '--config-file='.$projectConfig]))
-        ->toBe('Deptrac (Config: '.str_replace('\\', '/', $projectConfig).')');
+    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/deptrac', 'analyse', '--config-file=' . $projectConfig]))
+        ->toBe('Deptrac (Config: ' . str_replace('\\', '/', $projectConfig) . ')');
 });
 
 it('formats composer normalize with a friendly title', function (): void {
@@ -48,11 +55,11 @@ it('formats composer normalize with a friendly title', function (): void {
 });
 
 it('labels config paths clearly', function (): void {
-    $projectConfig = getcwd().DIRECTORY_SEPARATOR.'pest.xml';
+    $projectConfig = getcwd() . DIRECTORY_SEPARATOR . 'pest.xml';
     $resolvedConfig = realpath($projectConfig);
 
     expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/pest', '--configuration', $projectConfig]))
-        ->toBe('Pest (Config: '.str_replace('\\', '/', is_string($resolvedConfig) ? $resolvedConfig : $projectConfig).')');
+        ->toBe('Pest (Config: ' . str_replace('\\', '/', is_string($resolvedConfig) ? $resolvedConfig : $projectConfig) . ')');
 });
 
 it('labels bundled vendor config paths as config paths', function (): void {

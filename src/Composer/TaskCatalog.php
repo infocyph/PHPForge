@@ -15,7 +15,7 @@ final class TaskCatalog
      */
     public static function api(): array
     {
-        return [[Paths::php(), Paths::bin('phpprobe'), 'api', '--config', Paths::config('phpprobe.json')]];
+        return [self::probeCommand('api')];
     }
 
     /**
@@ -56,7 +56,7 @@ final class TaskCatalog
     public static function ci(bool $skipHeavyAnalysis = false): array
     {
         if (!$skipHeavyAnalysis) {
-            return self::testAll();
+            return self::testAllCi();
         }
 
         return [
@@ -66,7 +66,7 @@ final class TaskCatalog
             ...self::sniff(),
             ...self::duplicates(),
             ...self::api(),
-            ...self::comments(),
+            ...self::commentsCi(),
             ...self::architecture(),
             ...self::refactorCheck(),
         ];
@@ -77,7 +77,15 @@ final class TaskCatalog
      */
     public static function comments(): array
     {
-        return [[Paths::php(), Paths::bin('phpprobe'), 'comments', '--config', Paths::config('phpprobe.json')]];
+        return [self::probeCommand('comments')];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    public static function commentsCi(): array
+    {
+        return [self::probeCommand('comments', ['--ci'])];
     }
 
     /**
@@ -125,6 +133,14 @@ final class TaskCatalog
     public static function normalizeComposer(): array
     {
         return [['composer', 'normalize']];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    public static function probeCheck(): array
+    {
+        return [self::probeCommand('check')];
     }
 
     /**
@@ -215,7 +231,7 @@ final class TaskCatalog
      */
     public static function syntax(): array
     {
-        return [[Paths::php(), Paths::bin('phpprobe'), 'syntax', '--config', Paths::config('phpprobe.json')]];
+        return [self::probeCommand('syntax')];
     }
 
     /**
@@ -231,6 +247,26 @@ final class TaskCatalog
             ...self::duplicates(),
             ...self::api(),
             ...self::comments(),
+            ...self::architecture(),
+            ...self::staticAnalysis(),
+            [Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
+            ...self::refactorCheck(),
+        ];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    public static function testAllCi(): array
+    {
+        return [
+            ...self::syntax(),
+            [Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), ...self::pestParallelArgs()],
+            [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
+            [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
+            ...self::duplicates(),
+            ...self::api(),
+            ...self::commentsCi(),
             ...self::architecture(),
             ...self::staticAnalysis(),
             [Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
@@ -272,6 +308,14 @@ final class TaskCatalog
     public static function testParallel(): array
     {
         return array_slice(self::testAll(), count(self::syntax()));
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    public static function testParallelCi(): array
+    {
+        return array_slice(self::testAllCi(), count(self::syntax()));
     }
 
     private static function absoluteProjectPath(string $projectRoot, string $path): string
@@ -480,6 +524,15 @@ final class TaskCatalog
         $value = getenv('IC_PHPSTAN_MEMORY_LIMIT');
 
         return is_string($value) && $value !== '' ? $value : '1G';
+    }
+
+    /**
+     * @param list<string> $extraArgs
+     * @return list<string>
+     */
+    private static function probeCommand(string $subcommand, array $extraArgs = []): array
+    {
+        return [Paths::php(), Paths::bin('phpprobe'), $subcommand, '--config', Paths::config('phpprobe.json'), ...$extraArgs];
     }
 
     private static function psalmThreads(): string

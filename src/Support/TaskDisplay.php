@@ -7,6 +7,17 @@ namespace Infocyph\PHPForge\Support;
 final class TaskDisplay
 {
     /**
+     * @var array<string, string>
+     */
+    private const PROBE_TITLES = [
+        'syntax' => 'Checking Syntax',
+        'duplicates' => 'Duplicate Code',
+        'check' => 'PHPProbe Checks',
+        'comments' => 'Comment Policy',
+        'api' => 'Public API',
+    ];
+
+    /**
      * @param list<string> $task
      */
     public static function heading(array $task): string
@@ -151,14 +162,7 @@ final class TaskDisplay
         $subcommand = $parsed['subcommand'];
 
         return match (true) {
-            $tool === 'phpprobe' && $subcommand === 'syntax' => 'Checking Syntax',
-            $tool === 'phpprobe' && $subcommand === 'duplicates' => 'Duplicate Code',
-            $tool === 'phpprobe' && $subcommand === 'comments' => 'Comment Policy',
-            $tool === 'phpprobe' && $subcommand === 'api' => 'Public API',
-            $tool === 'phpforge' && $subcommand === 'syntax' => 'Checking Syntax',
-            $tool === 'phpforge' && $subcommand === 'duplicates' => 'Duplicate Code',
-            $tool === 'phpforge' && $subcommand === 'api' => 'Public API',
-            $tool === 'phpforge' && $subcommand === 'comments' => 'Comment Policy',
+            in_array($tool, ['phpprobe', 'phpforge'], true) && isset(self::PROBE_TITLES[$subcommand]) => self::PROBE_TITLES[$subcommand],
             $tool === 'phpforge' && $subcommand === 'audit' => 'Composer Audit',
             $tool === 'composer' && $subcommand === 'validate' => 'Composer Validate',
             $tool === 'composer' && $subcommand === 'normalize' => 'Composer Normalize',

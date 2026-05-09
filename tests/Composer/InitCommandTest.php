@@ -9,7 +9,6 @@ use Symfony\Component\Console\Output\BufferedOutput;
 it('normalizes json string list settings for workflow template rendering', function (): void {
     $command = new InitCommand();
     $method = new ReflectionMethod(InitCommand::class, 'normalizedJsonStringList');
-    $method->setAccessible(true);
     $output = new BufferedOutput();
 
     $normalized = $method->invoke($command, '["8.4","8.5"]', 'php_versions', $output);
@@ -20,7 +19,6 @@ it('normalizes json string list settings for workflow template rendering', funct
 it('rejects invalid workflow ref values', function (): void {
     $command = new InitCommand();
     $method = new ReflectionMethod(InitCommand::class, 'validatedWorkflowRef');
-    $method->setAccessible(true);
     $output = new BufferedOutput();
 
     $result = $method->invoke($command, 'main bad', $output);
@@ -32,7 +30,6 @@ it('rejects invalid workflow ref values', function (): void {
 it('rejects multiline scalar workflow settings', function (): void {
     $command = new InitCommand();
     $method = new ReflectionMethod(InitCommand::class, 'singleLineValue');
-    $method->setAccessible(true);
     $output = new BufferedOutput();
 
     $result = $method->invoke($command, "line1\nline2", 'composer_flags', $output);

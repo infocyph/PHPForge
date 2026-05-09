@@ -8,14 +8,14 @@ use Infocyph\PHPForge\Support\TaskDisplay;
 
 function mirrorTaskCatalogConfig(string $projectRoot, string $file): string
 {
-    $vendorResources = $projectRoot.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'infocyph'.DIRECTORY_SEPARATOR.'phpforge'.DIRECTORY_SEPARATOR.'resources';
+    $vendorResources = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'infocyph' . DIRECTORY_SEPARATOR . 'phpforge' . DIRECTORY_SEPARATOR . 'resources';
 
     if (!is_dir($vendorResources)) {
         mkdir($vendorResources, 0755, true);
     }
 
-    $target = $vendorResources.DIRECTORY_SEPARATOR.$file;
-    copy(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.$file, $target);
+    $target = $vendorResources . DIRECTORY_SEPARATOR . $file;
+    copy(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . $file, $target);
 
     return $target;
 }
@@ -51,7 +51,7 @@ function withTaskCatalogEnv(string $name, ?string $value, callable $callback): v
     if ($value === null) {
         putenv($name);
     } else {
-        putenv($name.'='.$value);
+        putenv($name . '=' . $value);
     }
 
     try {
@@ -63,7 +63,7 @@ function withTaskCatalogEnv(string $name, ?string $value, callable $callback): v
             return;
         }
 
-        putenv($name.'='.$previous);
+        putenv($name . '=' . $previous);
     }
 }
 
@@ -111,6 +111,24 @@ it('runs comment policy checks with the PHPProbe checker config', function (): v
         ->and(TaskCatalog::comments()[0])->toContain(Paths::packageFile('resources/phpprobe.json'));
 });
 
+it('runs CI comment policy checks with error-focused output', function (): void {
+    $command = TaskCatalog::commentsCi()[0];
+
+    expect($command)->toContain('comments')
+        ->and($command)->toContain('--ci')
+        ->and($command)->toContain('--config')
+        ->and($command)->toContain(Paths::packageFile('resources/phpprobe.json'));
+});
+
+it('runs aggregated PHPProbe checks with the PHPProbe checker config', function (): void {
+    $command = TaskCatalog::probeCheck()[0];
+
+    expect(basename(str_replace('\\', '/', $command[1])))->toBe('phpprobe')
+        ->and($command)->toContain('check')
+        ->and($command)->toContain('--config')
+        ->and($command)->toContain(Paths::packageFile('resources/phpprobe.json'));
+});
+
 it('runs syntax checks with the PHPProbe checker config', function (): void {
     $command = TaskCatalog::syntax()[0];
 
@@ -126,13 +144,18 @@ it('runs architecture checks with the bundled deptrac config', function (): void
     expect(basename(str_replace('\\', '/', $command[1])))->toBe('deptrac')
         ->and($command)->toContain('--no-cache')
         ->and($command)->toContain('analyse')
-        ->and($command)->toContain('--config-file='.Paths::packageFile('resources/deptrac.yaml'))
+        ->and($command)->toContain('--config-file=' . Paths::packageFile('resources/deptrac.yaml'))
         ->and($command)->toContain('--no-progress');
 });
 
 it('keeps syntax as preflight for parallel tests', function (): void {
     expect(TaskCatalog::testParallel())->not()->toContain(TaskCatalog::syntax()[0])
         ->and(TaskDisplay::heading(TaskCatalog::testParallel()[0]))->toStartWith('Pest');
+});
+
+it('keeps syntax as preflight for CI parallel tests', function (): void {
+    expect(TaskCatalog::testParallelCi())->not()->toContain(TaskCatalog::syntax()[0])
+        ->and(TaskDisplay::heading(TaskCatalog::testParallelCi()[0]))->toStartWith('Pest');
 });
 
 it('runs pest in parallel by default for full test suites', function (): void {
@@ -183,9 +206,9 @@ it('allows disabling pest parallel in full test suites', function (): void {
 
 it('uses the bundled phpbench config directly for consuming projects', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-task-catalog-'.uniqid('', true);
-    $benchmarksPath = $projectRoot.DIRECTORY_SEPARATOR.'benchmarks';
-    $bootstrapPath = $projectRoot.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'autoload.php';
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
+    $benchmarksPath = $projectRoot . DIRECTORY_SEPARATOR . 'benchmarks';
+    $bootstrapPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
 
     mkdir($projectRoot, 0755, true);
     $configPath = mirrorTaskCatalogConfig($projectRoot, 'phpbench.json');
@@ -224,10 +247,10 @@ it('uses the bundled phpbench config directly for consuming projects', function 
 
 it('uses the bundled pest config directly for consuming projects', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-task-catalog-'.uniqid('', true);
-    $testsPath = $projectRoot.DIRECTORY_SEPARATOR.'tests';
-    $vendorPath = $projectRoot.DIRECTORY_SEPARATOR.'vendor';
-    $autoloadPath = $vendorPath.DIRECTORY_SEPARATOR.'autoload.php';
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
+    $testsPath = $projectRoot . DIRECTORY_SEPARATOR . 'tests';
+    $vendorPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor';
+    $autoloadPath = $vendorPath . DIRECTORY_SEPARATOR . 'autoload.php';
 
     mkdir($projectRoot, 0755, true);
     $configPath = mirrorTaskCatalogConfig($projectRoot, 'pest.xml');
@@ -256,20 +279,20 @@ it('uses the bundled pest config directly for consuming projects', function (): 
 it('uses the project captainhook config when present', function (): void {
     $command = TaskCatalog::hooks()[0];
 
-    expect($command)->toContain('--configuration='.getcwd().DIRECTORY_SEPARATOR.'captainhook.json');
+    expect($command)->toContain('--configuration=' . getcwd() . DIRECTORY_SEPARATOR . 'captainhook.json');
 });
 
 it('lets project phpstan config define analysed paths', function (): void {
     $command = TaskCatalog::staticAnalysis()[0];
-    expect($command)->toContain('--configuration='.Paths::packageFile('resources/phpstan.neon.dist'));
+    expect($command)->toContain('--configuration=' . Paths::packageFile('resources/phpstan.neon.dist'));
     expect($command)->not()->toContain('src');
     expect($command)->not()->toContain('app');
 });
 
 it('uses the bundled phpstan config directly for consuming projects', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-task-catalog-'.uniqid('', true);
-    $srcPath = $projectRoot.DIRECTORY_SEPARATOR.'src';
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
+    $srcPath = $projectRoot . DIRECTORY_SEPARATOR . 'src';
 
     mkdir($projectRoot, 0755, true);
     $configPath = mirrorTaskCatalogConfig($projectRoot, 'phpstan.neon.dist');
@@ -280,7 +303,7 @@ it('uses the bundled phpstan config directly for consuming projects', function (
     try {
         $command = TaskCatalog::staticAnalysis()[0];
 
-        expect($command)->toContain('--configuration='.$configPath);
+        expect($command)->toContain('--configuration=' . $configPath);
         expect($command)->toContain('.');
         expect($command)->not()->toContain('app');
     } finally {

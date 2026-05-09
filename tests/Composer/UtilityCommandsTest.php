@@ -44,7 +44,6 @@ function removeUtilityCommandsTree(string $path): void
 function runComposerCommand(Command $command, array $input = [], array $options = []): array
 {
     $execute = new ReflectionMethod($command, 'execute');
-    $execute->setAccessible(true);
     $definition = new InputDefinition($options);
     $arrayInput = new ArrayInput($input, $definition);
     $output = new BufferedOutput();
