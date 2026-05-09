@@ -108,7 +108,7 @@ it('hard fails for consuming projects when project and vendor configs are missin
     }
 });
 
-it('ignores source-tree resources for non-PHPForge consuming projects', function (): void {
+it('uses source-tree resources for non-PHPForge consuming projects', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-paths-'.uniqid('', true);
     $resourcesPath = $projectRoot.DIRECTORY_SEPARATOR.'resources';
@@ -120,7 +120,7 @@ it('ignores source-tree resources for non-PHPForge consuming projects', function
     chdir($projectRoot);
 
     try {
-        expect(fn(): string => Paths::config('pint.json'))->toThrow(RuntimeException::class);
+        expect(Paths::config('pint.json'))->toBe($resourcesPath.DIRECTORY_SEPARATOR.'pint.json');
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);
@@ -153,9 +153,9 @@ it('uses source-tree resources only for the PHPForge project itself', function (
     }
 });
 
-it('returns null when project config from a list does not exist', function (): void {
+it('returns source-tree config when project config from a list does not exist', function (): void {
     expect(Paths::firstProjectConfig(['pest.xml', 'phpunit.xml']))
-        ->toBeNull();
+        ->toBe(Paths::projectRootPath().DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'pest.xml');
 });
 
 it('returns null when no project-only config exists', function (): void {

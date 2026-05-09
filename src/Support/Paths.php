@@ -65,6 +65,12 @@ final class Paths
             return $projectFile;
         }
 
+        $projectResourceFile = self::projectResourceFile($file);
+
+        if (is_file($projectResourceFile)) {
+            return $projectResourceFile;
+        }
+
         return self::bundledConfigFile($file);
     }
 
@@ -113,6 +119,12 @@ final class Paths
 
             if (is_file($projectFile)) {
                 return $projectFile;
+            }
+
+            $projectResourceFile = self::projectResourceFile($file);
+
+            if (is_file($projectResourceFile)) {
+                return $projectResourceFile;
             }
         }
 
@@ -229,6 +241,11 @@ final class Paths
     }
 
     private static function phpforgeRootResourceFile(string $file): string
+    {
+        return self::projectRoot() . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . ltrim($file, '/\\');
+    }
+
+    private static function projectResourceFile(string $file): string
     {
         return self::projectRoot() . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . ltrim($file, '/\\');
     }
