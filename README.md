@@ -612,7 +612,7 @@ When enabled on `main` or `master`, the workflow uploads one artifact:
 - `tested_php_versions`
 - `matrix_results` (per PHP version: `code_analysis_prefer_lowest`, `code_analysis_prefer_stable`, `security_analysis`)
 - `check_results` (flat per-check rows with `test`, `dependency_mode`, `php_version`, `status`, `source_job`, `generated_by`)
-- `benchmark_results` (per PHP version benchmark rows with `duration_ms`, `delta_ms`, `trend`, `status`, and source job metadata)
+- `benchmark_results` (per PHP version benchmark rows with `duration_ms`, `delta_ms`, `trend`, `status`, source job metadata, and metric provenance via `benchmark_metric_ns` / `benchmark_metric_source`)
 - `rollup` (aggregated status for `code_analysis_prefer_lowest`, `code_analysis_prefer_stable`, `security_analysis`, `benchmark`)
 - `benchmark_command`
 - `benchmark_job_result`

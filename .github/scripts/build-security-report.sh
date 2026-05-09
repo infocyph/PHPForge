@@ -114,20 +114,43 @@ benchmark_results_json="$(jq -c '
   def ts: if . == null or . == "" then null else (fromdateiso8601? // null) end;
   def dur($start; $end):
     (($start | ts) as $s | ($end | ts) as $e | if ($s != null and $e != null and $e >= $s) then ((($e - $s) * 1000) | round) else null end);
+  def marker:
+    capture("^Benchmark timing marker \\(command=(?<cmd>[^,]+), duration=(?<ms>[0-9]+) ms(?:, metric_ns=(?<metric>[0-9]+), metric_source=(?<source>[a-z_]+))?\\)$");
   [
     .jobs // []
     | map(select(.name | test("(^| / )Benchmark - PHP [0-9]+(\\.[0-9]+)*$")))
     | .[]
     | (.name | capture("Benchmark - PHP (?<v>[0-9]+(\\.[0-9]+)*)").v) as $php
+    | ((.steps // []) | map(.name | select(type == "string" and test("^Benchmark timing marker \\(")) | marker) | first) as $marker
     | ((.steps // []) | map(select(.name == "Run benchmark command")) | first) as $step
     | {
         test: "benchmark",
         php_version: $php,
-        status: (.conclusion // "missing"),
+        status: (
+          if ($marker | type) == "object" and ($marker.cmd == "none") then "skipped"
+          else (.conclusion // "missing")
+          end
+        ),
         source_job: .name,
         generated_by: "benchmark",
+        benchmark_metric_ns: (
+          if ($marker | type) == "object" and ($marker.metric? != null) and ($marker.metric != "")
+          then ($marker.metric | tonumber)
+          else null
+          end
+        ),
+        benchmark_metric_source: (
+          if ($marker | type) == "object" and ($marker.source? != null) and ($marker.source != "")
+          then $marker.source
+          else "step_timing"
+          end
+        ),
         duration_ms: (
-          if ($step | type) == "object"
+          if ($marker | type) == "object" and ($marker.metric? != null) and ($marker.metric != "")
+          then (($marker.metric | tonumber) / 1000000 | round)
+          elif ($marker | type) == "object"
+          then ($marker.ms | tonumber)
+          elif ($step | type) == "object"
           then dur($step.started_at; $step.completed_at)
           else dur(.started_at; .completed_at)
           end
