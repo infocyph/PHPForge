@@ -123,6 +123,8 @@ parse_benchmark_json_rows() {
     --arg php_version "$php_version" \
     --arg status "$benchmark_status" \
     --arg source_job "$source_job" '
+      def flatten_rows:
+        if type == "array" then .[] | flatten_rows else . end;
       def normalize_line:
         if startswith("[") then .
         else ((capture("^(?<prefix>.*)(?<json>\\[\\{.*\\}\\])$") | .json)? // .)
@@ -134,10 +136,8 @@ parse_benchmark_json_rows() {
         | map(normalize_line)
         | map(fromjson? | select(type == "array"))
         | if length == 0 then null else .[-1] end;
-      (
-        (extract_json_array // [])
-        | map(if type == "array" then .[] else . end)
-      )[]
+      ((extract_json_array // []) | flatten_rows)
+      | select(type == "object")
       | {
           test: "benchmark",
           php_version: $php_version,
@@ -227,7 +227,11 @@ benchmark_results_json="$(jq -sc '
     end
   )
   | map(select(type == "object"))
-  | sort_by(.php_version | split(".") | map(tonumber), .benchmark // "", .subject // "")
+  | sort_by(
+      (if type == "object" then (.php_version | split(".") | map(tonumber)) else [0] end),
+      (if type == "object" then (.benchmark // "") else "" end),
+      (if type == "object" then (.subject // "") else "" end)
+    )
 ' "$benchmark_rows_file")"
 
 if jq -e '
