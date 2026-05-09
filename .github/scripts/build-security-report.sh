@@ -127,11 +127,12 @@ parse_benchmark_json_rows() {
         if type == "array" then .[] | flatten_rows else . end;
       def normalize_line:
         if startswith("[") then .
-        else ((capture("^(?<prefix>.*)(?<json>\\[\\{.*\\}\\])$") | .json)? // .)
+        else ((capture("(?<json>\\[\\{.*\\}\\])") | .json)? // .)
         end;
       def extract_json_array:
         split("\n")
         | map(gsub("\r"; ""))
+        | map(gsub("\u001b\\[[0-9;]*[A-Za-z]"; ""))
         | map(sub("[[:space:]]+$"; ""))
         | map(normalize_line)
         | map(fromjson? | select(type == "array"))
