@@ -489,7 +489,7 @@ Workflow inputs:
 | `phpstan_memory_limit`    | `1G`                                | PHPStan memory limit used by workflow analysis.                                                                                       |
 | `psalm_threads`           | `1`                                 | Psalm thread count used by workflow analysis.                                                                                         |
 | `run_analysis`            | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.                                                      |
-| `run_svg_report`          | `true`                              | Generates `security-report.svg` and `security-summary.json` with benchmark status, per-version matrix results, and tool versions. |
+| `run_svg_report`          | `true`                              | Generates `security-report.svg` and `security-summary.json` with per-version matrix results, per-version benchmark timings/trends, and tool versions. |
 | `artifact_retention_days` | `61`                                | Artifact retention days for uploaded `security-report` artifacts.                                                                   |
 
 ### Workflow Input Details
@@ -612,13 +612,13 @@ When enabled on `main` or `master`, the workflow uploads one artifact:
 - `tested_php_versions`
 - `matrix_results` (per PHP version: `code_analysis_prefer_lowest`, `code_analysis_prefer_stable`, `security_analysis`)
 - `check_results` (flat per-check rows with `test`, `dependency_mode`, `php_version`, `status`, `source_job`, `generated_by`)
-- `rollup` (aggregated status for `code_analysis_prefer_lowest`, `code_analysis_prefer_stable`, `security_analysis`)
-- `benchmark_result`
+- `benchmark_results` (per PHP version benchmark rows with `duration_ms`, `delta_ms`, `trend`, `status`, and source job metadata)
+- `rollup` (aggregated status for `code_analysis_prefer_lowest`, `code_analysis_prefer_stable`, `security_analysis`, `benchmark`)
 - `benchmark_command`
-- `benchmark_php_version`
+- `benchmark_job_result`
 - `tools` (tool `name`, package, resolved version)
 
-`security-report.svg` renders the same high-level status, per-version matrix check results, rollup quality gates (`Code Lowest`, `Code Stable`, `Security`), and resolved tool versions.
+`security-report.svg` renders the same high-level status, per-version matrix check results, rollup quality gates (`Code Lowest`, `Code Stable`, `Security`, `Benchmark`), a benchmark-by-version chart with upgrade/degrade trend labels, and resolved tool versions.
 
 ### Workflow Examples
 
