@@ -304,6 +304,9 @@ jobs:
     if: always() && inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     name: Security SVG Report
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
 
     steps:
       - name: Checkout repository
