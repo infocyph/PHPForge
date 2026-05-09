@@ -62,18 +62,16 @@ if [ "$benchmark_command" = "ic:bench:quick" ]; then
   phpbench_args+=(--revs=10 --iterations=3 --warmup=1)
 fi
 
-if [ -z "$config_path" ]; then
-  for bench_path in \
-    "benchmarks" \
-    "tests/Bench" \
-    "tests/Benchmark" \
-    "tests/Benchmarks"; do
-    if [ -d "$bench_path" ]; then
-      phpbench_args+=("$bench_path")
-      break
-    fi
-  done
-fi
+for bench_path in \
+  "benchmarks" \
+  "tests/Bench" \
+  "tests/Benchmark" \
+  "tests/Benchmarks"; do
+  if [ -d "$bench_path" ]; then
+    phpbench_args+=("$bench_path")
+    break
+  fi
+done
 
 echo "Running PHPBench directly: ${phpbench_bin} ${phpbench_args[*]}"
 
