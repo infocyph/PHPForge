@@ -96,7 +96,6 @@ PHPForge workflow ref
 PHP version matrix
 Dependency matrix
 PHP extensions
-Coverage driver
 Extra Composer flags
 PHPStan memory limit
 Psalm threads
@@ -112,7 +111,6 @@ Selector presets include:
 | PHP version matrix    | `supported`, `current`, `stable`, or custom JSON. Presets resolve live with fallback to `["8.2","8.3","8.4","8.5"]`.                                                                       |
 | Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]`, or custom JSON. Prompt shows resolved JSON beside each option.                                             |
 | PHP extensions        | `none` => `""`, `detected` (from project `composer.json` `ext-*` entries in `require`, `require-dev`, and `suggest`), `common`, `mysql`, `pgsql`, `mysql+pgsql`, or custom |
-| Coverage driver       | `none`, `xdebug`, or `pcov`                                                                                                                                                                  |
 | Extra Composer flags  | `none` => `""`, `with-all-dependencies` => `--with-all-dependencies`, `ignore-ext-redis` => `--ignore-platform-req=ext-redis`, or custom. Prompt explains each option effect.          |
 | PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                                                                                                                  |
 | Psalm threads         | `1`, `2`, `4`, or custom                                                                                                                                                                     |
@@ -468,7 +466,6 @@ jobs:
       php_versions: '["8.2","8.3","8.4","8.5"]'
       dependency_versions: '["prefer-lowest","prefer-stable"]'
       php_extensions: ""
-      coverage: "none"
       composer_flags: ""
       phpstan_memory_limit: "1G"
       psalm_threads: "1"
@@ -484,7 +481,6 @@ Workflow inputs:
 | `php_versions`            | `["8.2","8.3","8.4","8.5"]`         | PHP matrix as a JSON array string.                                                                                                    |
 | `dependency_versions`     | `["prefer-lowest","prefer-stable"]` | Composer dependency modes as a JSON array string.                                                                                     |
 | `php_extensions`          | `""`                                | Comma-separated PHP extensions passed to `shivammathur/setup-php`.                                                                  |
-| `coverage`                | `none`                              | Coverage driver passed to `shivammathur/setup-php`; use `xdebug`, `pcov`, or `none`.                                          |
 | `composer_flags`          | `""`                                | Extra flags appended to Composer install/update commands.                                                                             |
 | `phpstan_memory_limit`    | `1G`                                | PHPStan memory limit used by workflow analysis.                                                                                       |
 | `psalm_threads`           | `1`                                 | Psalm thread count used by workflow analysis.                                                                                         |
@@ -533,21 +529,6 @@ Leave it empty when no extra extensions are needed:
 ```yaml
 with:
   php_extensions: ""
-```
-
-`coverage` controls the setup-php coverage driver:
-
-```yaml
-with:
-  coverage: "none"
-```
-
-Common values:
-
-```yaml
-coverage: "none"
-coverage: "xdebug"
-coverage: "pcov"
 ```
 
 `composer_flags` appends extra flags to Composer install/update:
@@ -665,7 +646,7 @@ jobs:
       run_svg_report: true
 ```
 
-Project with extensions, coverage, and larger analysis limits:
+Project with extensions and larger analysis limits:
 
 ```yaml
 jobs:
@@ -679,7 +660,6 @@ jobs:
       php_versions: '["8.2","8.3"]'
       dependency_versions: '["prefer-stable"]'
       php_extensions: "mbstring, intl, bcmath, pdo_mysql"
-      coverage: "xdebug"
       composer_flags: "--ignore-platform-req=ext-redis"
       phpstan_memory_limit: "2G"
       psalm_threads: "2"

@@ -104,7 +104,7 @@ final class Runner
         $heading = TaskDisplay::heading($task);
         $this->output->writeln('<info>' . $heading . '</info>');
 
-        $process = new Process($task, getcwd() ?: null);
+        $process = new Process($task, getcwd() ?: null, $this->taskEnvironment());
         $process->setTimeout(null);
 
         $stdout = '';
@@ -130,5 +130,19 @@ final class Runner
             'status' => $process->isSuccessful() ? 'PASS' : ($isSkipped ? 'SKIP' : 'FAIL'),
             'exit_code' => $process->isSuccessful() || $isSkipped ? 0 : ($process->getExitCode() ?? 1),
         ];
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    private function taskEnvironment(): ?array
+    {
+        $xdebugMode = getenv('XDEBUG_MODE');
+
+        if (is_string($xdebugMode) && $xdebugMode !== '') {
+            return null;
+        }
+
+        return ['XDEBUG_MODE' => 'off'];
     }
 }

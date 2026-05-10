@@ -54,14 +54,12 @@ jobs:
     with:
       php_versions: '["8.1"]'
       dependency_versions: '["prefer-stable"]'
-      coverage: "xdebug"
 YAML;
 
     $updated = WorkflowWrapper::update($template, 'main', [
         'php_versions' => WorkflowWrapper::yamlSingleQuoted('["8.4","8.5"]'),
         'dependency_versions' => WorkflowWrapper::yamlSingleQuoted('["prefer-lowest","prefer-stable"]'),
         'php_extensions' => WorkflowWrapper::yamlDoubleQuoted('mbstring, intl'),
-        'coverage' => WorkflowWrapper::yamlDoubleQuoted('none'),
         'composer_flags' => WorkflowWrapper::yamlDoubleQuoted('--with-all-dependencies'),
         'phpstan_memory_limit' => WorkflowWrapper::yamlDoubleQuoted('2G'),
         'psalm_threads' => WorkflowWrapper::yamlDoubleQuoted('2'),
@@ -71,7 +69,6 @@ YAML;
 
     expect($updated)->toContain('uses: infocyph/phpforge/.github/workflows/security-standards.yml@main')
         ->and($updated)->toContain('php_versions: \'["8.4","8.5"]\'')
-        ->and($updated)->toContain('coverage: "none"')
         ->and($updated)->toContain('php_extensions: "mbstring, intl"')
         ->and($updated)->toContain('run_analysis: false');
 });

@@ -10,6 +10,29 @@ function parallelRunnerTempPath(string $suffix): string
     return sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-parallel-runner-'.uniqid('', true).'-'.$suffix;
 }
 
+function withParallelRunnerEnv(string $name, ?string $value, callable $callback): void
+{
+    $previous = getenv($name);
+
+    if ($value === null) {
+        putenv($name);
+    } else {
+        putenv($name.'='.$value);
+    }
+
+    try {
+        $callback();
+    } finally {
+        if ($previous === false) {
+            putenv($name);
+
+            return;
+        }
+
+        putenv($name.'='.$previous);
+    }
+}
+
 it('retries pest without internal parallelization after worker crash signature', function (): void {
     $tempDir = parallelRunnerTempPath('dir');
     $scriptPath = $tempDir.DIRECTORY_SEPARATOR.'pest';
@@ -68,4 +91,16 @@ it('does not retry tasks without a pest crash signature', function (): void {
 
     expect($exitCode)->toBe(5)
         ->and($renderedOutput)->not()->toContain('retrying this task without Pest internal parallelization');
+});
+
+it('defaults parallel subprocesses to XDEBUG_MODE=off when unset', function (): void {
+    withParallelRunnerEnv('XDEBUG_MODE', null, function (): void {
+        $output = new BufferedOutput();
+        $runner = new ParallelRunner($output);
+
+        $exitCode = $runner->run([], [[PHP_BINARY, '-r', 'fwrite(STDOUT, "XDEBUG_MODE=".(getenv("XDEBUG_MODE") ?: "")."\n");']], 1);
+
+        expect($exitCode)->toBe(0)
+            ->and($output->fetch())->toContain('XDEBUG_MODE=off');
+    });
 });

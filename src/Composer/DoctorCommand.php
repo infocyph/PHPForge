@@ -17,7 +17,6 @@ final class DoctorCommand extends Command
         'php_versions',
         'dependency_versions',
         'php_extensions',
-        'coverage',
         'composer_flags',
         'phpstan_memory_limit',
         'psalm_threads',

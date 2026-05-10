@@ -85,7 +85,6 @@ final class InitCommand extends Command
         $settings['php_versions'] = $this->askPhpVersions($helper, $input, $output, (string) $settings['php_versions']);
         $settings['dependency_versions'] = $this->askDependencyVersions($helper, $input, $output, (string) $settings['dependency_versions']);
         $settings['php_extensions'] = $this->askPhpExtensions($helper, $input, $output, (string) $settings['php_extensions']);
-        $settings['coverage'] = $this->askCoverageDriver($helper, $input, $output, (string) $settings['coverage']);
         $settings['composer_flags'] = $this->askComposerFlags($helper, $input, $output, (string) $settings['composer_flags']);
         $settings['phpstan_memory_limit'] = $this->askPhpstanMemoryLimit($helper, $input, $output, (string) $settings['phpstan_memory_limit']);
         $settings['psalm_threads'] = $this->askPsalmThreads($helper, $input, $output, (string) $settings['psalm_threads']);
@@ -136,15 +135,6 @@ final class InitCommand extends Command
             'ignore-ext-redis (--ignore-platform-req=ext-redis; ignore ext-redis platform check)' => 'ignore-ext-redis',
             'custom (enter custom Composer flags)' => 'custom',
         ]);
-    }
-
-    private function askCoverageDriver(
-        QuestionHelper $helper,
-        InputInterface $input,
-        OutputInterface $output,
-        string $defaultCoverage,
-    ): string {
-        return $this->stringValue($helper->ask($input, $output, new ChoiceQuestion('Coverage driver', ['none', 'xdebug', 'pcov'], $defaultCoverage)), $defaultCoverage);
     }
 
     private function askDependencyVersions(
@@ -438,7 +428,6 @@ final class InitCommand extends Command
         $phpVersions = $this->normalizedJsonStringList((string) $settings['php_versions'], 'php_versions', $output);
         $dependencyVersions = $this->normalizedJsonStringList((string) $settings['dependency_versions'], 'dependency_versions', $output);
         $phpExtensions = $this->singleLineValue((string) $settings['php_extensions'], 'php_extensions', $output);
-        $coverage = $this->singleLineValue((string) $settings['coverage'], 'coverage', $output);
         $composerFlags = $this->singleLineValue((string) $settings['composer_flags'], 'composer_flags', $output);
         $phpstanMemoryLimit = $this->singleLineValue((string) $settings['phpstan_memory_limit'], 'phpstan_memory_limit', $output);
         $psalmThreads = $this->singleLineValue((string) $settings['psalm_threads'], 'psalm_threads', $output);
@@ -448,7 +437,6 @@ final class InitCommand extends Command
             || !is_string($phpVersions)
             || !is_string($dependencyVersions)
             || !is_string($phpExtensions)
-            || !is_string($coverage)
             || !is_string($composerFlags)
             || !is_string($phpstanMemoryLimit)
             || !is_string($psalmThreads)
@@ -460,7 +448,6 @@ final class InitCommand extends Command
             'php_versions' => WorkflowWrapper::yamlSingleQuoted($phpVersions),
             'dependency_versions' => WorkflowWrapper::yamlSingleQuoted($dependencyVersions),
             'php_extensions' => WorkflowWrapper::yamlDoubleQuoted($phpExtensions),
-            'coverage' => WorkflowWrapper::yamlDoubleQuoted($coverage),
             'composer_flags' => WorkflowWrapper::yamlDoubleQuoted($composerFlags),
             'phpstan_memory_limit' => WorkflowWrapper::yamlDoubleQuoted($phpstanMemoryLimit),
             'psalm_threads' => WorkflowWrapper::yamlDoubleQuoted($psalmThreads),
@@ -488,7 +475,6 @@ final class InitCommand extends Command
      *     php_versions: string,
      *     dependency_versions: string,
      *     php_extensions: string,
-     *     coverage: string,
      *     composer_flags: string,
      *     phpstan_memory_limit: string,
      *     psalm_threads: string,
@@ -508,7 +494,6 @@ final class InitCommand extends Command
             'php_versions' => '["8.2","8.3","8.4","8.5"]',
             'dependency_versions' => '["prefer-lowest","prefer-stable"]',
             'php_extensions' => '',
-            'coverage' => 'none',
             'composer_flags' => '',
             'phpstan_memory_limit' => '1G',
             'psalm_threads' => '1',

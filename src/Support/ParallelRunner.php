@@ -285,7 +285,7 @@ final readonly class ParallelRunner
     {
         $stdout = '';
         $stderr = '';
-        $process = new Process($task, getcwd() ?: null);
+        $process = new Process($task, getcwd() ?: null, $this->taskEnvironment());
         $process->setTimeout(null);
         $process->run(function (string $type, string $buffer) use (&$stdout, &$stderr): void {
             if ($type === Process::ERR) {
@@ -328,7 +328,7 @@ final readonly class ParallelRunner
      */
     private function startTask(array $task): array
     {
-        $process = new Process($task, getcwd() ?: null);
+        $process = new Process($task, getcwd() ?: null, $this->taskEnvironment());
         $process->setTimeout(null);
         $process->start();
 
@@ -340,6 +340,20 @@ final readonly class ParallelRunner
             'stderr' => '',
             'started_at' => microtime(true),
         ];
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    private function taskEnvironment(): ?array
+    {
+        $xdebugMode = getenv('XDEBUG_MODE');
+
+        if (is_string($xdebugMode) && $xdebugMode !== '') {
+            return null;
+        }
+
+        return ['XDEBUG_MODE' => 'off'];
     }
 
     /**
