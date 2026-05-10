@@ -223,10 +223,16 @@ while IFS=$'\t' read -r benchmark_job_id benchmark_job_name benchmark_job_conclu
   if [ -f "$benchmark_artifact_file" ]; then
     parse_benchmark_results_file "$benchmark_artifact_file" "$benchmark_php_version" "$benchmark_status" "$benchmark_job_name" > "$benchmark_job_rows"
     parsed_row_count="$(wc -l < "$benchmark_job_rows")"
+    raw_row_count="$(jq -r 'if type == "array" then length else -1 end' "$benchmark_artifact_file" 2>/dev/null || echo "-1")"
     if [ "$parsed_row_count" -gt 0 ]; then
       cat "$benchmark_job_rows" >> "$benchmark_rows_file"
     else
-      echo "::warning::Benchmark artifact for PHP ${benchmark_php_version} had no parseable rows."
+      if [ "$raw_row_count" = "0" ]; then
+        benchmark_status="skipped"
+        echo "::warning::Benchmark artifact for PHP ${benchmark_php_version} was empty (no benchmark subjects). Marking as skipped."
+      else
+        echo "::warning::Benchmark artifact for PHP ${benchmark_php_version} had no parseable rows."
+      fi
     fi
   elif curl -fsSL \
     -H "Authorization: Bearer ${GH_TOKEN}" \
