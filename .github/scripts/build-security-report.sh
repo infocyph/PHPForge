@@ -612,6 +612,8 @@ benchmark_card_y=$((benchmark_title_y + 16))
 benchmark_chart_svg=""
 benchmark_row_count=0
 benchmark_display_rows="$(jq -r '
+  def flatten_rows:
+    if type == "array" then .[] | flatten_rows else . end;
   def as_num:
     if type == "number" then .
     elif type == "string" and test("^-?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$") then tonumber
@@ -630,7 +632,7 @@ benchmark_display_rows="$(jq -r '
       elif . == null then "n/a"
       else tostring
       end;
-  [ .[] | select(.subject != null and .mode != null) ]
+  [ (flatten_rows | select(type == "object")) | select(.subject != null and .mode != null) ]
   | sort_by(.php_version | split(".") | map(tonumber), .benchmark // "", .subject)
   | group_by(.php_version)
   | .[]
