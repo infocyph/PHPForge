@@ -596,46 +596,95 @@ append_chip "Code Stable" "$code_stable_rollup"
 append_chip "Security" "$security_rollup"
 append_chip "Benchmark" "$benchmark_rollup"
 
+truncate_text() {
+  local text="$1"
+  local limit="${2:-52}"
+
+  if [ "${#text}" -le "$limit" ]; then
+    echo "$text"
+  else
+    echo "${text:0:$((limit - 3))}..."
+  fi
+}
+
 benchmark_title_y=$((chip_y + 54))
 benchmark_card_y=$((benchmark_title_y + 16))
 benchmark_chart_svg=""
-benchmark_row_y=$((benchmark_card_y + 32))
 benchmark_row_count=0
 benchmark_display_rows="$(jq -r '
-  .[]
-  | select(.subject != null and .mode != null)
-  | [.php_version, .status, .subject, .mode, (.rstdev // "n/a")]
-  | @tsv
+  def as_num:
+    if type == "number" then .
+    elif type == "string" and test("^-?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$") then tonumber
+    else null
+    end;
+  def fmt_mode:
+    (as_num) as $n
+    | if $n != null then (((($n * 1000) | round) / 1000) | tostring) + " us"
+      elif . == null then "n/a"
+      else tostring
+      end;
+  def fmt_rsd:
+    (as_num) as $n
+    | if $n != null then "+/- " + (((($n * 100) | round) / 100) | tostring) + "%"
+      elif type == "string" and test("%$") then .
+      elif . == null then "n/a"
+      else tostring
+      end;
+  [ .[] | select(.subject != null and .mode != null) ]
+  | sort_by(.php_version | split(".") | map(tonumber), .benchmark // "", .subject)
+  | group_by(.php_version)
+  | .[]
+  | "GROUP\t\(. [0].php_version)\t\(. [0].status // "missing")",
+    (.[] | "ROW\t\(((.benchmark // "benchmark") + "::" + .subject))\t\(.mode | fmt_mode)\t\(.rstdev | fmt_rsd)\t\(.status // "missing")")
 ' <<< "$benchmark_results_json")"
 
 if [ -z "$benchmark_display_rows" ]; then
   benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${benchmark_card_y}\" width=\"712\" height=\"54\" rx=\"12\" class=\"section-card\"/>"$'\n'
-  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"$((benchmark_card_y + 34))\" class=\"matrix-line small-text\">No ic:bench:quick benchmark rows detected.</text>"$'\n'
+  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"$((benchmark_card_y + 34))\" class=\"matrix-line small-text\">No benchmark rows detected.</text>"$'\n'
   benchmark_row_count=1
+  benchmark_cursor_y=$((benchmark_card_y + 58))
 else
-  benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"$((benchmark_card_y - 2))\" width=\"712\" height=\"24\" rx=\"8\" class=\"section-card\"/>"$'\n'
-  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"$((benchmark_card_y + 14))\" class=\"matrix-line small-text\">PHP</text>"$'\n'
-  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"154\" y=\"$((benchmark_card_y + 14))\" class=\"matrix-line small-text\">Subject</text>"$'\n'
-  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"612\" y=\"$((benchmark_card_y + 14))\" text-anchor=\"end\" class=\"matrix-line small-text\">Mode</text>"$'\n'
-  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"742\" y=\"$((benchmark_card_y + 14))\" text-anchor=\"end\" class=\"matrix-line small-text\">RSD</text>"$'\n'
+  benchmark_cursor_y="$benchmark_card_y"
 
-  while IFS=$'\t' read -r bench_php bench_status bench_subject bench_mode bench_rstdev; do
-    [ -z "$bench_subject" ] && continue
-    benchmark_row_count=$((benchmark_row_count + 1))
-    row_height=32
-    row_y=$((benchmark_row_y + (benchmark_row_count - 1) * row_height))
-    row_card_y=$((row_y - 16))
-    label_y=$((row_y + 3))
-    benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${row_card_y}\" width=\"712\" height=\"30\" rx=\"10\" class=\"section-card\"/>"$'\n'
-    benchmark_chart_svg="${benchmark_chart_svg}  <circle cx=\"54\" cy=\"${label_y}\" r=\"5\" fill=\"$(status_fill "$bench_status")\"/>"$'\n'
-    benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"${label_y}\" class=\"matrix-line small-text\">$(xml_escape "$bench_php")</text>"$'\n'
-    benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"154\" y=\"${label_y}\" class=\"matrix-line small-text\">$(xml_escape "$bench_subject")</text>"$'\n'
-    benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"612\" y=\"${label_y}\" text-anchor=\"end\" class=\"matrix-line small-text\">$(xml_escape "$bench_mode")</text>"$'\n'
-    benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"742\" y=\"${label_y}\" text-anchor=\"end\" class=\"matrix-line small-text\">$(xml_escape "$bench_rstdev")</text>"$'\n'
+  while IFS=$'\t' read -r row_type col1 col2 col3 col4; do
+    [ -z "$row_type" ] && continue
+
+    if [ "$row_type" = "GROUP" ]; then
+      bench_php="$col1"
+      bench_status="$col2"
+      benchmark_row_count=$((benchmark_row_count + 1))
+
+      benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${benchmark_cursor_y}\" width=\"712\" height=\"30\" rx=\"10\" class=\"section-card\"/>"$'\n'
+      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"$((benchmark_cursor_y + 20))\" class=\"php-title small-text\">PHP <tspan class=\"accent\">$(xml_escape "$bench_php")</tspan></text>"$'\n'
+      benchmark_chart_svg="${benchmark_chart_svg}  <circle cx=\"736\" cy=\"$((benchmark_cursor_y + 15))\" r=\"7\" fill=\"$(status_fill "$bench_status")\"/>"$'\n'
+      benchmark_cursor_y=$((benchmark_cursor_y + 34))
+
+      benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${benchmark_cursor_y}\" width=\"712\" height=\"24\" rx=\"8\" class=\"section-card\"/>"$'\n'
+      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"$((benchmark_cursor_y + 16))\" class=\"matrix-line small-text\">Subject</text>"$'\n'
+      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"612\" y=\"$((benchmark_cursor_y + 16))\" text-anchor=\"end\" class=\"matrix-line small-text\">Mode</text>"$'\n'
+      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"742\" y=\"$((benchmark_cursor_y + 16))\" text-anchor=\"end\" class=\"matrix-line small-text\">RSD</text>"$'\n'
+      benchmark_cursor_y=$((benchmark_cursor_y + 28))
+      continue
+    fi
+
+    if [ "$row_type" = "ROW" ]; then
+      bench_subject="$(truncate_text "$col1" 64)"
+      bench_mode="$col2"
+      bench_rstdev="$col3"
+      bench_status="$col4"
+      benchmark_row_count=$((benchmark_row_count + 1))
+
+      benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${benchmark_cursor_y}\" width=\"712\" height=\"28\" rx=\"9\" class=\"section-card\"/>"$'\n'
+      benchmark_chart_svg="${benchmark_chart_svg}  <circle cx=\"54\" cy=\"$((benchmark_cursor_y + 14))\" r=\"4\" fill=\"$(status_fill "$bench_status")\"/>"$'\n'
+      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"66\" y=\"$((benchmark_cursor_y + 18))\" class=\"matrix-line small-text\">$(xml_escape "$bench_subject")</text>"$'\n'
+      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"612\" y=\"$((benchmark_cursor_y + 18))\" text-anchor=\"end\" class=\"matrix-line small-text\">$(xml_escape "$bench_mode")</text>"$'\n'
+      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"742\" y=\"$((benchmark_cursor_y + 18))\" text-anchor=\"end\" class=\"matrix-line small-text\">$(xml_escape "$bench_rstdev")</text>"$'\n'
+      benchmark_cursor_y=$((benchmark_cursor_y + 32))
+    fi
   done <<< "$benchmark_display_rows"
 fi
 
-benchmark_section_height=$((benchmark_row_count * 32 + 54))
+benchmark_section_height=$((benchmark_cursor_y - benchmark_card_y + 18))
 footer_y=$((benchmark_card_y + benchmark_section_height + 18))
 tools_svg=""
 tool_line=""
@@ -754,7 +803,7 @@ cat > .phpforge-report/out/security-report.svg <<SVG
 ${matrix_cards_svg}
   <text x="44" y="${quality_title_y}" class="section-title small-text">QUALITY GATES</text>
 ${quality_chips_svg}
-  <text x="44" y="${benchmark_title_y}" class="section-title small-text">BENCHMARK RESULTS (IC:BENCH:QUICK)</text>
+  <text x="44" y="${benchmark_title_y}" class="section-title small-text">BENCHMARK RESULTS</text>
 ${benchmark_chart_svg}
   <line x1="44" y1="${footer_y}" x2="756" y2="${footer_y}" class="divider"/>
   <text x="44" y="${tools_label_y}" class="tools-label small-text">Tools:</text>
