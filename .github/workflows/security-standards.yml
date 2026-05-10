@@ -296,6 +296,40 @@ jobs:
         if: always()
         run: echo "Benchmark timing marker"
 
+      - name: Prepare benchmark JSON artifact
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p .phpforge-report
+
+          if [ -f ".phpforge-report/benchmark-output.log" ]; then
+            if jq -e . < ".phpforge-report/benchmark-output.log" >/dev/null 2>&1; then
+              jq -c 'if type == "array" then . else [] end' < ".phpforge-report/benchmark-output.log" > ".phpforge-report/benchmark-results-php-${{ matrix.php-versions }}.json"
+            else
+              jq -R -s -c '
+                (gsub("\r"; "") | gsub("\u001b\\[[0-9;]*[A-Za-z]"; "")) as $clean
+                | [
+                    $clean
+                    | match("\\[\\{.*?\\}\\]"; "gm")
+                    | .string
+                  ]
+                | map(fromjson? | select(type == "array"))
+                | if length == 0 then [] else .[-1] end
+              ' < ".phpforge-report/benchmark-output.log" > ".phpforge-report/benchmark-results-php-${{ matrix.php-versions }}.json"
+            fi
+          else
+            echo '[]' > ".phpforge-report/benchmark-results-php-${{ matrix.php-versions }}.json"
+          fi
+
+      - name: Upload benchmark JSON artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-raw-php-${{ matrix.php-versions }}
+          path: .phpforge-report/benchmark-results-php-${{ matrix.php-versions }}.json
+          retention-days: ${{ inputs.artifact_retention_days }}
+          if-no-files-found: error
+
   svg-report:
     needs:
       - run
@@ -344,6 +378,14 @@ jobs:
           sparse-checkout: |
             .github/scripts/build-security-report.sh
           sparse-checkout-cone-mode: false
+
+      - name: Download benchmark JSON artifacts
+        if: always()
+        uses: actions/download-artifact@v7
+        with:
+          pattern: benchmark-raw-php-*
+          path: .phpforge-report/in/benchmark
+          merge-multiple: true
 
       - name: Build SVG report artifacts
         shell: bash
