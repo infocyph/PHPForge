@@ -18,11 +18,6 @@ on:
         required: false
         type: string
         default: ""
-      coverage:
-        description: "Coverage driver for shivammathur/setup-php."
-        required: false
-        type: string
-        default: "none"
       composer_flags:
         description: "Extra flags appended to composer install/update."
         required: false
@@ -71,6 +66,8 @@ jobs:
   run:
     needs: prepare
     runs-on: ${{ matrix.operating-system }}
+    env:
+      XDEBUG_MODE: off
     strategy:
       matrix:
         operating-system: [ "ubuntu-latest" ]
@@ -88,7 +85,7 @@ jobs:
           php-version: ${{ matrix.php-versions }}
           tools: composer:v2
           extensions: ${{ inputs.php_extensions }}
-          coverage: ${{ inputs.coverage }}
+          coverage: none
 
       - name: Check PHP Version
         run: php -v
@@ -126,6 +123,8 @@ jobs:
     if: inputs.run_analysis
     name: Security Analysis - PHP ${{ matrix.php-versions }}
     runs-on: ubuntu-latest
+    env:
+      XDEBUG_MODE: off
     strategy:
       matrix:
         php-versions: ${{ fromJson(needs.prepare.outputs.php_versions) }}
@@ -144,7 +143,7 @@ jobs:
           php-version: ${{ matrix.php-versions }}
           tools: composer:v2
           extensions: ${{ inputs.php_extensions }}
-          coverage: ${{ inputs.coverage }}
+          coverage: none
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress ${{ inputs.composer_flags }}
@@ -258,6 +257,8 @@ jobs:
     if: inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     name: Benchmark - PHP ${{ matrix.php-versions }}
     runs-on: ubuntu-latest
+    env:
+      XDEBUG_MODE: off
     strategy:
       matrix:
         php-versions: ${{ fromJson(needs.prepare.outputs.php_versions) }}
@@ -338,6 +339,8 @@ jobs:
     if: always() && inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     name: Security SVG Report
     runs-on: ubuntu-latest
+    env:
+      XDEBUG_MODE: off
     permissions:
       actions: read
       contents: read

@@ -10,6 +10,29 @@ function runnerTempPath(string $suffix): string
     return sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-runner-'.uniqid('', true).'-'.$suffix;
 }
 
+function withRunnerEnv(string $name, ?string $value, callable $callback): void
+{
+    $previous = getenv($name);
+
+    if ($value === null) {
+        putenv($name);
+    } else {
+        putenv($name.'='.$value);
+    }
+
+    try {
+        $callback();
+    } finally {
+        if ($previous === false) {
+            putenv($name);
+
+            return;
+        }
+
+        putenv($name.'='.$previous);
+    }
+}
+
 it('returns failure exit code after running all tasks when fail-fast is disabled', function (): void {
     $marker = runnerTempPath('continued.txt');
     $output = new BufferedOutput();
@@ -44,4 +67,18 @@ it('stops at first failure when fail-fast is enabled', function (): void {
     if (is_file($marker)) {
         unlink($marker);
     }
+});
+
+it('defaults subprocesses to XDEBUG_MODE=off when unset', function (): void {
+    withRunnerEnv('XDEBUG_MODE', null, function (): void {
+        $output = new BufferedOutput();
+        $runner = new Runner($output, true);
+
+        $exitCode = $runner->run([
+            [PHP_BINARY, '-r', 'fwrite(STDOUT, "XDEBUG_MODE=".(getenv("XDEBUG_MODE") ?: "")."\n");'],
+        ]);
+
+        expect($exitCode)->toBe(0)
+            ->and($output->fetch())->toContain('XDEBUG_MODE=off');
+    });
 });
