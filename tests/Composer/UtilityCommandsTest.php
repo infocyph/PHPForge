@@ -166,6 +166,7 @@ jobs:
       psalm_threads: "1"
       run_analysis: true
       run_svg_report: true
+      fail_on_skipped_tests: false
       enable_redis_service: true
       enable_memcached_service: true
       enable_postgres_service: true

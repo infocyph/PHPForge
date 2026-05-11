@@ -241,7 +241,7 @@ final class TaskCatalog
     {
         return [
             ...self::syntax(),
-            [Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), ...self::pestParallelArgs()],
+            [Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), ...self::pestParallelArgs(), ...self::pestFailOnSkippedArgs()],
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
             ...self::duplicates(),
@@ -261,7 +261,7 @@ final class TaskCatalog
     {
         return [
             ...self::syntax(),
-            [Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), ...self::pestParallelArgs()],
+            [Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), ...self::pestParallelArgs(), ...self::pestFailOnSkippedArgs()],
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
             ...self::duplicates(),
@@ -279,7 +279,7 @@ final class TaskCatalog
      */
     public static function testCode(): array
     {
-        return [[Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs()]];
+        return [[Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), ...self::pestFailOnSkippedArgs()]];
     }
 
     /**
@@ -435,6 +435,17 @@ final class TaskCatalog
             . '.json';
     }
 
+    private static function envBool(string $name, bool $default): bool
+    {
+        $value = getenv($name);
+
+        if (!is_string($value) || $value === '') {
+            return $default;
+        }
+
+        return !in_array(strtolower(trim($value)), ['0', 'false', 'off', 'no'], true);
+    }
+
     private static function envInt(string $name, int $default, int $minimum, int $maximum): string
     {
         $value = getenv($name);
@@ -489,6 +500,16 @@ final class TaskCatalog
         }
 
         return [...$args, ...Paths::existingProjectPaths('tests')];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function pestFailOnSkippedArgs(): array
+    {
+        return self::envBool('IC_PEST_FAIL_ON_SKIPPED', false)
+            ? ['--fail-on-skipped']
+            : [];
     }
 
     /**

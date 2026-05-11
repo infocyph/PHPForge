@@ -484,6 +484,7 @@ jobs:
       psalm_threads: "1"
       run_analysis: true
       run_svg_report: true
+      fail_on_skipped_tests: false
       enable_redis_service: false
       enable_memcached_service: false
       enable_postgres_service: false
@@ -509,6 +510,7 @@ Workflow inputs:
 | `psalm_threads`           | `1`                                 | Psalm thread count used by workflow analysis.                                                                                         |
 | `run_analysis`            | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.                                                      |
 | `run_svg_report`          | `true`                              | Generates `security-report.svg` and `security-summary.json` with per-version matrix results, per-version benchmark timings/trends, and tool versions. |
+| `fail_on_skipped_tests`   | `false`                             | Adds `--fail-on-skipped` to Pest execution so skipped tests fail the CI test job.                                                    |
 | `enable_redis_service`    | `false`                             | Starts a Redis service container and waits for readiness before running test commands.                                               |
 | `enable_memcached_service`| `false`                             | Starts a Memcached service container and waits for readiness before running test commands.                                           |
 | `enable_postgres_service` | `false`                             | Starts a PostgreSQL service container and waits for readiness before running test commands.                                          |
@@ -635,6 +637,13 @@ Set it to `false` when the repository does not use GitHub code scanning, does no
 ```yaml
 with:
   run_svg_report: true
+```
+
+`fail_on_skipped_tests` makes skipped Pest tests fail CI:
+
+```yaml
+with:
+  fail_on_skipped_tests: true
 ```
 
 `artifact_retention_days` controls how long uploaded report artifacts are kept:
