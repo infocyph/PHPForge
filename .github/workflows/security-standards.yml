@@ -43,6 +43,11 @@ on:
         required: false
         type: boolean
         default: true
+      fail_on_skipped_tests:
+        description: "Treat skipped Pest tests as failures in the CI test job."
+        required: false
+        type: boolean
+        default: false
       enable_redis_service:
         description: "Enable Redis service container for integration tests."
         required: false
@@ -223,6 +228,7 @@ jobs:
           php-version: ${{ matrix.php-versions }}
           tools: composer:v2
           extensions: ${{ inputs.php_extensions }}
+          ini-values: ${{ contains(inputs.php_extensions, 'apcu') && 'apc.enable_cli=1, apcu.enable_cli=1' || '' }}
           coverage: none
 
       - name: Check PHP Version
@@ -269,6 +275,7 @@ jobs:
         env:
           IC_PHPSTAN_MEMORY_LIMIT: ${{ inputs.phpstan_memory_limit }}
           IC_PSALM_THREADS: ${{ inputs.psalm_threads }}
+          IC_PEST_FAIL_ON_SKIPPED: ${{ inputs.fail_on_skipped_tests }}
         run: |
           if [ "${{ matrix.dependency-version }}" != "prefer-lowest" ]; then
             composer ic:ci

@@ -22,6 +22,7 @@ final class DoctorCommand extends Command
         'psalm_threads',
         'run_analysis',
         'run_svg_report',
+        'fail_on_skipped_tests',
         'enable_redis_service',
         'enable_memcached_service',
         'enable_postgres_service',
