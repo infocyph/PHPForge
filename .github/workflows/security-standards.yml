@@ -53,6 +53,11 @@ on:
         required: false
         type: boolean
         default: false
+      enable_valkey_service:
+        description: "Enable Valkey service container for integration tests."
+        required: false
+        type: boolean
+        default: false
       enable_memcached_service:
         description: "Enable Memcached service container for integration tests."
         required: false
@@ -68,8 +73,8 @@ on:
         required: false
         type: boolean
         default: false
-      enable_dynamodb_service:
-        description: "Enable DynamoDB Local service container for integration tests."
+      enable_scylladb_service:
+        description: "Enable ScyllaDB Alternator service container for integration tests."
         required: false
         type: boolean
         default: false
@@ -132,6 +137,16 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
+      valkey:
+        image: ${{ inputs.enable_valkey_service && 'valkey/valkey:8-alpine' || '' }}
+        command: --requirepass ${{ inputs.service_db_password }}
+        ports:
+          - 6380:6380
+        options: >-
+          --health-cmd "valkey-cli -a ${{ inputs.service_db_password }} -p 6380 ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
       memcached:
         image: ${{ inputs.enable_memcached_service && 'memcached:1.6-alpine' || '' }}
         ports:
@@ -163,8 +178,9 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
-      dynamodb:
-        image: ${{ inputs.enable_dynamodb_service && 'amazon/dynamodb-local:latest' || '' }}
+      scylladb:
+        image: ${{ inputs.enable_scylladb_service && 'scylladb/scylla:6.2' || '' }}
+        command: --smp 1 --memory 1G --overprovisioned 1 --alternator-port 8000 --alternator-write-isolation only_rmw_uses_lwt
         ports:
           - 8000:8000
       elasticsearch:
@@ -189,8 +205,11 @@ jobs:
       IC_SERVICE_USERNAME: ${{ inputs.service_db_user }}
       IC_SERVICE_PASSWORD: ${{ inputs.service_db_password }}
       IC_REDIS_HOST: 127.0.0.1
-      IC_REDIS_PORT: "6379"
+      IC_REDIS_PORT: ${{ inputs.enable_valkey_service && !inputs.enable_redis_service && '6380' || '6379' }}
       IC_REDIS_PASSWORD: ${{ inputs.service_db_password }}
+      IC_VALKEY_HOST: 127.0.0.1
+      IC_VALKEY_PORT: "6380"
+      IC_VALKEY_PASSWORD: ${{ inputs.service_db_password }}
       IC_MEMCACHED_HOST: 127.0.0.1
       IC_MEMCACHED_PORT: "11211"
       IC_POSTGRES_DSN: pgsql:host=127.0.0.1;port=5432;dbname=${{ inputs.service_db_name }}
@@ -199,12 +218,12 @@ jobs:
       IC_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=${{ inputs.service_db_name }};charset=utf8mb4
       IC_MYSQL_USER: ${{ inputs.service_db_user }}
       IC_MYSQL_PASSWORD: ${{ inputs.service_db_password }}
-      IC_DYNAMODB_HOST: 127.0.0.1
-      IC_DYNAMODB_PORT: "8000"
-      IC_DYNAMODB_ENDPOINT: http://127.0.0.1:8000
-      IC_DYNAMODB_REGION: us-east-1
-      IC_DYNAMODB_ACCESS_KEY_ID: ${{ inputs.service_db_user }}
-      IC_DYNAMODB_SECRET_ACCESS_KEY: ${{ inputs.service_db_password }}
+      IC_SCYLLADB_HOST: 127.0.0.1
+      IC_SCYLLADB_PORT: "8000"
+      IC_SCYLLADB_ENDPOINT: http://127.0.0.1:8000
+      IC_SCYLLADB_REGION: us-east-1
+      IC_SCYLLADB_ACCESS_KEY_ID: ${{ inputs.service_db_user }}
+      IC_SCYLLADB_SECRET_ACCESS_KEY: ${{ inputs.service_db_password }}
       IC_ELASTICSEARCH_HOST: 127.0.0.1
       IC_ELASTICSEARCH_PORT: "9200"
       IC_ELASTICSEARCH_URL: http://127.0.0.1:9200
@@ -235,7 +254,7 @@ jobs:
         run: php -v
 
       - name: Checkout workflow source
-        if: inputs.enable_redis_service || inputs.enable_memcached_service || inputs.enable_postgres_service || inputs.enable_mysql_service || inputs.enable_dynamodb_service || inputs.enable_elasticsearch_service || inputs.enable_mongodb_service
+        if: inputs.enable_redis_service || inputs.enable_valkey_service || inputs.enable_memcached_service || inputs.enable_postgres_service || inputs.enable_mysql_service || inputs.enable_scylladb_service || inputs.enable_elasticsearch_service || inputs.enable_mongodb_service
         uses: actions/checkout@v6
         with:
           repository: ${{ job.workflow_repository }}
@@ -246,14 +265,15 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Verify and wait optional services
-        if: inputs.enable_redis_service || inputs.enable_memcached_service || inputs.enable_postgres_service || inputs.enable_mysql_service || inputs.enable_dynamodb_service || inputs.enable_elasticsearch_service || inputs.enable_mongodb_service
+        if: inputs.enable_redis_service || inputs.enable_valkey_service || inputs.enable_memcached_service || inputs.enable_postgres_service || inputs.enable_mysql_service || inputs.enable_scylladb_service || inputs.enable_elasticsearch_service || inputs.enable_mongodb_service
         shell: bash
         env:
           INPUT_ENABLE_REDIS_SERVICE: ${{ inputs.enable_redis_service }}
+          INPUT_ENABLE_VALKEY_SERVICE: ${{ inputs.enable_valkey_service }}
           INPUT_ENABLE_MEMCACHED_SERVICE: ${{ inputs.enable_memcached_service }}
           INPUT_ENABLE_POSTGRES_SERVICE: ${{ inputs.enable_postgres_service }}
           INPUT_ENABLE_MYSQL_SERVICE: ${{ inputs.enable_mysql_service }}
-          INPUT_ENABLE_DYNAMODB_SERVICE: ${{ inputs.enable_dynamodb_service }}
+          INPUT_ENABLE_SCYLLADB_SERVICE: ${{ inputs.enable_scylladb_service }}
           INPUT_ENABLE_ELASTICSEARCH_SERVICE: ${{ inputs.enable_elasticsearch_service }}
           INPUT_ENABLE_MONGODB_SERVICE: ${{ inputs.enable_mongodb_service }}
         run: bash .phpforge-workflow/.github/scripts/verify-and-wait-services.sh

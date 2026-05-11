@@ -66,10 +66,11 @@ YAML;
         'run_analysis' => 'false',
         'run_svg_report' => 'true',
         'enable_redis_service' => 'true',
+        'enable_valkey_service' => 'false',
         'enable_memcached_service' => 'true',
         'enable_postgres_service' => 'true',
         'enable_mysql_service' => 'false',
-        'enable_dynamodb_service' => 'true',
+        'enable_scylladb_service' => 'true',
         'enable_elasticsearch_service' => 'false',
         'enable_mongodb_service' => 'true',
         'service_db_name' => WorkflowWrapper::yamlDoubleQuoted('phpforge'),
@@ -82,6 +83,7 @@ YAML;
         ->and($updated)->toContain('php_extensions: "mbstring, intl"')
         ->and($updated)->toContain('run_analysis: false')
         ->and($updated)->toContain('enable_redis_service: true')
-        ->and($updated)->toContain('enable_dynamodb_service: true')
+        ->and($updated)->toContain('enable_valkey_service: false')
+        ->and($updated)->toContain('enable_scylladb_service: true')
         ->and($updated)->toContain('service_db_user: "phpforge"');
 });

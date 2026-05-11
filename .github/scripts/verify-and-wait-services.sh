@@ -24,7 +24,7 @@ wait_for() {
 
 missing=()
 
-if is_enabled "${INPUT_ENABLE_REDIS_SERVICE:-false}" && ! php -m | grep -qi '^redis$'; then
+if { is_enabled "${INPUT_ENABLE_REDIS_SERVICE:-false}" || is_enabled "${INPUT_ENABLE_VALKEY_SERVICE:-false}"; } && ! php -m | grep -qi '^redis$'; then
   missing+=("redis")
 fi
 
@@ -65,8 +65,12 @@ if is_enabled "${INPUT_ENABLE_MYSQL_SERVICE:-false}"; then
   wait_for mysql '$dsn = getenv("IC_MYSQL_DSN"); $user = getenv("IC_SERVICE_USERNAME"); $pass = getenv("IC_SERVICE_PASSWORD"); try { $pdo = new PDO($dsn, $user, $pass); $pdo->query("SELECT 1"); exit(0); } catch (Throwable) { exit(1); }'
 fi
 
-if is_enabled "${INPUT_ENABLE_DYNAMODB_SERVICE:-false}"; then
-  wait_for dynamodb '$host = getenv("IC_DYNAMODB_HOST"); $port = (int) getenv("IC_DYNAMODB_PORT"); $socket = @stream_socket_client("tcp://{$host}:{$port}", $errno, $errstr, 0.5); if (is_resource($socket)) { fclose($socket); exit(0); } exit(1);'
+if is_enabled "${INPUT_ENABLE_VALKEY_SERVICE:-false}"; then
+  wait_for valkey '$r = new Redis(); try { if ($r->connect(getenv("IC_VALKEY_HOST"), (int) getenv("IC_VALKEY_PORT"), 0.5)) { $pass = getenv("IC_VALKEY_PASSWORD"); if (is_string($pass) && $pass !== "") { if (!$r->auth($pass)) { exit(1); } } $pong = $r->ping(); if ($pong === true || stripos((string) $pong, "pong") !== false) { exit(0); } } } catch (Throwable) {} exit(1);'
+fi
+
+if is_enabled "${INPUT_ENABLE_SCYLLADB_SERVICE:-false}"; then
+  wait_for scylladb '$host = getenv("IC_SCYLLADB_HOST"); $port = (int) getenv("IC_SCYLLADB_PORT"); $socket = @stream_socket_client("tcp://{$host}:{$port}", $errno, $errstr, 0.5); if (is_resource($socket)) { fclose($socket); exit(0); } exit(1);'
 fi
 
 if is_enabled "${INPUT_ENABLE_ELASTICSEARCH_SERVICE:-false}"; then
