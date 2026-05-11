@@ -557,6 +557,8 @@ with:
   php_extensions: "mbstring, intl, bcmath, pdo_mysql, pdo_pgsql"
 ```
 
+When `apcu` is included in `php_extensions`, the reusable workflow automatically enables APCu for CLI (`apc.enable_cli=1`, `apcu.enable_cli=1`) so APCu-backed tests can run in CI.
+
 Leave it empty when no extra extensions are needed:
 
 ```yaml
