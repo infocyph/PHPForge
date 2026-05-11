@@ -168,10 +168,11 @@ jobs:
       run_svg_report: true
       fail_on_skipped_tests: false
       enable_redis_service: true
+      enable_valkey_service: true
       enable_memcached_service: true
       enable_postgres_service: true
       enable_mysql_service: false
-      enable_dynamodb_service: true
+      enable_scylladb_service: true
       enable_elasticsearch_service: false
       enable_mongodb_service: true
       service_db_name: "cachelayer"
@@ -194,7 +195,8 @@ YAML
         expect($result['exit_code'])->toBe(0)
             ->and(is_array($decoded))->toBeTrue()
             ->and(($decoded['workflow']['inputs']['enable_redis_service'] ?? null))->toBe('true')
-            ->and(($decoded['workflow']['inputs']['enable_dynamodb_service'] ?? null))->toBe('true')
+            ->and(($decoded['workflow']['inputs']['enable_valkey_service'] ?? null))->toBe('true')
+            ->and(($decoded['workflow']['inputs']['enable_scylladb_service'] ?? null))->toBe('true')
             ->and(($decoded['workflow']['inputs']['service_db_user'] ?? null))->toBe('phpforge')
             ->and(($decoded['workflow']['warnings'] ?? []))->toBe([]);
     } finally {

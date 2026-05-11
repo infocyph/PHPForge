@@ -102,10 +102,11 @@ Psalm threads
 Enable SARIF code-scanning analysis job?
 Generate SVG security and quality report artifacts?
 Enable Redis service container in workflow run job?
+Enable Valkey service container in workflow run job?
 Enable Memcached service container in workflow run job?
 Enable PostgreSQL service container in workflow run job?
 Enable MySQL service container in workflow run job?
-Enable DynamoDB Local service container in workflow run job?
+Enable ScyllaDB Alternator service container in workflow run job?
 Enable Elasticsearch service container in workflow run job?
 Enable MongoDB service container in workflow run job?
 Shared service database name:
@@ -486,10 +487,11 @@ jobs:
       run_svg_report: true
       fail_on_skipped_tests: false
       enable_redis_service: false
+      enable_valkey_service: false
       enable_memcached_service: false
       enable_postgres_service: false
       enable_mysql_service: false
-      enable_dynamodb_service: false
+      enable_scylladb_service: false
       enable_elasticsearch_service: false
       enable_mongodb_service: false
       service_db_name: "phpforge"
@@ -512,10 +514,11 @@ Workflow inputs:
 | `run_svg_report`          | `true`                              | Generates `security-report.svg` and `security-summary.json` with per-version matrix results, per-version benchmark timings/trends, and tool versions. |
 | `fail_on_skipped_tests`   | `false`                             | Adds `--fail-on-skipped` to Pest execution so skipped tests fail the CI test job.                                                    |
 | `enable_redis_service`    | `false`                             | Starts a Redis service container and waits for readiness before running test commands.                                               |
+| `enable_valkey_service`   | `false`                             | Starts a Valkey service container and waits for readiness before running test commands.                                              |
 | `enable_memcached_service`| `false`                             | Starts a Memcached service container and waits for readiness before running test commands.                                           |
 | `enable_postgres_service` | `false`                             | Starts a PostgreSQL service container and waits for readiness before running test commands.                                          |
 | `enable_mysql_service`    | `false`                             | Starts a MySQL service container and waits for readiness before running test commands.                                               |
-| `enable_dynamodb_service` | `false`                             | Starts a DynamoDB Local service container and waits for readiness before running test commands.                                      |
+| `enable_scylladb_service` | `false`                             | Starts a ScyllaDB Alternator service container and waits for readiness before running test commands.                                 |
 | `enable_elasticsearch_service` | `false`                        | Starts an Elasticsearch service container and waits for readiness before running test commands.                                      |
 | `enable_mongodb_service`  | `false`                             | Starts a MongoDB service container and waits for readiness before running test commands.                                             |
 | `service_db_name`         | `phpforge`                          | Shared database name for PostgreSQL/MySQL/MongoDB service containers.                                                                |
@@ -601,10 +604,11 @@ Optional integration services are disabled by default:
 ```yaml
 with:
   enable_redis_service: true
+  enable_valkey_service: false
   enable_memcached_service: true
   enable_postgres_service: true
   enable_mysql_service: false
-  enable_dynamodb_service: true
+  enable_scylladb_service: true
   enable_elasticsearch_service: true
   enable_mongodb_service: true
   service_db_name: "cachelayer"
@@ -615,11 +619,12 @@ with:
 When a service is enabled, the workflow exports these environment variables in the `run` job:
 
 - `IC_REDIS_HOST`, `IC_REDIS_PORT`, `IC_REDIS_PASSWORD`
+- `IC_VALKEY_HOST`, `IC_VALKEY_PORT`, `IC_VALKEY_PASSWORD`
 - `IC_SERVICE_DATABASE`, `IC_SERVICE_USERNAME`, `IC_SERVICE_PASSWORD`
 - `IC_MEMCACHED_HOST`, `IC_MEMCACHED_PORT`
 - `IC_POSTGRES_DSN`, `IC_POSTGRES_USER`, `IC_POSTGRES_PASSWORD`
 - `IC_MYSQL_DSN`, `IC_MYSQL_USER`, `IC_MYSQL_PASSWORD`
-- `IC_DYNAMODB_HOST`, `IC_DYNAMODB_PORT`, `IC_DYNAMODB_ENDPOINT`, `IC_DYNAMODB_REGION`, `IC_DYNAMODB_ACCESS_KEY_ID`, `IC_DYNAMODB_SECRET_ACCESS_KEY`
+- `IC_SCYLLADB_HOST`, `IC_SCYLLADB_PORT`, `IC_SCYLLADB_ENDPOINT`, `IC_SCYLLADB_REGION`, `IC_SCYLLADB_ACCESS_KEY_ID`, `IC_SCYLLADB_SECRET_ACCESS_KEY`
 - `IC_ELASTICSEARCH_HOST`, `IC_ELASTICSEARCH_PORT`, `IC_ELASTICSEARCH_URL`
 - `IC_MONGODB_HOST`, `IC_MONGODB_PORT`, `IC_MONGODB_DSN`
 
@@ -728,10 +733,11 @@ jobs:
       dependency_versions: '["prefer-lowest","prefer-stable"]'
       php_extensions: "mbstring, redis, memcached, pdo_pgsql, pdo_mysql, mongodb"
       enable_redis_service: true
+      enable_valkey_service: false
       enable_memcached_service: true
       enable_postgres_service: true
       enable_mysql_service: true
-      enable_dynamodb_service: true
+      enable_scylladb_service: true
       enable_elasticsearch_service: true
       enable_mongodb_service: true
       service_db_name: "cachelayer"

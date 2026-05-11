@@ -26,10 +26,11 @@ jobs:
       run_svg_report: true
       fail_on_skipped_tests: false
       enable_redis_service: false
+      enable_valkey_service: false
       enable_memcached_service: false
       enable_postgres_service: false
       enable_mysql_service: false
-      enable_dynamodb_service: false
+      enable_scylladb_service: false
       enable_elasticsearch_service: false
       enable_mongodb_service: false
       service_db_name: "phpforge"
