@@ -141,9 +141,9 @@ jobs:
         image: ${{ inputs.enable_valkey_service && 'valkey/valkey:8-alpine' || '' }}
         command: --requirepass ${{ inputs.service_db_password }}
         ports:
-          - 6380:6380
+          - 6380:6379
         options: >-
-          --health-cmd "valkey-cli -a ${{ inputs.service_db_password }} -p 6380 ping"
+          --health-cmd "valkey-cli -a ${{ inputs.service_db_password }} -p 6379 ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
