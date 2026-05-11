@@ -22,6 +22,16 @@ final class DoctorCommand extends Command
         'psalm_threads',
         'run_analysis',
         'run_svg_report',
+        'enable_redis_service',
+        'enable_memcached_service',
+        'enable_postgres_service',
+        'enable_mysql_service',
+        'enable_dynamodb_service',
+        'enable_elasticsearch_service',
+        'enable_mongodb_service',
+        'service_db_name',
+        'service_db_user',
+        'service_db_password',
         'artifact_retention_days',
     ];
 

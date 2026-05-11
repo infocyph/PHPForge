@@ -65,10 +65,23 @@ YAML;
         'psalm_threads' => WorkflowWrapper::yamlDoubleQuoted('2'),
         'run_analysis' => 'false',
         'run_svg_report' => 'true',
+        'enable_redis_service' => 'true',
+        'enable_memcached_service' => 'true',
+        'enable_postgres_service' => 'true',
+        'enable_mysql_service' => 'false',
+        'enable_dynamodb_service' => 'true',
+        'enable_elasticsearch_service' => 'false',
+        'enable_mongodb_service' => 'true',
+        'service_db_name' => WorkflowWrapper::yamlDoubleQuoted('phpforge'),
+        'service_db_user' => WorkflowWrapper::yamlDoubleQuoted('phpforge'),
+        'service_db_password' => WorkflowWrapper::yamlDoubleQuoted('phpforge'),
     ]);
 
     expect($updated)->toContain('uses: infocyph/phpforge/.github/workflows/security-standards.yml@main')
         ->and($updated)->toContain('php_versions: \'["8.4","8.5"]\'')
         ->and($updated)->toContain('php_extensions: "mbstring, intl"')
-        ->and($updated)->toContain('run_analysis: false');
+        ->and($updated)->toContain('run_analysis: false')
+        ->and($updated)->toContain('enable_redis_service: true')
+        ->and($updated)->toContain('enable_dynamodb_service: true')
+        ->and($updated)->toContain('service_db_user: "phpforge"');
 });

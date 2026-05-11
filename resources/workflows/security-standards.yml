@@ -24,4 +24,14 @@ jobs:
       psalm_threads: "1"
       run_analysis: true
       run_svg_report: true
+      enable_redis_service: false
+      enable_memcached_service: false
+      enable_postgres_service: false
+      enable_mysql_service: false
+      enable_dynamodb_service: false
+      enable_elasticsearch_service: false
+      enable_mongodb_service: false
+      service_db_name: "phpforge"
+      service_db_user: "phpforge"
+      service_db_password: "phpforge"
       artifact_retention_days: 61
