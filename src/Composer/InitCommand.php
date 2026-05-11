@@ -90,6 +90,11 @@ final class InitCommand extends Command
         $settings['psalm_threads'] = $this->askPsalmThreads($helper, $input, $output, (string) $settings['psalm_threads']);
         $settings['run_analysis'] = $this->askRunAnalysis($helper, $input, $output, (bool) $settings['run_analysis']);
         $settings['run_svg_report'] = $this->askRunSvgReport($helper, $input, $output, (bool) $settings['run_svg_report']);
+        $settings = $this->askServiceToggles($helper, $input, $output, $settings);
+
+        $settings['service_db_name'] = $this->askServiceDbName($helper, $input, $output, (string) $settings['service_db_name']);
+        $settings['service_db_user'] = $this->askServiceDbUser($helper, $input, $output, (string) $settings['service_db_user']);
+        $settings['service_db_password'] = $this->askServiceDbPassword($helper, $input, $output, (string) $settings['service_db_password']);
 
         return $settings;
     }
@@ -159,6 +164,16 @@ final class InitCommand extends Command
             sprintf('stable (%s)', $presets['stable']) => 'stable',
             'custom (enter JSON array string)' => 'custom',
         ]);
+    }
+
+    private function askEnableWorkflowService(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $serviceName,
+        bool $defaultEnabled,
+    ): bool {
+        return (bool) $helper->ask($input, $output, new ConfirmationQuestion(sprintf('Enable %s service container in workflow run job? [y/N] ', $serviceName), $defaultEnabled));
     }
 
     /**
@@ -232,6 +247,9 @@ final class InitCommand extends Command
         $detectedExtensionsLabel = $phpExtensionPresets['detected'] !== ''
             ? $phpExtensionPresets['detected']
             : 'none detected';
+        $defaultChoice = $phpExtensionPresets['detected'] !== ''
+            ? sprintf('detected (from composer ext-* require/require-dev/suggest: %s)', $detectedExtensionsLabel)
+            : 'none (no extra extensions)';
 
         $extensionChoiceMap = [
             'none (no extra extensions)' => 'none',
@@ -245,7 +263,7 @@ final class InitCommand extends Command
 
         return $this->askMappedChoice($helper, $input, $output, [
             'prompt' => 'PHP extensions',
-            'default_choice' => 'none (no extra extensions)',
+            'default_choice' => $defaultChoice,
             'custom_prompt' => 'Custom PHP extensions, comma-separated: ',
             'custom_default' => $defaultExtensions,
             'resolved_label' => 'Resolved PHP extensions',
@@ -329,6 +347,60 @@ final class InitCommand extends Command
         return (bool) $helper->ask($input, $output, new ConfirmationQuestion('Generate SVG security and quality report artifacts? [Y/n] ', $defaultRunSvgReport));
     }
 
+    private function askServiceDbName(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $defaultName,
+    ): string {
+        return $this->stringValue($helper->ask($input, $output, new Question('Shared service database name: ', $defaultName)), $defaultName);
+    }
+
+    private function askServiceDbPassword(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $defaultPassword,
+    ): string {
+        return $this->stringValue($helper->ask($input, $output, new Question('Shared service password: ', $defaultPassword)), $defaultPassword);
+    }
+
+    private function askServiceDbUser(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        string $defaultUser,
+    ): string {
+        return $this->stringValue($helper->ask($input, $output, new Question('Shared service username: ', $defaultUser)), $defaultUser);
+    }
+
+    /**
+     * @param array<string, bool|string> $settings
+     * @return array<string, bool|string>
+     */
+    private function askServiceToggles(
+        QuestionHelper $helper,
+        InputInterface $input,
+        OutputInterface $output,
+        array $settings,
+    ): array {
+        $services = [
+            'enable_redis_service' => 'Redis',
+            'enable_memcached_service' => 'Memcached',
+            'enable_postgres_service' => 'PostgreSQL',
+            'enable_mysql_service' => 'MySQL',
+            'enable_dynamodb_service' => 'DynamoDB Local',
+            'enable_elasticsearch_service' => 'Elasticsearch',
+            'enable_mongodb_service' => 'MongoDB',
+        ];
+
+        foreach ($services as $setting => $serviceName) {
+            $settings[$setting] = $this->askEnableWorkflowService($helper, $input, $output, $serviceName, (bool) $settings[$setting]);
+        }
+
+        return $settings;
+    }
+
     private function askWorkflowRef(
         QuestionHelper $helper,
         InputInterface $input,
@@ -356,6 +428,14 @@ final class InitCommand extends Command
         }
 
         return $this->stringValue($helper->ask($input, $output, new Question('Custom PHPForge workflow ref: ', $defaultWorkflowRef)), $defaultWorkflowRef);
+    }
+
+    /**
+     * @param array<string, bool|string> $settings
+     */
+    private function boolWorkflowSetting(array $settings, string $key): string
+    {
+        return (bool) ($settings[$key] ?? false) ? 'true' : 'false';
     }
 
     private function copy(string $source, string $target, bool $force, OutputInterface $output): int
@@ -424,36 +504,17 @@ final class InitCommand extends Command
             return 0;
         }
 
-        $workflowRef = $this->validatedWorkflowRef((string) $settings['workflow_ref'], $output);
-        $phpVersions = $this->normalizedJsonStringList((string) $settings['php_versions'], 'php_versions', $output);
-        $dependencyVersions = $this->normalizedJsonStringList((string) $settings['dependency_versions'], 'dependency_versions', $output);
-        $phpExtensions = $this->singleLineValue((string) $settings['php_extensions'], 'php_extensions', $output);
-        $composerFlags = $this->singleLineValue((string) $settings['composer_flags'], 'composer_flags', $output);
-        $phpstanMemoryLimit = $this->singleLineValue((string) $settings['phpstan_memory_limit'], 'phpstan_memory_limit', $output);
-        $psalmThreads = $this->singleLineValue((string) $settings['psalm_threads'], 'psalm_threads', $output);
+        $workflowSettings = $this->normalizedWorkflowSettings($settings, $output);
 
-        if (
-            !is_string($workflowRef)
-            || !is_string($phpVersions)
-            || !is_string($dependencyVersions)
-            || !is_string($phpExtensions)
-            || !is_string($composerFlags)
-            || !is_string($phpstanMemoryLimit)
-            || !is_string($psalmThreads)
-        ) {
+        if (!is_array($workflowSettings)) {
             return 0;
         }
 
-        $contents = WorkflowWrapper::update($contents, $workflowRef, [
-            'php_versions' => WorkflowWrapper::yamlSingleQuoted($phpVersions),
-            'dependency_versions' => WorkflowWrapper::yamlSingleQuoted($dependencyVersions),
-            'php_extensions' => WorkflowWrapper::yamlDoubleQuoted($phpExtensions),
-            'composer_flags' => WorkflowWrapper::yamlDoubleQuoted($composerFlags),
-            'phpstan_memory_limit' => WorkflowWrapper::yamlDoubleQuoted($phpstanMemoryLimit),
-            'psalm_threads' => WorkflowWrapper::yamlDoubleQuoted($psalmThreads),
-            'run_analysis' => $settings['run_analysis'] ? 'true' : 'false',
-            'run_svg_report' => $settings['run_svg_report'] ? 'true' : 'false',
-        ]);
+        $contents = WorkflowWrapper::update(
+            $contents,
+            $workflowSettings['workflow_ref'],
+            $this->workflowWrapperValues($workflowSettings, $settings),
+        );
 
         if (!is_string($contents)) {
             $output->writeln('<error>Unable to patch workflow template: missing or invalid "with" block.</error>');
@@ -479,7 +540,17 @@ final class InitCommand extends Command
      *     phpstan_memory_limit: string,
      *     psalm_threads: string,
      *     run_analysis: bool,
-     *     run_svg_report: bool
+     *     run_svg_report: bool,
+     *     enable_redis_service: bool,
+     *     enable_memcached_service: bool,
+     *     enable_postgres_service: bool,
+     *     enable_mysql_service: bool,
+     *     enable_dynamodb_service: bool,
+     *     enable_elasticsearch_service: bool,
+     *     enable_mongodb_service: bool,
+     *     service_db_name: string,
+     *     service_db_user: string,
+     *     service_db_password: string
      * }
      */
     private function defaultSettings(string $workflowRef): array
@@ -493,12 +564,22 @@ final class InitCommand extends Command
             'workflow_ref' => $workflowRef,
             'php_versions' => '["8.2","8.3","8.4","8.5"]',
             'dependency_versions' => '["prefer-lowest","prefer-stable"]',
-            'php_extensions' => '',
+            'php_extensions' => $this->detectedPhpExtensions(),
             'composer_flags' => '',
             'phpstan_memory_limit' => '1G',
             'psalm_threads' => '1',
             'run_analysis' => true,
             'run_svg_report' => true,
+            'enable_redis_service' => false,
+            'enable_memcached_service' => false,
+            'enable_postgres_service' => false,
+            'enable_mysql_service' => false,
+            'enable_dynamodb_service' => false,
+            'enable_elasticsearch_service' => false,
+            'enable_mongodb_service' => false,
+            'service_db_name' => 'phpforge',
+            'service_db_user' => 'phpforge',
+            'service_db_password' => 'phpforge',
         ];
     }
 
@@ -596,6 +677,63 @@ final class InitCommand extends Command
         }
 
         return $encoded;
+    }
+
+    /**
+     * @param array<string, bool|string> $settings
+     * @return array{
+     *     workflow_ref: string,
+     *     php_versions: string,
+     *     dependency_versions: string,
+     *     php_extensions: string,
+     *     composer_flags: string,
+     *     phpstan_memory_limit: string,
+     *     psalm_threads: string,
+     *     service_db_name: string,
+     *     service_db_user: string,
+     *     service_db_password: string
+     * }|null
+     */
+    private function normalizedWorkflowSettings(array $settings, OutputInterface $output): ?array
+    {
+        $workflowRef = $this->validatedWorkflowRef((string) $settings['workflow_ref'], $output);
+        $phpVersions = $this->normalizedJsonStringList((string) $settings['php_versions'], 'php_versions', $output);
+        $dependencyVersions = $this->normalizedJsonStringList((string) $settings['dependency_versions'], 'dependency_versions', $output);
+        $phpExtensions = $this->singleLineValue((string) $settings['php_extensions'], 'php_extensions', $output);
+        $composerFlags = $this->singleLineValue((string) $settings['composer_flags'], 'composer_flags', $output);
+        $phpstanMemoryLimit = $this->singleLineValue((string) $settings['phpstan_memory_limit'], 'phpstan_memory_limit', $output);
+        $psalmThreads = $this->singleLineValue((string) $settings['psalm_threads'], 'psalm_threads', $output);
+        $serviceDbName = $this->singleLineValue((string) $settings['service_db_name'], 'service_db_name', $output);
+        $serviceDbUser = $this->singleLineValue((string) $settings['service_db_user'], 'service_db_user', $output);
+        $serviceDbPassword = $this->singleLineValue((string) $settings['service_db_password'], 'service_db_password', $output);
+
+        if (
+            !is_string($workflowRef)
+            || !is_string($phpVersions)
+            || !is_string($dependencyVersions)
+            || !is_string($phpExtensions)
+            || !is_string($composerFlags)
+            || !is_string($phpstanMemoryLimit)
+            || !is_string($psalmThreads)
+            || !is_string($serviceDbName)
+            || !is_string($serviceDbUser)
+            || !is_string($serviceDbPassword)
+        ) {
+            return null;
+        }
+
+        return [
+            'workflow_ref' => $workflowRef,
+            'php_versions' => $phpVersions,
+            'dependency_versions' => $dependencyVersions,
+            'php_extensions' => $phpExtensions,
+            'composer_flags' => $composerFlags,
+            'phpstan_memory_limit' => $phpstanMemoryLimit,
+            'psalm_threads' => $psalmThreads,
+            'service_db_name' => $serviceDbName,
+            'service_db_user' => $serviceDbUser,
+            'service_db_password' => $serviceDbPassword,
+        ];
     }
 
     private function parseDate(mixed $value): ?\DateTimeImmutable
@@ -819,6 +957,46 @@ final class InitCommand extends Command
         }
 
         return $value;
+    }
+
+    /**
+     * @param array{
+     *     workflow_ref: string,
+     *     php_versions: string,
+     *     dependency_versions: string,
+     *     php_extensions: string,
+     *     composer_flags: string,
+     *     phpstan_memory_limit: string,
+     *     psalm_threads: string,
+     *     service_db_name: string,
+     *     service_db_user: string,
+     *     service_db_password: string
+     * } $workflowSettings
+     * @param array<string, bool|string> $settings
+     * @return array<string, string>
+     */
+    private function workflowWrapperValues(array $workflowSettings, array $settings): array
+    {
+        return [
+            'php_versions' => WorkflowWrapper::yamlSingleQuoted($workflowSettings['php_versions']),
+            'dependency_versions' => WorkflowWrapper::yamlSingleQuoted($workflowSettings['dependency_versions']),
+            'php_extensions' => WorkflowWrapper::yamlDoubleQuoted($workflowSettings['php_extensions']),
+            'composer_flags' => WorkflowWrapper::yamlDoubleQuoted($workflowSettings['composer_flags']),
+            'phpstan_memory_limit' => WorkflowWrapper::yamlDoubleQuoted($workflowSettings['phpstan_memory_limit']),
+            'psalm_threads' => WorkflowWrapper::yamlDoubleQuoted($workflowSettings['psalm_threads']),
+            'run_analysis' => $this->boolWorkflowSetting($settings, 'run_analysis'),
+            'run_svg_report' => $this->boolWorkflowSetting($settings, 'run_svg_report'),
+            'enable_redis_service' => $this->boolWorkflowSetting($settings, 'enable_redis_service'),
+            'enable_memcached_service' => $this->boolWorkflowSetting($settings, 'enable_memcached_service'),
+            'enable_postgres_service' => $this->boolWorkflowSetting($settings, 'enable_postgres_service'),
+            'enable_mysql_service' => $this->boolWorkflowSetting($settings, 'enable_mysql_service'),
+            'enable_dynamodb_service' => $this->boolWorkflowSetting($settings, 'enable_dynamodb_service'),
+            'enable_elasticsearch_service' => $this->boolWorkflowSetting($settings, 'enable_elasticsearch_service'),
+            'enable_mongodb_service' => $this->boolWorkflowSetting($settings, 'enable_mongodb_service'),
+            'service_db_name' => WorkflowWrapper::yamlDoubleQuoted($workflowSettings['service_db_name']),
+            'service_db_user' => WorkflowWrapper::yamlDoubleQuoted($workflowSettings['service_db_user']),
+            'service_db_password' => WorkflowWrapper::yamlDoubleQuoted($workflowSettings['service_db_password']),
+        ];
     }
 
     private function write(string $contents, string $target, bool $force, OutputInterface $output): int

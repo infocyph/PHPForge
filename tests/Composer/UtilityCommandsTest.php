@@ -144,3 +144,63 @@ it('reports normalize plugin status in doctor json diagnostics', function (): vo
         removeUtilityCommandsTree($projectRoot);
     }
 });
+
+it('parses optional service workflow inputs in doctor diagnostics', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-utility-doctor-workflow-'.uniqid('', true);
+
+    mkdir($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'workflows', 0755, true);
+    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
+    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'workflows'.DIRECTORY_SEPARATOR.'security-standards.yml', <<<'YAML'
+name: "Security & Standards"
+
+jobs:
+  phpforge:
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
+    with:
+      php_versions: '["8.4","8.5"]'
+      dependency_versions: '["prefer-lowest","prefer-stable"]'
+      php_extensions: ""
+      composer_flags: ""
+      phpstan_memory_limit: "1G"
+      psalm_threads: "1"
+      run_analysis: true
+      run_svg_report: true
+      enable_redis_service: true
+      enable_memcached_service: true
+      enable_postgres_service: true
+      enable_mysql_service: false
+      enable_dynamodb_service: true
+      enable_elasticsearch_service: false
+      enable_mongodb_service: true
+      service_db_name: "cachelayer"
+      service_db_user: "phpforge"
+      service_db_password: "phpforge"
+      artifact_retention_days: 61
+YAML
+    );
+
+    chdir($projectRoot);
+
+    try {
+        $result = runComposerCommand(
+            new DoctorCommand(),
+            ['--json' => true],
+            [new Option('json', null, Option::VALUE_NONE)],
+        );
+        $decoded = json_decode($result['output'], true);
+
+        expect($result['exit_code'])->toBe(0)
+            ->and(is_array($decoded))->toBeTrue()
+            ->and(($decoded['workflow']['inputs']['enable_redis_service'] ?? null))->toBe('true')
+            ->and(($decoded['workflow']['inputs']['enable_dynamodb_service'] ?? null))->toBe('true')
+            ->and(($decoded['workflow']['inputs']['service_db_user'] ?? null))->toBe('phpforge')
+            ->and(($decoded['workflow']['warnings'] ?? []))->toBe([]);
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        removeUtilityCommandsTree($projectRoot);
+    }
+});
