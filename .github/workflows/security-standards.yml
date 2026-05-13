@@ -250,6 +250,52 @@ jobs:
           ini-values: ${{ contains(inputs.php_extensions, 'apcu') && 'apc.enable_cli=1, apcu.enable_cli=1' || '' }}
           coverage: none
 
+      - name: Sanitize Composer GitHub OAuth token format
+        shell: bash
+        run: |
+          php -r '
+          $paths = [];
+          $composerHome = getenv("COMPOSER_HOME");
+          $home = getenv("HOME");
+          if (is_string($composerHome) && $composerHome !== "") {
+              $paths[] = $composerHome . "/auth.json";
+          }
+          if (is_string($home) && $home !== "") {
+              $paths[] = $home . "/.composer/auth.json";
+              $paths[] = $home . "/.config/composer/auth.json";
+          }
+          $paths = array_values(array_unique($paths));
+          foreach ($paths as $path) {
+              if (!is_file($path)) {
+                  continue;
+              }
+              $raw = file_get_contents($path);
+              if (!is_string($raw) || $raw === "") {
+                  continue;
+              }
+              $data = json_decode($raw, true);
+              if (!is_array($data)) {
+                  continue;
+              }
+              $token = $data["github-oauth"]["github.com"] ?? null;
+              if (!is_string($token) || $token === "") {
+                  continue;
+              }
+              if (preg_match("{^[.A-Za-z0-9_]+$}", $token) === 1) {
+                  continue;
+              }
+              unset($data["github-oauth"]["github.com"]);
+              if (($data["github-oauth"] ?? null) === []) {
+                  unset($data["github-oauth"]);
+              }
+              $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+              if (is_string($encoded)) {
+                  file_put_contents($path, $encoded . PHP_EOL);
+                  fwrite(STDOUT, "Removed unsupported github-oauth token format from {$path}" . PHP_EOL);
+              }
+          }
+          '
+
       - name: Check PHP Version
         run: php -v
 
@@ -333,6 +379,52 @@ jobs:
           tools: composer:v2
           extensions: ${{ inputs.php_extensions }}
           coverage: none
+
+      - name: Sanitize Composer GitHub OAuth token format
+        shell: bash
+        run: |
+          php -r '
+          $paths = [];
+          $composerHome = getenv("COMPOSER_HOME");
+          $home = getenv("HOME");
+          if (is_string($composerHome) && $composerHome !== "") {
+              $paths[] = $composerHome . "/auth.json";
+          }
+          if (is_string($home) && $home !== "") {
+              $paths[] = $home . "/.composer/auth.json";
+              $paths[] = $home . "/.config/composer/auth.json";
+          }
+          $paths = array_values(array_unique($paths));
+          foreach ($paths as $path) {
+              if (!is_file($path)) {
+                  continue;
+              }
+              $raw = file_get_contents($path);
+              if (!is_string($raw) || $raw === "") {
+                  continue;
+              }
+              $data = json_decode($raw, true);
+              if (!is_array($data)) {
+                  continue;
+              }
+              $token = $data["github-oauth"]["github.com"] ?? null;
+              if (!is_string($token) || $token === "") {
+                  continue;
+              }
+              if (preg_match("{^[.A-Za-z0-9_]+$}", $token) === 1) {
+                  continue;
+              }
+              unset($data["github-oauth"]["github.com"]);
+              if (($data["github-oauth"] ?? null) === []) {
+                  unset($data["github-oauth"]);
+              }
+              $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+              if (is_string($encoded)) {
+                  file_put_contents($path, $encoded . PHP_EOL);
+                  fwrite(STDOUT, "Removed unsupported github-oauth token format from {$path}" . PHP_EOL);
+              }
+          }
+          '
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress ${{ inputs.composer_flags }}
