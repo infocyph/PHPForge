@@ -27,3 +27,23 @@ Please include:
 - Fix and release timeline depends on severity and exploitability
 
 If a report is accepted, a patched release will be prepared and published. Credit will be provided unless you request otherwise.
+
+## Protected by PHPForge
+
+This project is protected by [PHPForge](https://github.com/infocyph/PHPForge), an automated quality and security tooling layer for Infocyph PHP projects.
+
+PHPForge helps keep the project reliable by running checks for:
+
+- Code style and standards
+- Tests and syntax validation
+- Static analysis and type safety
+- Security and taint analysis
+- Dependency vulnerability audit
+- Architecture boundary validation
+- Duplicate-code detection
+- API snapshot and comment-policy checks
+- Refactor safety checks
+- Benchmark and release-readiness checks
+- Git hooks and CI workflow protection
+
+These automated gates strengthen code quality, reduce security risk and help prevent regressions before merge or release.
