@@ -4,7 +4,7 @@ Thanks for contributing.
 
 ## Before You Start
 
-- Review the project code of conduct (if available).
+- Review the project code of conduct.
 - For security issues, use private reporting and avoid opening a public issue.
 - Check existing issues and pull requests first to avoid duplicates.
 
