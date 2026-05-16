@@ -87,3 +87,18 @@ YAML;
         ->and($updated)->toContain('enable_scylladb_service: true')
         ->and($updated)->toContain('service_db_user: "phpforge"');
 });
+
+it('defaults community templates init selection to disabled', function (): void {
+    $command = new InitCommand();
+    $method = new ReflectionMethod(InitCommand::class, 'defaultSettings');
+
+    $settings = $method->invoke($command, 'main');
+
+    expect($settings['community_templates'] ?? null)->toBeFalse();
+});
+
+it('can be instantiated with the ic:int alias name', function (): void {
+    $command = new InitCommand('ic:int');
+
+    expect($command->getName())->toBe('ic:int');
+});

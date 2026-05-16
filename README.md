@@ -92,6 +92,7 @@ Install GitHub Actions workflow wrapper (parallel CI, SARIF, SVG report)?
 Install GitLab CI pipeline (.gitlab-ci.yml)?
 Install Bitbucket pipeline (bitbucket-pipelines.yml)?
 Install Forgejo workflow (.forgejo/workflows/security-standards.yml)?
+Install generic contributing, issue, and pull request templates?
 PHPForge workflow ref
 PHP version matrix
 Dependency matrix
@@ -140,9 +141,20 @@ captainhook.json
 .gitlab-ci.yml
 bitbucket-pipelines.yml
 .forgejo/workflows/security-standards.yml
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
+.github/ISSUE_TEMPLATE/bug_report.yml
+.github/ISSUE_TEMPLATE/regression_report.yml
+.github/ISSUE_TEMPLATE/ci_failure.yml
+.github/ISSUE_TEMPLATE/feature_request.yml
+.github/ISSUE_TEMPLATE/question.yml
+.github/ISSUE_TEMPLATE/docs_improvement.yml
+.github/ISSUE_TEMPLATE/config.yml
+.github/PULL_REQUEST_TEMPLATE.md
 ```
 
-`ic:init` sets up hook/workflow wrappers only. Publish checker or architecture config separately with `composer ic:publish-config phpprobe.json deptrac.yaml` when customization is needed.
+`ic:init` sets up hook/workflow wrappers and optional community template files. Publish checker or architecture config separately with `composer ic:publish-config phpprobe.json deptrac.yaml` when customization is needed.
 
 After `ic:init`, run:
 
@@ -163,8 +175,10 @@ composer ic:init --workflow --workflow-ref=main
 composer ic:init --gitlab-ci
 composer ic:init --bitbucket-ci
 composer ic:init --forgejo-workflow
+composer ic:init --community-templates
 composer ic:init --no-interaction-defaults
 composer ic:init --force
+composer ic:int
 ```
 
 ## Command Reference
@@ -273,8 +287,10 @@ Useful checker options:
 | `composer ic:init --gitlab-ci`                      | Copies `.gitlab-ci.yml` starter pipeline.                                                                    |
 | `composer ic:init --bitbucket-ci`                   | Copies `bitbucket-pipelines.yml` starter pipeline.                                                           |
 | `composer ic:init --forgejo-workflow`               | Copies `.forgejo/workflows/security-standards.yml` starter workflow.                                         |
+| `composer ic:init --community-templates`            | Copies generic `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, issue forms/config, and PR template files. |
 | `composer ic:init --no-interaction-defaults`        | Copies default init files without prompting.                                                                   |
 | `composer ic:init --force`                          | Overwrites existing copied files.                                                                              |
+| `composer ic:int`                                   | Alias of `composer ic:init`.                                                                                   |
 | `composer ic:hooks`                                 | Installs enabled CaptainHook hooks.                                                                            |
 | `composer ic:doctor`                                | Shows detected configs, vendor-dir, plugin permissions, hook status, and workflow wrapper validation warnings. |
 | `composer ic:doctor --json`                         | Outputs doctor diagnostics as JSON, including workflow wrapper validation details.                             |
@@ -284,6 +300,10 @@ Useful checker options:
 | `composer ic:publish-config phpprobe.json --phpprobe-preset=strict` | Publishes `phpprobe.json` with a named PHPProbe preset (`default`, `standard`, `ci`, `strict`). |
 | `composer ic:publish-config --all`                  | Copies every bundled config file into the project.                                                             |
 | `composer ic:publish-config --all --force`          | Overwrites all project config files with bundled defaults.                                                     |
+| `composer ic:community`                             | Copies generic `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, issue forms/config, and PR template files into the project. |
+| `composer ic:community --force`                     | Overwrites existing community template files with bundled defaults.                                            |
+| `composer ic:publish-community-templates`           | Alias of `composer ic:community`.                                                                              |
+| `composer ic:publish-community-templates --force`   | Alias of `composer ic:community --force`.                                                                      |
 | `composer ic:clean`                                 | Removes known PHPForge output files and cache directories.                                                     |
 | `composer ic:version`                               | Shows PHPForge, PHP, PHP binary, and vendor-dir information.                                                   |
 | `composer ic:phpstan:sarif input.json output.sarif` | Converts PHPStan JSON output to SARIF 2.1.0.                                                                   |
@@ -788,6 +808,26 @@ Each template installs dependencies and runs:
 ```bash
 composer ic:ci
 ```
+
+Generate community templates for contributing and issue triage:
+
+```bash
+composer ic:community
+```
+
+Generated files:
+
+- `CONTRIBUTING.md`
+- `CODE_OF_CONDUCT.md`
+- `SECURITY.md`
+- `.github/ISSUE_TEMPLATE/bug_report.yml`
+- `.github/ISSUE_TEMPLATE/regression_report.yml`
+- `.github/ISSUE_TEMPLATE/ci_failure.yml`
+- `.github/ISSUE_TEMPLATE/feature_request.yml`
+- `.github/ISSUE_TEMPLATE/question.yml`
+- `.github/ISSUE_TEMPLATE/docs_improvement.yml`
+- `.github/ISSUE_TEMPLATE/config.yml`
+- `.github/PULL_REQUEST_TEMPLATE.md`
 
 ## Migration Guide
 

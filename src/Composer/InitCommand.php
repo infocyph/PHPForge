@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\PHPForge\Composer;
 
 use Composer\Command\BaseCommand as Command;
+use Infocyph\PHPForge\Support\CommunityTemplateCatalog;
 use Infocyph\PHPForge\Support\Paths;
 use Infocyph\PHPForge\Support\WorkflowWrapper;
 use Symfony\Component\Console\Helper\QuestionHelper;
@@ -24,9 +25,9 @@ final class InitCommand extends Command
      */
     private ?array $phpVersionPresetsCache = null;
 
-    public function __construct()
+    public function __construct(string $name = 'ic:init')
     {
-        parent::__construct('ic:init');
+        parent::__construct($name);
     }
 
     protected function configure(): void
@@ -39,6 +40,7 @@ final class InitCommand extends Command
             ->addOption('gitlab-ci', null, InputOption::VALUE_NONE, 'Copy a GitLab CI pipeline.')
             ->addOption('bitbucket-ci', null, InputOption::VALUE_NONE, 'Copy a Bitbucket Pipelines configuration.')
             ->addOption('forgejo-workflow', null, InputOption::VALUE_NONE, 'Copy a Forgejo Actions workflow.')
+            ->addOption('community-templates', null, InputOption::VALUE_NONE, 'Copy generic contributing, issue, and pull request templates.')
             ->addOption('no-interaction-defaults', null, InputOption::VALUE_NONE, 'Use default init selections without prompting.')
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing files.');
     }
@@ -191,6 +193,7 @@ final class InitCommand extends Command
         $settings['gitlab_ci'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitLab CI pipeline (.gitlab-ci.yml)? [y/N] ', false));
         $settings['bitbucket_ci'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Bitbucket pipeline (bitbucket-pipelines.yml)? [y/N] ', false));
         $settings['forgejo_workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install Forgejo workflow (.forgejo/workflows/security-standards.yml)? [y/N] ', false));
+        $settings['community_templates'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install generic contributing, issue, and pull request templates? [y/N] ', false));
 
         return $settings;
     }
@@ -458,6 +461,17 @@ final class InitCommand extends Command
         return $this->write($contents, $target, $force, $output);
     }
 
+    private function copyCommunityTemplates(bool $force, OutputInterface $output): int
+    {
+        $copied = 0;
+
+        foreach (CommunityTemplateCatalog::publishPairs() as $pair) {
+            $copied += $this->copy($pair['source'], $pair['target'], $force, $output);
+        }
+
+        return $copied;
+    }
+
     /**
      * @param array<string, bool> $flags
      * @param array<string, bool|string> $settings
@@ -481,6 +495,10 @@ final class InitCommand extends Command
                 [$source, $target] = $this->target($flag);
                 $copied += $this->copy($source, $target, $force, $output);
             }
+        }
+
+        if ($flags['community_templates']) {
+            $copied += $this->copyCommunityTemplates($force, $output);
         }
 
         return $copied;
@@ -533,6 +551,7 @@ final class InitCommand extends Command
      *     gitlab_ci: bool,
      *     bitbucket_ci: bool,
      *     forgejo_workflow: bool,
+     *     community_templates: bool,
      *     workflow_ref: string,
      *     php_versions: string,
      *     dependency_versions: string,
@@ -564,6 +583,7 @@ final class InitCommand extends Command
             'gitlab_ci' => false,
             'bitbucket_ci' => false,
             'forgejo_workflow' => false,
+            'community_templates' => false,
             'workflow_ref' => $workflowRef,
             'php_versions' => '["8.2","8.3","8.4","8.5"]',
             'dependency_versions' => '["prefer-lowest","prefer-stable"]',
@@ -798,6 +818,7 @@ final class InitCommand extends Command
             'gitlab_ci' => '  - Review and commit .gitlab-ci.yml',
             'bitbucket_ci' => '  - Review and commit bitbucket-pipelines.yml',
             'forgejo_workflow' => '  - Review and commit .forgejo/workflows/security-standards.yml',
+            'community_templates' => '  - Review and commit CONTRIBUTING.md and .github issue/PR templates',
         ];
 
         foreach ($messages as $key => $message) {
@@ -828,6 +849,7 @@ final class InitCommand extends Command
             'gitlab_ci' => (bool) $input->getOption('gitlab-ci'),
             'bitbucket_ci' => (bool) $input->getOption('bitbucket-ci'),
             'forgejo_workflow' => (bool) $input->getOption('forgejo-workflow'),
+            'community_templates' => (bool) $input->getOption('community-templates'),
         ];
         $explicit = in_array(true, $flags, true) || (bool) $input->getOption('no-interaction-defaults');
 

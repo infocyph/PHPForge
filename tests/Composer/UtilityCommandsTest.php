@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Infocyph\PHPForge\Composer\CleanCommand;
 use Infocyph\PHPForge\Composer\DoctorCommand;
 use Infocyph\PHPForge\Composer\ListConfigCommand;
+use Infocyph\PHPForge\Composer\PublishCommunityTemplatesCommand;
 use Infocyph\PHPForge\Composer\VersionCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -199,6 +200,44 @@ YAML
             ->and(($decoded['workflow']['inputs']['enable_scylladb_service'] ?? null))->toBe('true')
             ->and(($decoded['workflow']['inputs']['service_db_user'] ?? null))->toBe('phpforge')
             ->and(($decoded['workflow']['warnings'] ?? []))->toBe([]);
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        removeUtilityCommandsTree($projectRoot);
+    }
+});
+
+it('publishes generic community template files to project root', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-community-templates-'.uniqid('', true);
+
+    mkdir($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE', 0755, true);
+    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
+
+    chdir($projectRoot);
+
+    try {
+        $result = runComposerCommand(
+            new PublishCommunityTemplatesCommand(),
+            [],
+            [new Option('force', 'f', Option::VALUE_NONE)],
+        );
+
+        expect($result['exit_code'])->toBe(0)
+            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'CONTRIBUTING.md'))->toBeTrue()
+            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'CODE_OF_CONDUCT.md'))->toBeTrue()
+            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'SECURITY.md'))->toBeTrue()
+            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'bug_report.yml'))->toBeTrue()
+            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'regression_report.yml'))->toBeTrue()
+            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'ci_failure.yml'))->toBeTrue()
+            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'feature_request.yml'))->toBeTrue()
+            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'question.yml'))->toBeTrue()
+            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'docs_improvement.yml'))->toBeTrue()
+            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'config.yml'))->toBeTrue()
+            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'PULL_REQUEST_TEMPLATE.md'))->toBeTrue()
+            ->and($result['output'])->toContain('Published 11 community template file(s).');
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);

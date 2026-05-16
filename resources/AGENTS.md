@@ -23,7 +23,9 @@
 - `composer ic:doctor` - show setup diagnostics (config resolution, plugin permissions, hooks/workflow checks).
 - `composer ic:list-config` - list discovered config files and where each one is resolved from.
 - `composer ic:publish-config [file...]` - copy bundled config file(s) into the project (`--all` and `--force` supported).
-- `composer ic:init` - interactive project bootstrap for CaptainHook and CI/workflow wrappers.
+- `composer ic:init` - interactive project bootstrap for CaptainHook, CI/workflow wrappers, and optional community templates.
+- `composer ic:community` - copy generic `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, issue forms/config, and PR template files.
+- `composer ic:publish-community-templates` - alias of `composer ic:community`.
 - `composer ic:hooks` - install/update enabled CaptainHook hooks.
 - `composer ic:clean` - remove known PHPForge output files and cache directories.
 - `composer ic:version` - print PHPForge/PHP/runtime path metadata.
