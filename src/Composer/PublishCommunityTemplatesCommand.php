@@ -6,6 +6,7 @@ namespace Infocyph\PHPForge\Composer;
 
 use Composer\Command\BaseCommand as Command;
 use Infocyph\PHPForge\Support\CommunityTemplateCatalog;
+use Infocyph\PHPForge\Support\FilePublisher;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -40,42 +41,12 @@ final class PublishCommunityTemplatesCommand extends Command
 
     private function publish(string $source, string $target, string $targetRelative, bool $force, OutputInterface $output): bool
     {
-        if (!is_file($source)) {
-            $output->writeln(sprintf('<error>Missing bundled template: %s</error>', $targetRelative));
-
-            return false;
-        }
-
-        if (is_file($target) && !$force) {
-            $output->writeln(sprintf('<comment>Skipped existing template: %s</comment>', $targetRelative));
-
-            return false;
-        }
-
-        $contents = file_get_contents($source);
-
-        if (!is_string($contents)) {
-            $output->writeln(sprintf('<error>Unable to read bundled template: %s</error>', $targetRelative));
-
-            return false;
-        }
-
-        $directory = dirname($target);
-
-        if (!is_dir($directory) && !mkdir($directory, 0777, true) && !is_dir($directory)) {
-            $output->writeln(sprintf('<error>Unable to create directory: %s</error>', $directory));
-
-            return false;
-        }
-
-        if (file_put_contents($target, $contents) === false) {
-            $output->writeln(sprintf('<error>Unable to write template: %s</error>', $targetRelative));
-
-            return false;
-        }
-
-        $output->writeln(sprintf('<info>Published template: %s</info>', $targetRelative));
-
-        return true;
+        return FilePublisher::publish($source, $target, $targetRelative, $force, $output, [
+            'missing' => '<error>Missing bundled template: %s</error>',
+            'skipped' => '<comment>Skipped existing template: %s</comment>',
+            'unreadable' => '<error>Unable to read bundled template: %s</error>',
+            'unwritable' => '<error>Unable to write template: %s</error>',
+            'published' => '<info>Published template: %s</info>',
+        ]);
     }
 }

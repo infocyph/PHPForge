@@ -239,19 +239,7 @@ final class TaskCatalog
      */
     public static function testAll(): array
     {
-        return [
-            ...self::syntax(),
-            [Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), ...self::pestParallelArgs(), ...self::pestFailOnSkippedArgs()],
-            [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
-            [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
-            ...self::duplicates(),
-            ...self::api(),
-            ...self::comments(),
-            ...self::architecture(),
-            ...self::staticAnalysis(),
-            [Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
-            ...self::refactorCheck(),
-        ];
+        return self::fullTestSuite(false);
     }
 
     /**
@@ -259,19 +247,7 @@ final class TaskCatalog
      */
     public static function testAllCi(): array
     {
-        return [
-            ...self::syntax(),
-            [Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), ...self::pestParallelArgs(), ...self::pestFailOnSkippedArgs()],
-            [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
-            [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
-            ...self::duplicates(),
-            ...self::api(),
-            ...self::commentsCi(),
-            ...self::architecture(),
-            ...self::staticAnalysis(),
-            [Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
-            ...self::refactorCheck(),
-        ];
+        return self::fullTestSuite(true);
     }
 
     /**
@@ -279,7 +255,7 @@ final class TaskCatalog
      */
     public static function testCode(): array
     {
-        return [[Paths::php(), Paths::bin('pest'), ...self::pestConfigArgs(), ...self::pestFailOnSkippedArgs()]];
+        return [self::pestCommand()];
     }
 
     /**
@@ -457,6 +433,26 @@ final class TaskCatalog
         return (string) max($minimum, min($maximum, (int) $value));
     }
 
+    /**
+     * @return list<list<string>>
+     */
+    private static function fullTestSuite(bool $ciComments): array
+    {
+        return [
+            ...self::syntax(),
+            self::pestCommand(true),
+            [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
+            [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
+            ...self::duplicates(),
+            ...self::api(),
+            ...($ciComments ? self::commentsCi() : self::comments()),
+            ...self::architecture(),
+            ...self::staticAnalysis(),
+            [Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
+            ...self::refactorCheck(),
+        ];
+    }
+
     private static function isBundledConfig(string $configPath): bool
     {
         $configRealPath = realpath($configPath);
@@ -479,6 +475,20 @@ final class TaskCatalog
         }
 
         return self::isBundledConfig($configPath);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function pestCommand(bool $parallel = false): array
+    {
+        return [
+            Paths::php(),
+            Paths::bin('pest'),
+            ...self::pestConfigArgs(),
+            ...($parallel ? self::pestParallelArgs() : []),
+            ...self::pestFailOnSkippedArgs(),
+        ];
     }
 
     /**

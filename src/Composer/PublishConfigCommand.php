@@ -6,6 +6,7 @@ namespace Infocyph\PHPForge\Composer;
 
 use Composer\Command\BaseCommand as Command;
 use Infocyph\PHPForge\Support\ConfigInventory;
+use Infocyph\PHPForge\Support\FilePublisher;
 use Infocyph\PHPForge\Support\Paths;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -104,48 +105,21 @@ final class PublishConfigCommand extends Command
         $source = Paths::bundledConfigFile($file);
         $target = Paths::projectRootPath() . DIRECTORY_SEPARATOR . $file;
 
-        if (!is_file($source)) {
-            $output->writeln(sprintf('<error>Missing bundled config: %s</error>', $file));
-
-            return false;
-        }
-
-        if (is_file($target) && !$force) {
-            $output->writeln(sprintf('<comment>Skipped existing config: %s</comment>', $file));
-
-            return false;
-        }
-
-        $contents = file_get_contents($source);
-
-        if (!is_string($contents)) {
-            $output->writeln(sprintf('<error>Unable to read bundled config: %s</error>', $file));
-
-            return false;
-        }
-
-        if ($file === 'phpprobe.json' && $phpprobePreset !== '') {
-            $contents = $this->applyPhpprobePreset($contents, $phpprobePreset);
-
-            if (!is_string($contents)) {
-                $output->writeln(sprintf(
-                    '<error>Unable to apply PHPProbe preset "%s".</error>',
-                    $phpprobePreset,
-                ));
-
-                return false;
-            }
-        }
-
-        if (file_put_contents($target, $contents) === false) {
-            $output->writeln(sprintf('<error>Unable to write config file: %s</error>', $file));
-
-            return false;
-        }
-
-        $output->writeln(sprintf('<info>Published config: %s</info>', $file));
-
-        return true;
+        return FilePublisher::publish(
+            $source,
+            $target,
+            $file,
+            $force,
+            $output,
+            [
+                'missing' => '<error>Missing bundled config: %s</error>',
+                'skipped' => '<comment>Skipped existing config: %s</comment>',
+                'unreadable' => '<error>Unable to read bundled config: %s</error>',
+                'unwritable' => '<error>Unable to write config file: %s</error>',
+                'published' => '<info>Published config: %s</info>',
+            ],
+            fn(string $contents): ?string => $this->transformConfigContents($file, $contents, $phpprobePreset, $output),
+        );
     }
 
     /**
@@ -189,6 +163,30 @@ final class PublishConfigCommand extends Command
     private function stringOption(mixed $value): string
     {
         return is_string($value) ? $value : '';
+    }
+
+    private function transformConfigContents(
+        string $file,
+        string $contents,
+        string $phpprobePreset,
+        OutputInterface $output,
+    ): ?string {
+        if ($file !== 'phpprobe.json' || $phpprobePreset === '') {
+            return $contents;
+        }
+
+        $contents = $this->applyPhpprobePreset($contents, $phpprobePreset);
+
+        if (is_string($contents)) {
+            return $contents;
+        }
+
+        $output->writeln(sprintf(
+            '<error>Unable to apply PHPProbe preset "%s".</error>',
+            $phpprobePreset,
+        ));
+
+        return null;
     }
 
     /**
