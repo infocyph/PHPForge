@@ -59,16 +59,10 @@ final class Paths
 
     public static function config(string $file): string
     {
-        $projectFile = self::projectRoot() . DIRECTORY_SEPARATOR . $file;
+        $projectFile = self::projectConfigPath($file);
 
-        if (is_file($projectFile)) {
+        if (is_string($projectFile)) {
             return $projectFile;
-        }
-
-        $projectResourceFile = self::projectResourceFile($file);
-
-        if (is_file($projectResourceFile)) {
-            return $projectResourceFile;
         }
 
         return self::bundledConfigFile($file);
@@ -115,16 +109,10 @@ final class Paths
     public static function firstProjectConfig(array $files): ?string
     {
         foreach ($files as $file) {
-            $projectFile = self::projectRoot() . DIRECTORY_SEPARATOR . $file;
+            $projectFile = self::projectConfigPath($file);
 
-            if (is_file($projectFile)) {
+            if (is_string($projectFile)) {
                 return $projectFile;
-            }
-
-            $projectResourceFile = self::projectResourceFile($file);
-
-            if (is_file($projectResourceFile)) {
-                return $projectResourceFile;
             }
         }
 
@@ -243,6 +231,23 @@ final class Paths
     private static function phpforgeRootResourceFile(string $file): string
     {
         return self::projectRoot() . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . ltrim($file, '/\\');
+    }
+
+    private static function projectConfigPath(string $file): ?string
+    {
+        $projectFile = self::projectRoot() . DIRECTORY_SEPARATOR . $file;
+
+        if (is_file($projectFile)) {
+            return $projectFile;
+        }
+
+        $projectResourceFile = self::projectResourceFile($file);
+
+        if (is_file($projectResourceFile)) {
+            return $projectResourceFile;
+        }
+
+        return null;
     }
 
     private static function projectResourceFile(string $file): string

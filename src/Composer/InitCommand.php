@@ -250,27 +250,16 @@ final class InitCommand extends Command
         $detectedExtensionsLabel = $phpExtensionPresets['detected'] !== ''
             ? $phpExtensionPresets['detected']
             : 'none detected';
-        $defaultChoice = $phpExtensionPresets['detected'] !== ''
-            ? sprintf('detected (from composer ext-* require/require-dev/suggest: %s)', $detectedExtensionsLabel)
-            : 'none (no extra extensions)';
-
-        $extensionChoiceMap = [
-            'none (no extra extensions)' => 'none',
-            sprintf('detected (from composer ext-* require/require-dev/suggest: %s)', $detectedExtensionsLabel) => 'detected',
-            'common (mbstring, intl, bcmath)' => 'common',
-            'mysql (mbstring, intl, bcmath, pdo_mysql)' => 'mysql',
-            'pgsql (mbstring, intl, bcmath, pdo_pgsql)' => 'pgsql',
-            'mysql+pgsql (mbstring, intl, bcmath, pdo_mysql, pdo_pgsql)' => 'mysql+pgsql',
-            'custom (enter comma-separated extension names)' => 'custom',
-        ];
 
         return $this->askMappedChoice($helper, $input, $output, [
             'prompt' => 'PHP extensions',
-            'default_choice' => $defaultChoice,
+            'default_choice' => $phpExtensionPresets['detected'] !== ''
+                ? sprintf('detected (from composer ext-* require/require-dev/suggest: %s)', $detectedExtensionsLabel)
+                : 'none (no extra extensions)',
             'custom_prompt' => 'Custom PHP extensions, comma-separated: ',
             'custom_default' => $defaultExtensions,
             'resolved_label' => 'Resolved PHP extensions',
-        ], $phpExtensionPresets, $extensionChoiceMap);
+        ], $phpExtensionPresets, $this->phpExtensionChoiceMap($detectedExtensionsLabel));
     }
 
     private function askPhpstanMemoryLimit(
@@ -297,22 +286,14 @@ final class InitCommand extends Command
         string $defaultPhpVersions,
     ): string {
         $phpVersionPresets = $this->phpVersionPresets();
-        $phpVersionChoiceMap = [
-            sprintf('supported (%s)', $phpVersionPresets['supported'] ?? $defaultPhpVersions) => 'supported',
-            sprintf('current (%s)', $phpVersionPresets['current'] ?? $defaultPhpVersions) => 'current',
-            sprintf('stable (%s)', $phpVersionPresets['stable'] ?? $defaultPhpVersions) => 'stable',
-            'custom (enter JSON array string)' => 'custom',
-        ];
-
-        $defaultChoice = sprintf('supported (%s)', $phpVersionPresets['supported'] ?? $defaultPhpVersions);
 
         return $this->askMappedChoice($helper, $input, $output, [
             'prompt' => 'PHP version matrix',
-            'default_choice' => $defaultChoice,
+            'default_choice' => sprintf('supported (%s)', $phpVersionPresets['supported'] ?? $defaultPhpVersions),
             'custom_prompt' => 'Custom PHP versions JSON: ',
             'custom_default' => $defaultPhpVersions,
             'resolved_label' => 'Resolved PHP versions',
-        ], $phpVersionPresets, $phpVersionChoiceMap);
+        ], $phpVersionPresets, $this->phpVersionChoiceMap($phpVersionPresets, $defaultPhpVersions));
     }
 
     private function askPsalmThreads(
@@ -770,6 +751,36 @@ final class InitCommand extends Command
         $date = \DateTimeImmutable::createFromFormat('Y-m-d', $value);
 
         return $date instanceof \DateTimeImmutable ? $date : null;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function phpExtensionChoiceMap(string $detectedExtensionsLabel): array
+    {
+        return [
+            'none (no extra extensions)' => 'none',
+            sprintf('detected (from composer ext-* require/require-dev/suggest: %s)', $detectedExtensionsLabel) => 'detected',
+            'common (mbstring, intl, bcmath)' => 'common',
+            'mysql (mbstring, intl, bcmath, pdo_mysql)' => 'mysql',
+            'pgsql (mbstring, intl, bcmath, pdo_pgsql)' => 'pgsql',
+            'mysql+pgsql (mbstring, intl, bcmath, pdo_mysql, pdo_pgsql)' => 'mysql+pgsql',
+            'custom (enter comma-separated extension names)' => 'custom',
+        ];
+    }
+
+    /**
+     * @param array<string, string> $phpVersionPresets
+     * @return array<string, string>
+     */
+    private function phpVersionChoiceMap(array $phpVersionPresets, string $defaultPhpVersions): array
+    {
+        return [
+            sprintf('supported (%s)', $phpVersionPresets['supported'] ?? $defaultPhpVersions) => 'supported',
+            sprintf('current (%s)', $phpVersionPresets['current'] ?? $defaultPhpVersions) => 'current',
+            sprintf('stable (%s)', $phpVersionPresets['stable'] ?? $defaultPhpVersions) => 'stable',
+            'custom (enter JSON array string)' => 'custom',
+        ];
     }
 
     /**
