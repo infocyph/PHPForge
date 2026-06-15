@@ -171,12 +171,21 @@ Target limits:
 
 ```yaml
 cognitive_complexity:
-  class: 80
-  function: 12
-  dependency_tree: 80
+    class: 80
+    function: 12
+    dependency_tree: 80
 ```
 
 Stay close to these limits and do not exceed them unless the user explicitly approves an exception.
+
+Interpret “stay close to these limits” as guidance against both excessive complexity and excessive fragmentation.
+
+Do not exceed the limits without explicit approval.
+Do not artificially drive complexity far below the limits by splitting cohesive logic into too many tiny functions, classes, methods, or wrappers.
+
+Prefer the smallest number of cohesive units that keeps code clear, testable, and within budget.
+Only extract helpers or collaborators when they improve readability, reuse, testability, or separation of responsibility.
+Avoid “complexity golfing.”
 
 Treat these as design constraints during implementation.
 
