@@ -24,6 +24,11 @@ if (!class_exists(Cli::class)) {
     require __DIR__ . '/../src/Support/ComposerAuditor.php';
     require __DIR__ . '/../src/Support/ProcessResult.php';
     require __DIR__ . '/../src/Support/ProcRunner.php';
+    require __DIR__ . '/../src/Support/ConfigInventory.php';
+    require __DIR__ . '/../src/Support/ConfigFileSelection.php';
+    require __DIR__ . '/../src/Support/ActiveConfigFormatter.php';
+    require __DIR__ . '/../src/Support/ActiveConfigInspector.php';
+    require __DIR__ . '/../src/Support/PhpstanActiveConfig.php';
     require __DIR__ . '/../src/Support/PhpstanSarifConverter.php';
     require __DIR__ . '/../src/Support/Paths.php';
     require __DIR__ . '/../src/Support/QualitySummary.php';

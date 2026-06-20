@@ -221,7 +221,7 @@ final class TaskCatalog
      */
     public static function staticAnalysis(): array
     {
-        $configPath = Paths::config('phpstan.neon.dist');
+        $configPath = Paths::firstConfig(['phpstan.neon', 'phpstan.neon.dist']);
 
         return [[Paths::php(), Paths::bin('phpstan'), 'analyse', '--configuration=' . $configPath, '--memory-limit=' . self::phpstanMemoryLimit(), '--no-progress', '--debug', ...self::bundledPhpstanPathArgs($configPath)]];
     }
@@ -456,7 +456,8 @@ final class TaskCatalog
     private static function isBundledConfig(string $configPath): bool
     {
         $configRealPath = realpath($configPath);
-        $bundledConfigRealPath = realpath(Paths::bundledConfigFile(basename($configPath)));
+        $bundledConfigPath = Paths::bundledConfigFileOrNull(basename($configPath));
+        $bundledConfigRealPath = is_string($bundledConfigPath) ? realpath($bundledConfigPath) : false;
 
         if (!is_string($configRealPath) || !is_string($bundledConfigRealPath)) {
             return false;

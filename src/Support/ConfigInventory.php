@@ -9,17 +9,71 @@ final class ConfigInventory
     /**
      * @return list<string>
      */
-    public static function files(): array
+    public static function activeFiles(): array
     {
         $files = [];
 
-        foreach (self::tools() as $toolFiles) {
+        foreach (self::activeTools() as $toolFiles) {
             foreach ($toolFiles as $file) {
                 $files[] = $file;
             }
         }
 
         return array_values(array_unique($files));
+    }
+
+    /**
+     * @return array<string, non-empty-list<string>>
+     */
+    public static function activeTools(): array
+    {
+        return [
+            'pest' => ['pest.xml', 'pest.xml.dist', 'phpunit.xml', 'phpunit.xml.dist'],
+            'phpbench' => ['phpbench.json'],
+            'phpprobe' => ['phpprobe.json'],
+            'phpcs' => ['phpcs.xml.dist'],
+            'phpstan' => ['phpstan.neon', 'phpstan.neon.dist'],
+            'pint' => ['pint.json'],
+            'psalm' => ['psalm.xml', 'psalm.xml.dist'],
+            'rector' => ['rector.php'],
+            'captainhook' => ['captainhook.json'],
+            'deptrac' => ['deptrac.yaml'],
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function files(): array
+    {
+        $files = [];
+
+        foreach (self::publishableTools() as $toolFiles) {
+            foreach ($toolFiles as $file) {
+                $files[] = $file;
+            }
+        }
+
+        return array_values(array_unique($files));
+    }
+
+    /**
+     * @return array<string, non-empty-list<string>>
+     */
+    public static function publishableTools(): array
+    {
+        return [
+            'pest' => ['pest.xml', 'phpunit.xml'],
+            'phpbench' => ['phpbench.json'],
+            'phpprobe' => ['phpprobe.json'],
+            'phpcs' => ['phpcs.xml.dist'],
+            'phpstan' => ['phpstan.neon.dist'],
+            'pint' => ['pint.json'],
+            'psalm' => ['psalm.xml'],
+            'rector' => ['rector.php'],
+            'captainhook' => ['captainhook.json'],
+            'deptrac' => ['deptrac.yaml'],
+        ];
     }
 
     public static function resolvedPath(string $file): string
@@ -51,17 +105,6 @@ final class ConfigInventory
      */
     public static function tools(): array
     {
-        return [
-            'pest' => ['pest.xml', 'phpunit.xml'],
-            'phpbench' => ['phpbench.json'],
-            'phpprobe' => ['phpprobe.json'],
-            'phpcs' => ['phpcs.xml.dist'],
-            'phpstan' => ['phpstan.neon.dist'],
-            'pint' => ['pint.json'],
-            'psalm' => ['psalm.xml'],
-            'rector' => ['rector.php'],
-            'captainhook' => ['captainhook.json'],
-            'deptrac' => ['deptrac.yaml'],
-        ];
+        return self::publishableTools();
     }
 }

@@ -43,7 +43,7 @@ it('copies bundled captainhook config into project root when missing', function 
     mkdir($vendorBin, 0755, true);
     file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
     copy($bundledConfig, $vendorResources.DIRECTORY_SEPARATOR.'captainhook.json');
-    copy(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpforge-engineering.md', $vendorResources.DIRECTORY_SEPARATOR.'phpforge-engineering.md');
+    copy(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'engineering-principles.md', $vendorResources.DIRECTORY_SEPARATOR.'engineering-principles.md');
     file_put_contents($vendorBin.DIRECTORY_SEPARATOR.'captainhook', "<?php\nexit(0);\n");
 
     chdir($projectRoot);
@@ -58,7 +58,7 @@ it('copies bundled captainhook config into project root when missing', function 
         expect(file_get_contents($projectConfig))->toBe(file_get_contents($bundledConfig));
         expect(is_file($projectRoot.DIRECTORY_SEPARATOR.'.codex'.DIRECTORY_SEPARATOR.'skills'.DIRECTORY_SEPARATOR.'phpforge-engineering'.DIRECTORY_SEPARATOR.'SKILL.md'))->toBeTrue();
         expect(file_get_contents($projectRoot.DIRECTORY_SEPARATOR.'.codex'.DIRECTORY_SEPARATOR.'skills'.DIRECTORY_SEPARATOR.'phpforge-engineering'.DIRECTORY_SEPARATOR.'SKILL.md'))
-            ->toBe(file_get_contents(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpforge-engineering.md'));
+            ->toBe(file_get_contents(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'engineering-principles.md'));
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);
@@ -74,7 +74,7 @@ it('refreshes the published engineering skill on each install hook run', functio
     $vendorResources = $projectRoot.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'infocyph'.DIRECTORY_SEPARATOR.'phpforge'.DIRECTORY_SEPARATOR.'resources';
     $vendorBin = $projectRoot.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'bin';
     $skillTarget = $projectRoot.DIRECTORY_SEPARATOR.'.codex'.DIRECTORY_SEPARATOR.'skills'.DIRECTORY_SEPARATOR.'phpforge-engineering'.DIRECTORY_SEPARATOR.'SKILL.md';
-    $bundledSkill = dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpforge-engineering.md';
+    $bundledSkill = dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'engineering-principles.md';
 
     mkdir($vendorResources, 0755, true);
     mkdir($vendorBin, 0755, true);
@@ -82,7 +82,7 @@ it('refreshes the published engineering skill on each install hook run', functio
     file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
     file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'captainhook.json', '{}');
     copy(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'captainhook.json', $vendorResources.DIRECTORY_SEPARATOR.'captainhook.json');
-    copy($bundledSkill, $vendorResources.DIRECTORY_SEPARATOR.'phpforge-engineering.md');
+    copy($bundledSkill, $vendorResources.DIRECTORY_SEPARATOR.'engineering-principles.md');
     file_put_contents($vendorBin.DIRECTORY_SEPARATOR.'captainhook', "<?php\nexit(0);\n");
     file_put_contents($skillTarget, "old contents\n");
 

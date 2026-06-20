@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 use Infocyph\PHPForge\Composer\CleanCommand;
 use Infocyph\PHPForge\Composer\DoctorCommand;
+use Infocyph\PHPForge\Composer\ActiveConfigCommand;
 use Infocyph\PHPForge\Composer\ListConfigCommand;
 use Infocyph\PHPForge\Composer\PublishCommunityTemplatesCommand;
 use Infocyph\PHPForge\Composer\VersionCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Input\InputArgument as Argument;
 use Symfony\Component\Console\Input\InputOption as Option;
 use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -74,6 +76,69 @@ it('lists config inventory as json', function (): void {
     expect($result['exit_code'])->toBe(0)
         ->and(is_array($decoded))->toBeTrue()
         ->and(array_values(array_filter($decoded, static fn (mixed $row): bool => is_array($row) && (($row['file'] ?? null) === 'phpprobe.json'))) !== [])->toBeTrue();
+});
+
+it('reports active configs across supported tools as json', function (): void {
+    $result = runComposerCommand(
+        new ActiveConfigCommand(),
+        ['--json' => true],
+        [
+            new Argument('files', Argument::IS_ARRAY),
+            new Option('json', null, Option::VALUE_NONE),
+            new Option('all', null, Option::VALUE_NONE),
+            new Option('parameter', null, Option::VALUE_REQUIRED),
+        ],
+    );
+    $decoded = json_decode($result['output'], true);
+    $phpstan = is_array($decoded)
+        ? array_values(array_filter($decoded, static fn (mixed $row): bool => is_array($row) && (($row['tool'] ?? null) === 'phpstan')))
+        : [];
+
+    expect($result['exit_code'])->toBe(0)
+        ->and(is_array($decoded))->toBeTrue()
+        ->and($phpstan)->not->toBe([])
+        ->and($phpstan[0]['config_file'] ?? null)->toBe('phpstan.neon.dist')
+        ->and($phpstan[0]['effective']['memory_limit'] ?? null)->toBe('1G');
+});
+
+it('filters active config output by selected file and parameter', function (): void {
+    $result = runComposerCommand(
+        new ActiveConfigCommand(),
+        ['files' => ['phpstan.neon.dist'], '--json' => true, '--parameter' => 'cognitive_complexity'],
+        [
+            new Argument('files', Argument::IS_ARRAY),
+            new Option('json', null, Option::VALUE_NONE),
+            new Option('all', null, Option::VALUE_NONE),
+            new Option('parameter', null, Option::VALUE_REQUIRED),
+        ],
+    );
+    $decoded = json_decode($result['output'], true);
+
+    expect($result['exit_code'])->toBe(0)
+        ->and(is_array($decoded))->toBeTrue()
+        ->and(count($decoded))->toBe(1)
+        ->and($decoded[0]['tool'] ?? null)->toBe('phpstan')
+        ->and($decoded[0]['parameter'] ?? null)->toBe('cognitive_complexity')
+        ->and($decoded[0]['value']['function'] ?? null)->toBe(12);
+});
+
+it('accepts double-dash-prefixed active config file selections', function (): void {
+    $result = runComposerCommand(
+        new ActiveConfigCommand(),
+        ['files' => ['--phpstan.neon.dist'], '--json' => true],
+        [
+            new Argument('files', Argument::IS_ARRAY),
+            new Option('json', null, Option::VALUE_NONE),
+            new Option('all', null, Option::VALUE_NONE),
+            new Option('parameter', null, Option::VALUE_REQUIRED),
+        ],
+    );
+    $decoded = json_decode($result['output'], true);
+
+    expect($result['exit_code'])->toBe(0)
+        ->and(is_array($decoded))->toBeTrue()
+        ->and(count($decoded))->toBe(1)
+        ->and($decoded[0]['tool'] ?? null)->toBe('phpstan');
 });
 
 it('removes known tool outputs via clean command', function (): void {

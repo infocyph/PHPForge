@@ -314,3 +314,30 @@ it('uses the bundled phpstan config directly for consuming projects', function (
         removeTaskCatalogTree($projectRoot);
     }
 });
+
+it('prefers project phpstan.neon over phpstan.neon.dist', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
+    $srcPath = $projectRoot . DIRECTORY_SEPARATOR . 'src';
+    $projectConfigPath = $projectRoot . DIRECTORY_SEPARATOR . 'phpstan.neon';
+
+    mkdir($projectRoot, 0755, true);
+    mkdir($srcPath, 0755, true);
+    file_put_contents($projectConfigPath, "parameters:\n    level: max\n");
+    mirrorTaskCatalogConfig($projectRoot, 'phpstan.neon.dist');
+
+    chdir($projectRoot);
+
+    try {
+        $command = TaskCatalog::staticAnalysis()[0];
+
+        expect($command)->toContain('--configuration=' . $projectConfigPath)
+            ->and($command)->not()->toContain('--configuration=' . $projectRoot . DIRECTORY_SEPARATOR . 'phpstan.neon.dist');
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        removeTaskCatalogTree($projectRoot);
+    }
+});

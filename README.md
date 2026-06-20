@@ -173,6 +173,13 @@ composer ic:int
 
 ## Command Reference
 
+### AI Mod
+
+- `vendor/infocyph/phpforge/resources/engineering-principles.md`
+  Brief engineering principles for AI-assisted implementation decisions, code quality, performance, security, and scope control.
+- `vendor/infocyph/phpforge/resources/AGENTS.md`
+  Task execution workflow for agents, including which PHPForge commands to run first, validation flow, and automation expectations.
+
 ### Test Commands
 
 | Command                         | Purpose                                                                                                                                                        |
@@ -286,6 +293,9 @@ Useful checker options:
 | `composer ic:doctor --json`                         | Outputs doctor diagnostics as JSON, including workflow wrapper validation details.                             |
 | `composer ic:list-config`                           | Lists config files and their resolution source.                                                                |
 | `composer ic:list-config --json`                    | Outputs config resolution as JSON.                                                                             |
+| `composer ic:active-config [file...]`               | Shows the active configs for supported tools, with file selection similar to `ic:publish-config`.              |
+| `composer ic:active-config --json`                  | Outputs all active config summaries as JSON.                                                                   |
+| `composer ic:active-config phpstan.neon.dist --parameter=cognitive_complexity --json` | Filters to one active config file and one parameter/effective key.                    |
 | `composer ic:publish-config [file...]`              | Copies selected bundled config files into the project.                                                         |
 | `composer ic:publish-config phpprobe.json --phpprobe-preset=strict` | Publishes `phpprobe.json` with a named PHPProbe preset (`default`, `standard`, `ci`, `strict`). |
 | `composer ic:publish-config --all`                  | Copies every bundled config file into the project.                                                             |
@@ -366,7 +376,14 @@ Check active config sources:
 ```bash
 composer ic:list-config
 composer ic:list-config --json
+composer ic:active-config
+composer ic:active-config --json
+composer ic:active-config phpcs.xml.dist
+composer ic:active-config phpstan.neon.dist --parameter=cognitive_complexity --json
 ```
+
+When selecting a file, pass the filename directly, for example `composer ic:active-config phpcs.xml.dist`.
+If you insist on a leading `--` token, Composer requires a separator first: `composer ic:active-config -- --phpcs.xml.dist`.
 
 Publish config only when a project needs custom rules:
 

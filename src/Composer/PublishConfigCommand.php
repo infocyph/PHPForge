@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\PHPForge\Composer;
 
 use Composer\Command\BaseCommand as Command;
+use Infocyph\PHPForge\Support\ConfigFileSelection;
 use Infocyph\PHPForge\Support\ConfigInventory;
 use Infocyph\PHPForge\Support\FilePublisher;
 use Infocyph\PHPForge\Support\Paths;
@@ -133,10 +134,7 @@ final class PublishConfigCommand extends Command
             return ConfigInventory::files();
         }
 
-        return array_values(array_filter(
-            $files,
-            static fn(mixed $file): bool => is_string($file) && $file !== '',
-        ));
+        return ConfigFileSelection::normalize(array_values($files), ConfigInventory::files());
     }
 
     private function resolvePhpprobePreset(InputInterface $input, OutputInterface $output): ?string
@@ -195,22 +193,11 @@ final class PublishConfigCommand extends Command
      */
     private function validatedFiles(array $files, OutputInterface $output): ?array
     {
-        $supported = ConfigInventory::files();
-        $invalid = array_values(array_filter(
+        return ConfigFileSelection::validatedOrWriteError(
             $files,
-            static fn(string $file): bool => !in_array($file, $supported, true),
-        ));
-
-        if ($invalid === []) {
-            return $files;
-        }
-
-        $output->writeln(sprintf(
-            '<error>Invalid config file selection: %s. Supported files: %s</error>',
-            implode(', ', $invalid),
-            implode(', ', $supported),
-        ));
-
-        return null;
+            ConfigInventory::files(),
+            'Invalid config file selection',
+            $output,
+        );
     }
 }
