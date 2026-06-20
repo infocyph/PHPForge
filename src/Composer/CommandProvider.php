@@ -50,6 +50,7 @@ COMMANDS;
             new InitCommand('ic:int'),
             new DoctorCommand(),
             new ListConfigCommand(),
+            new ActiveConfigCommand(),
             new PublishConfigCommand(),
             new PublishCommunityTemplatesCommand(),
             new PublishCommunityTemplatesCommand('ic:publish-community-templates'),

@@ -26,7 +26,7 @@
         "php": ">=8.2",
         "composer-plugin-api": "^2.6",
         "captainhook/captainhook": "^5.29.2",
-        "deptrac/deptrac": "^4.6",
+        "deptrac/deptrac": "^4.6.1",
         "ergebnis/composer-normalize": "^2.51",
         "infocyph/phpprobe": "^0.4.4",
         "laravel/pint": "^1.29.1",
@@ -40,6 +40,7 @@
         "symfony/console": ">=7.4.9 <9.0",
         "symfony/process": ">=7.4.8 <9.0",
         "symfony/var-dumper": ">=7.4.8 <9.0",
+        "symfony/yaml": ">=7.4 <9.0",
         "tomasvotruba/cognitive-complexity": "^1.0",
         "vimeo/psalm": "^6.16.1"
     },
@@ -73,6 +74,7 @@
     },
     "scripts": {
         "post-autoload-dump": "@php bin/install-captainhook.php",
+        "ic:active-config": "@php bin/phpforge active-config",
         "ic:ci": "@php bin/phpforge ci",
         "ic:phpstan:sarif": "@php bin/phpforge phpstan-sarif",
         "ic:process": [

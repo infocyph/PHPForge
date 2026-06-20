@@ -110,7 +110,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
 
     private function publishEngineeringSkill(): void
     {
-        $source = Paths::bundledConfigFileOrNull('phpforge-engineering.md');
+        $source = Paths::bundledConfigFileOrNull('engineering-principles.md');
 
         if (!is_string($source) || !is_file($source)) {
             return;

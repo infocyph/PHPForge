@@ -23,10 +23,108 @@ final class Cli
             'api' => $this->probe('api', array_slice($argv, 2)),
             'comments' => $this->probe('comments', array_slice($argv, 2)),
             'check' => $this->probe('check', array_slice($argv, 2)),
+            'active-config' => $this->activeConfig(array_slice($argv, 2)),
             'phpstan-sarif' => (new PhpstanSarifConverter())->convert((string) ($argv[2] ?? ''), (string) ($argv[3] ?? 'phpstan-results.sarif')),
             'audit' => (new ComposerAuditor())->run(),
             default => $this->help(),
         };
+    }
+
+    /**
+     * @param list<string> $args
+     */
+    private function activeConfig(array $args): int
+    {
+        $json = in_array('--json', $args, true);
+        $all = in_array('--all', $args, true);
+        $parameter = $this->activeConfigParameter($args);
+        $files = $all ? [] : $this->activeConfigFiles($args);
+        $invalidFiles = ConfigFileSelection::invalid($files, ConfigInventory::activeFiles());
+
+        if ($invalidFiles !== []) {
+            fwrite(
+                STDERR,
+                sprintf(
+                    'Invalid active config selection: %s. Supported files: %s%s',
+                    implode(', ', $invalidFiles),
+                    implode(', ', ConfigInventory::activeFiles()),
+                    PHP_EOL,
+                ),
+            );
+
+            return 1;
+        }
+
+        $activeConfig = (new ActiveConfigInspector())->inspect($files, $parameter);
+
+        fwrite(
+            STDOUT,
+            $json
+                ? (string) json_encode($activeConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+                : (new ActiveConfigFormatter())->text($activeConfig),
+        );
+        fwrite(STDOUT, PHP_EOL);
+
+        return 0;
+    }
+
+    /**
+     * @param list<string> $args
+     * @return list<string>
+     */
+    private function activeConfigFiles(array $args): array
+    {
+        $files = [];
+
+        foreach ($args as $index => $arg) {
+            if ($arg === '--json' || $arg === '--all') {
+                continue;
+            }
+
+            if (str_starts_with($arg, '--parameter=')) {
+                continue;
+            }
+
+            if ($arg === '--parameter') {
+                continue;
+            }
+
+            if ($index > 0 && $args[$index - 1] === '--parameter') {
+                continue;
+            }
+
+            if (str_starts_with($arg, '--')) {
+                $files = [...$files, ...ConfigFileSelection::normalize([$arg], ConfigInventory::activeFiles())];
+
+                continue;
+            }
+
+            $files[] = $arg;
+        }
+
+        return $files;
+    }
+
+    /**
+     * @param list<string> $args
+     */
+    private function activeConfigParameter(array $args): ?string
+    {
+        foreach ($args as $index => $arg) {
+            if (str_starts_with($arg, '--parameter=')) {
+                $value = substr($arg, strlen('--parameter='));
+
+                return $value !== '' ? $value : null;
+            }
+
+            if ($arg === '--parameter') {
+                $value = $args[$index + 1] ?? null;
+
+                return is_string($value) && $value !== '' ? $value : null;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -45,7 +143,8 @@ final class Cli
 
     private function help(): int
     {
-        fwrite(STDOUT, 'Usage: phpforge ci [--prefer-lowest] | syntax [paths...] | duplicates [options] [paths...] | api [options] [paths...] | comments [options] [paths...] | check [options] [paths...] | audit | phpstan-sarif <phpstan-json> [sarif-output]' . PHP_EOL);
+        fwrite(STDOUT, 'Usage: phpforge ci [--prefer-lowest] | syntax [paths...] | duplicates [options] [paths...] | api [options] [paths...] | comments [options] [paths...] | check [options] [paths...] | active-config [files...] [--json] [--all] [--parameter=name] | audit | phpstan-sarif <phpstan-json> [sarif-output]' . PHP_EOL);
+        fwrite(STDOUT, 'Active-config file selection examples: phpforge active-config phpcs.xml.dist | composer ic:active-config phpcs.xml.dist | composer ic:active-config -- --phpcs.xml.dist' . PHP_EOL);
 
         return 0;
     }
