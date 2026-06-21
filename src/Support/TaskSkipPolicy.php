@@ -39,13 +39,7 @@ final class TaskSkipPolicy
      */
     private static function isPintCommand(array $command): bool
     {
-        foreach ($command as $part) {
-            if (str_ends_with($part, DIRECTORY_SEPARATOR . 'pint') || $part === 'pint') {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($command, fn($part) => str_ends_with((string) $part, DIRECTORY_SEPARATOR . 'pint') || $part === 'pint');
     }
 
     /**
