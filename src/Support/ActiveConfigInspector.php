@@ -189,12 +189,6 @@ final class ActiveConfigInspector
             return true;
         }
 
-        foreach ($selectedFiles as $selectedFile) {
-            if (in_array($selectedFile, $candidates, true)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($selectedFiles, fn($selectedFile) => in_array($selectedFile, $candidates, true));
     }
 }

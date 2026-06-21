@@ -144,13 +144,7 @@ final class DoctorCommand extends Command
             return false;
         }
 
-        foreach ($decoded as $item) {
-            if (!is_string($item)) {
-                return false;
-            }
-        }
-
-        return true;
+        return array_all($decoded, fn($item) => is_string($item));
     }
 
     private function normalizeYamlScalar(string $value): string
