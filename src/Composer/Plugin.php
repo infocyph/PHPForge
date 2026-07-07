@@ -54,7 +54,6 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
     {
         try {
             $configPath = $this->ensureProjectCaptainHookConfig();
-            $this->publishEngineeringSkill();
 
             if (!is_string($configPath)) {
                 return;
@@ -106,38 +105,6 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         }
 
         return $projectConfig;
-    }
-
-    private function publishEngineeringSkill(): void
-    {
-        $source = Paths::bundledConfigFileOrNull('engineering-principles.md');
-
-        if (!is_string($source) || !is_file($source)) {
-            return;
-        }
-
-        $target = Paths::projectRootPath()
-            . DIRECTORY_SEPARATOR . '.codex'
-            . DIRECTORY_SEPARATOR . 'skills'
-            . DIRECTORY_SEPARATOR . 'phpforge-engineering'
-            . DIRECTORY_SEPARATOR . 'SKILL.md';
-
-        $directory = dirname($target);
-
-        if (!is_dir($directory) && !mkdir($directory, 0777, true) && !is_dir($directory)) {
-            throw new \RuntimeException(sprintf(
-                'Failed to create PHPForge skill directory "%s".',
-                $directory,
-            ));
-        }
-
-        if (!copy($source, $target)) {
-            throw new \RuntimeException(sprintf(
-                'Failed to copy PHPForge engineering skill from "%s" to "%s".',
-                $source,
-                $target,
-            ));
-        }
     }
 
     private function reportMissingAllowPlugins(): void
