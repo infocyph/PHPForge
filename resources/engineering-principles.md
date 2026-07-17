@@ -3,7 +3,9 @@
 ## Core Principles
 
 - Stay framework-agnostic unless the project clearly requires otherwise.
-- Prioritize, in order: correctness, security, performance, reliability, maintainability.
+- Treat correctness and security as non-negotiable constraints. Among solutions that satisfy them, prioritize lower wall-clock latency, higher sustainable throughput, predictable tail latency, reliability, resource efficiency and maintainability.
+- Prefer the fastest measured or strongly reasoned implementation when its resource use remains within explicit operational limits.
+- When behavior, security and compatibility are equivalent, choose the implementation that performs less total work or provides lower measured runtime cost.
 - Prefer simple, explicit, measurable solutions.
 - Avoid speculative architecture, unnecessary abstractions and unnecessary layers.
 - Follow project conventions unless they conflict with correctness, security or a clearly better design.
@@ -12,6 +14,38 @@
 - Be skeptical of defaults, conventions and abstractions that introduce hidden runtime or operational costs.
 - Choose the design with the best balance of speed, scalability, operational safety and maintainability.
 - When uncertain, choose the simpler design that is easier to profile, test, operate and change.
+
+## Speed-First Performance Priority
+
+- Treat correctness and security as non-negotiable constraints.
+- Among correct and secure solutions, prioritize:
+  1. lower wall-clock latency,
+  2. higher sustainable throughput,
+  3. predictable `p95` and `p99` latency,
+  4. reliability,
+  5. resource efficiency,
+  6. and maintainability.
+- Prefer the fastest measured implementation when its resource usage remains within defined operational limits.
+- Do not optimize for minimum CPU usage, minimum memory usage, minimum allocation count or minimum file count when doing so materially slows the application.
+- Accept additional CPU, memory, caching, precomputation, indexing, duplication or process capacity when it produces a meaningful measured speed improvement.
+- Every speed-for-resource trade must remain bounded by explicit limits such as:
+  - maximum request memory,
+  - worker memory,
+  - cache size,
+  - process count,
+  - concurrency,
+  - payload size,
+  - queue depth,
+  - connection count,
+  - or execution timeout.
+- Prefer predictable bounded resource usage over aggressive resource minimization.
+- Do not reject a faster implementation merely because it uses moderately more memory or CPU.
+- Do not introduce additional CPU work solely to reduce temporary memory unless memory pressure, worker density or process stability requires it.
+- Prefer keyed lookups, cached results, prepared structures or precomputed values when their construction cost is amortized by sufficient reuse.
+- Avoid precomputation, indexing or caching for one-time operations when construction and allocation cost more than the work removed.
+- Optimize the complete workload rather than one isolated operation.
+- Do not accept a single-request latency improvement that materially reduces sustained throughput, exhausts PHP-FPM workers, causes swapping, increases queueing or destabilizes downstream systems.
+- When two implementations have practically equivalent speed, choose the one with lower resource cost and lower complexity.
 
 ## Scope And Change Discipline
 
@@ -50,10 +84,17 @@ array_search($value, $items, true);
   - zero,
   - null,
   - and invalid values.
-- Use `isset()`, `array_key_exists()`, `empty()`, explicit comparisons and type predicates according to their exact semantics.
+- Prefer `isset($array[$key])` for array-key existence, lookup guards and set-membership checks whenever a missing key and a `null` value are intentionally equivalent.
+- Treat `isset()` as the default hot-path key check when its null semantics are correct.
+- Use `array_key_exists()` only when the code must distinguish a present key containing `null` from a missing key.
+- For null-insensitive nested existence checks, prefer direct `isset($data['parent']['child'])` access instead of multiple key checks.
+- Do not call both `isset()` and `array_key_exists()` for the same key unless the null distinction is functionally required.
+- Use `empty()` only when all PHP empty values are intentionally equivalent. Prefer explicit comparisons when `0`, `"0"`, `false`, `""` and `null` have different meanings.
+- Validate and normalize untrusted data once at the trust boundary, then pass a typed or documented internal representation onward.
+- Do not repeat identical validation, normalization or conversion at every internal layer or loop unless the value can change or crosses another trust boundary.
 - Do not use null coalescing or null-safe access to conceal missing validation.
 - Avoid undocumented sentinel values.
-- Prefer explicit result objects, enums or exceptions when failure states require structured handling.
+- Introduce result objects, enums or exceptions only when they improve a real contract. Do not wrap simple hot-path scalar or array results merely to add abstraction.
 
 ## Control Flow And Branching
 
@@ -90,6 +131,9 @@ array_search($value, $items, true);
 - Do not add docblocks that merely repeat method names or native type declarations.
 - Do not use references as a presumed optimization.
 - Use references only when reference semantics are functionally required.
+- Do not extract every small block into another method. Keep cohesive low-level operations local when extraction would add dispatch without improving reuse, testing, invariants or readability.
+- Avoid chains of tiny method calls inside measured hot loops when equivalent local code is clearer and materially faster.
+- Do not introduce DTOs, value objects, wrappers or custom collections into a hot path solely for stylistic consistency when they add allocations without enforcing a useful contract.
 
 ## Cognitive Complexity
 
@@ -242,6 +286,20 @@ cognitive_complexity:
   - and maintenance burden.
 - Reject abstractions whose expected value is speculative or smaller than their ongoing operational and cognitive cost.
 
+## Array Access And Membership
+
+- Prefer direct array access guarded by `isset()` when null and missing are equivalent.
+- Use `array_key_exists()` only for true null-presence semantics.
+- For repeated membership checks, prefer a keyed set and `isset($set[$key])` over repeated `in_array()` scans when the one-time set construction is justified.
+- Use strict `in_array($value, $items, true)` for one-off membership checks where a keyed set would add unnecessary allocation.
+- Avoid calling `array_keys()` merely to iterate or test membership.
+- Avoid `array_map()`, `array_filter()` and `array_reduce()` chains on large or hot-path arrays when one explicit loop can avoid callbacks, intermediate arrays and repeated traversal.
+- Use native array functions when they perform the complete operation clearly and without creating unnecessary intermediate data.
+- Avoid repeated `array_merge()` in loops; append directly or accumulate chunks and merge once when appropriate.
+- Avoid the array spread operator in large repeated merges when it creates avoidable copies.
+- Avoid copying large arrays merely to preserve style. Mutate only when ownership is clear and mutation is safe.
+- Do not build an index, lookup map or transformed array unless its reuse saves more work than its construction and memory cost.
+
 ## Iteration And Algorithmic Efficiency
 
 - Treat total work, algorithmic complexity, allocations and I/O as more important than the number of visible loops.
@@ -268,8 +326,27 @@ cognitive_complexity:
 - Use `while` when iteration is naturally condition-driven.
 - Do not choose `for`, `foreach` or `while` based solely on generic syntax benchmarks.
 - Do not convert associative arrays into key lists merely to iterate with `for`.
-- Avoid iteration by reference unless actual in-place mutation is required.
-- After a `foreach` by reference, explicitly unset the reference variable:
+### By-Reference `foreach` Cleanup
+
+- Avoid by-reference `foreach` unless in-place mutation is required and preferable to constructing a replacement array.
+- After a by-reference `foreach`, the loop variable remains bound to the final iterated element.
+- Call `unset($item)` immediately after the loop when execution may continue in the same variable scope.
+- Cleanup is required when:
+  - another loop or assignment may reuse the loop variable,
+  - additional logic follows the loop,
+  - the reference points to an array or object property,
+  - a `catch` or `finally` block may continue execution in the same function,
+  - or protecting against likely later refactoring is more valuable than removing one cleanup operation.
+- Cleanup may be omitted only when control immediately and unconditionally exits the current variable scope:
+  - the loop is followed directly by `return`,
+  - the loop is the final statement in the function or closure,
+  - or execution immediately throws an exception that is not handled within the same function scope.
+- Do not omit cleanup merely because the method is currently short when additional code already follows the loop.
+- Do not use `unset()` inside the loop.
+- Do not generalize this rule to ordinary variables or non-reference loops.
+- The `unset()` breaks the lingering reference; it is a correctness operation, not a memory-release optimization.
+
+Required cleanup example:
 
 ```php
 foreach ($items as &$item) {
@@ -277,6 +354,18 @@ foreach ($items as &$item) {
 }
 
 unset($item);
+
+persist($items);
+```
+
+Safe omission at an immediate scope exit:
+
+```php
+foreach ($items as &$item) {
+    $item->normalize();
+}
+
+return $items;
 ```
 
 - Avoid repeatedly evaluating non-trivial expressions in loop conditions.
@@ -296,11 +385,56 @@ unset($item);
 - Avoid hydrating large object graphs for read-only projections, reports or exports.
 - Prefer incremental encoding and output for large responses.
 - Use temporary streams or files when keeping the entire generated payload in memory is unnecessary.
-- Release file handles, cursors, network resources and large temporary references promptly.
+- Close files, streams, cursors, processes and external resources through their explicit lifecycle APIs when they are no longer needed.
+- Allow ordinary PHP variables and values to be released naturally at scope exit.
 - Avoid unbounded in-memory accumulation in workers, consumers, daemons and long-running commands.
 - Reset request-specific or job-specific state in long-running processes.
 - Use worker recycling as a safety mechanism, not as a substitute for fixing memory growth.
 - Do not increase memory limits to hide avoidable full-dataset loading or leaks.
+
+## Variable Lifetime And `unset()` Policy
+
+- Do not use `unset()` as a routine performance or memory optimization.
+- Do not add `unset()` after ordinary assignments, method calls, loops or processing steps.
+- Rely on PHP scope and reference counting for ordinary local variables.
+- Do not call `unset()` inside hot loops unless element removal is required by the algorithm.
+- Do not unset a value immediately before `return`, function completion or scope exit.
+- Do not unset parameters or object properties merely because they are no longer used locally.
+- Avoid repeated removal of elements from large arrays as a memory strategy; mutation, hash-table maintenance and allocator churn can cost more than retaining the value briefly.
+- Prefer smaller scopes, dedicated per-job methods, generators, streaming and bounded chunking over manual cleanup.
+- Use `unset()` only when:
+  - breaking the lingering reference after a by-reference `foreach`,
+  - removing a key or value is required by program behavior,
+  - a demonstrably large temporary value otherwise remains live across substantial later work,
+  - or profiling shows that earlier release materially reduces peak memory without harming throughput.
+- Treat early object destruction as observable behavior when destructors or external resources are involved.
+- Use explicit lifecycle operations such as `fclose()` for external resources; do not use `unset()` as a substitute.
+- Do not bulk-apply `unset()` through automated refactoring.
+- Benchmark elapsed time and peak memory before retaining manual lifetime management.
+
+## Memory Versus CPU Trade-Off
+
+- Do not assume that allocating more memory is cheaper than performing another CPU operation.
+- A heap allocation, PHP array growth, object construction, reference-count update or cache miss can cost far more than a simple arithmetic operation, comparison or branch.
+- Prefer one extra trivial CPU operation over a new allocation or data copy when both produce equivalent behavior.
+- Prefer bounded additional memory when it eliminates materially more expensive work, such as:
+  - repeated database or network I/O,
+  - repeated parsing or serialization,
+  - repeated full scans,
+  - expensive recomputation,
+  - or avoidable lock contention.
+- Trade memory for speed only when the retained data will be reused enough to justify its allocation, initialization and lookup cost.
+- Keep every memory-for-speed trade bounded by a known maximum, TTL, request scope, chunk size or eviction policy.
+- Do not retain large maps, caches or object graphs for speculative reuse.
+- Avoid memory usage that risks swapping, container eviction, PHP memory-limit failure or reduced worker density; these outcomes can produce severe latency regressions.
+- Remember that PHP arrays are hash tables with substantial per-element overhead. Do not use large arrays as free or low-cost memory.
+- For repeated membership checks, a keyed set with `isset()` may be faster than repeated linear scans, but build it only when the number of lookups justifies the one-time allocation.
+- For one pass over a large dataset, prefer streaming or a direct loop instead of building additional indexes or copies.
+- Measure wall-clock time, sustained throughput and peak memory together.
+- Choose the fastest measured option that remains within explicit stability, memory, concurrency and capacity limits.
+- Resource efficiency is secondary to speed unless resource pressure reduces throughput, increases latency or threatens operational stability.
+- Prefer predictable, bounded memory consumption over the lowest possible memory consumption.
+- Do not optimize memory in a way that adds significant CPU work unless memory pressure, worker density or peak-memory limits require it.
 
 ## Database And Storage Performance
 
@@ -415,23 +549,25 @@ unset($item);
 
 ## Micro-Optimization Policy
 
-- Optimize algorithms, queries, I/O, allocations, serialization and data movement before syntax-level details.
-- Do not convert generic PHP microbenchmarks into universal coding rules.
-- Treat benchmark results as specific to the tested runtime, configuration, hardware, input shape and workload.
-- Do not assume meaningful gains from:
-  - `for` versus `foreach`,
-  - pre-increment versus post-increment,
-  - single quotes versus double quotes,
+- Optimize algorithms, query count, I/O, allocations, copying, serialization and data movement before cosmetic syntax.
+- Apply low-risk, semantically equivalent reductions in work without requiring a benchmark for every occurrence.
+- Prefer `isset()` over `array_key_exists()` when null and missing are intentionally equivalent.
+- Prefer direct access and one-pass processing over callback-heavy pipelines that create avoidable intermediate arrays on hot or large datasets.
+- Prefer reuse of an already computed value when recomputation is non-trivial and the cached value has a clear bounded lifetime.
+- Do not add caching, indexes or precomputation when their construction, allocation and invalidation cost is likely to exceed reuse.
+- Treat generic PHP microbenchmarks as evidence, not universal law. Confirm important decisions on the project's PHP version and representative workload.
+- Do not change semantics merely to use a faster-looking construct.
+- Do not assume meaningful gains from trivial stylistic choices such as:
+  - pre-increment versus post-increment when the result is unused,
+  - single quotes versus double quotes without interpolation,
   - `echo` versus `print`,
-  - manual inlining,
-  - ordinary function-call removal,
-  - or obscure branchless expressions.
-- Choose single-quoted or double-quoted strings according to interpolation, escaping and readability.
-- Prefer built-in functions when they clearly express the operation and provide the required semantics.
-- Do not replace clear code merely because a native function is presumed faster.
-- Avoid clever bit-level or branchless tricks unless the path is demonstrably hot and the benefit is measured.
-- Never weaken validation, type safety, error handling or security for a minor speed improvement.
+  - or formatting differences.
+- Do consider function-call, callback, allocation and intermediate-array overhead in code executed millions of times or across very large datasets.
+- Avoid clever bit-level, branchless or manual-inlining tricks unless the path is demonstrably hot and the result is clearer or measurably faster.
+- Never weaken validation, authorization, escaping, type safety, error handling or cryptographic security for speed.
+- Avoid repeated defensive checks after a value has already been validated and converted at a trusted boundary, unless the contract permits mutation or another trust boundary is crossed.
 - Document non-obvious performance code with the reason, evidence and constraints that justify it.
+- Revert an optimization when its measured benefit is insignificant or its complexity creates a greater maintenance or correctness risk.
 
 ## OPcache-Friendly Code Structure
 
@@ -634,5 +770,9 @@ composer install \
 - Define rollback or mitigation criteria for material latency, throughput, memory, timeout or error-rate regressions.
 - Review performance budgets as traffic, data volume, infrastructure and business requirements change.
 - Optimize the dominant measured bottleneck rather than attempting to apply every possible optimization.
+- Do not approve automated bulk transformations that add `unset()`, wrappers, object conversions, validation layers or helper calls across hot paths without representative before-and-after measurements.
+- Treat large elapsed-time regressions as blocking defects even when static analysis, style checks and unit tests pass.
 - Prefer maximum justified performance over maximum theoretical performance.
+- Treat resource growth as acceptable when it produces a material speed improvement and remains within explicit capacity and stability budgets.
+- Treat latency or throughput regressions as blocking when they exceed the project's accepted tolerance, even if resource usage improves.
 - Do not accept a performance gain that materially compromises correctness, security, reliability or operational safety unless the trade-off is explicitly approved.
