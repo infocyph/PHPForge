@@ -117,6 +117,131 @@ cognitive_complexity:
 - Exclude generated code from cognitive-complexity enforcement where appropriate.
 - Configure dependency-tree analysis against relevant project root types instead of applying it blindly to every class.
 
+## Cohesion And File Discipline
+
+- Treat cognitive-complexity values as maximum limits, not utilization targets.
+- Do not attempt to keep classes or functions close to their complexity limits.
+- Prefer cohesive classes with low complexity when the responsibility is naturally simple.
+- A new class must reduce total system complexity, isolate a meaningful responsibility, enforce an invariant or establish a real architectural boundary.
+- Do not extract a new class merely to reduce a complexity score, shorten a file or satisfy an arbitrary line-count target.
+- Prefer private methods inside the existing class when extracted logic:
+  - belongs exclusively to that class,
+  - shares the same lifecycle,
+  - uses the same dependencies,
+  - and is unlikely to be reused or substituted independently.
+- Keep tightly related, single-use behavior together unless doing so causes mixed responsibilities or excessive branching.
+- Do not create one-method classes unless the type has a clear role, such as:
+  - an adapter,
+  - command,
+  - handler,
+  - strategy,
+  - specification,
+  - value object,
+  - middleware,
+  - or callable extension point.
+- Do not create separate files for trivial wrappers that add no validation, behavior, abstraction or operational value.
+- Do not split a cohesive class only because it contains many private methods.
+- Split a class when it has multiple reasons to change, unrelated dependencies, separate lifecycle requirements or independently replaceable behavior.
+- Evaluate extraction by net complexity:
+  - additional files,
+  - additional symbols,
+  - constructor dependencies,
+  - dispatch layers,
+  - autoload work,
+  - configuration,
+  - and navigation cost.
+- Reject a refactoring that lowers local cognitive complexity while increasing total system complexity.
+- Do not enforce arbitrary minimum or maximum class line counts.
+- Small value objects, enums, exceptions, DTOs, attributes and adapters are valid when they represent meaningful concepts.
+
+## Interface And Abstraction Policy
+
+- Create an interface only when it defines a meaningful contract or substitution boundary.
+- Do not create an interface for every class by default.
+- Do not create an interface solely because dependency injection, mocking or a design pattern makes it possible.
+- Do not create an interface when there is one internal implementation, no expected substitution and no meaningful architectural boundary.
+- Prefer a concrete `final` class for internal implementation details that are not designed for extension or substitution.
+- Introduce an interface when at least one of the following is true:
+  - multiple implementations currently exist,
+  - consumers must provide their own implementation,
+  - the contract forms part of the library's supported public extension surface,
+  - the implementation crosses a significant infrastructure or third-party boundary,
+  - runtime strategy or driver selection is required,
+  - or separate modules must depend on a stable contract rather than implementation details.
+- Public visibility alone does not require an interface.
+- Public immutable value objects, DTOs, factories, exceptions and utility types may remain concrete classes.
+- Do not create an interface only to make a class mockable in tests.
+- Prefer testing through observable behavior or substituting real architectural boundaries.
+- Keep internal interfaces private to the package or module when they are not part of the supported public API.
+- Do not expose an interface publicly unless compatibility and long-term maintenance of that contract are intentional.
+- When only one implementation exists, name it according to its actual responsibility rather than adding redundant names such as `Default`, `Base` or `Impl`.
+- Avoid paired files such as `UserServiceInterface` and `UserService` unless the interface has a concrete architectural purpose.
+- Design public library extension through interfaces and composition rather than requiring consumers to inherit from concrete classes.
+
+## Enum And Constant Policy
+
+- Use enums for meaningful closed sets of domain or contract values.
+- Do not create an enum merely to replace every group of constants or strings.
+- Prefer an enum when:
+  - the value has a distinct domain identity,
+  - only a fixed set of values is valid,
+  - exhaustive handling is desirable,
+  - type-safe parameters or return values improve correctness,
+  - or behavior meaningfully belongs to each case.
+- Use backed enums when a stable scalar representation is required for storage, serialization, messaging or external contracts.
+- Validate external backed-enum values explicitly with `tryFrom()` or an equivalent boundary conversion.
+- Do not pass arbitrary external strings deep into the application when they represent a known enum type.
+- Prefer class constants when values are:
+  - implementation-local,
+  - configuration keys,
+  - header names,
+  - default limits,
+  - regular-expression fragments,
+  - numeric flags,
+  - algorithm parameters,
+  - cache-key prefixes,
+  - or other values without independent domain identity.
+- Prefer private constants inside the owning class when the values are used only there.
+- Do not create a separate enum or constants file for values that belong exclusively to one class.
+- Do not create generic `Constants`, `CommonConstants` or `GlobalConstants` classes.
+- Keep constants close to the behavior that owns them.
+- Do not use an enum for an open-ended or externally extensible set.
+- Do not use an enum when new values may be introduced independently by consumers, plugins, providers or third-party systems.
+- Do not create an enum for a single local conditional unless it improves the public contract or prevents invalid states.
+- Do not attach unrelated utility behavior to enums merely to avoid creating an appropriate service.
+- Prefer exhaustive `match` handling for enums when every case must be considered.
+- Avoid a default `match` arm for enums when explicit handling provides safer change detection.
+
+## Abstraction Cost
+
+- Every new class, interface, enum, trait, DTO, wrapper, handler and file must justify its existence.
+- Prefer adding behavior to an existing cohesive type over creating a new type with no independent responsibility.
+- Create a new type when it provides at least one meaningful benefit:
+  - stronger type safety,
+  - invariant enforcement,
+  - independent substitution,
+  - lifecycle separation,
+  - public contract stability,
+  - reusable behavior,
+  - or reduced total system complexity.
+- Do not create a type merely to:
+  - satisfy a pattern,
+  - reduce line count,
+  - lower a local complexity score,
+  - enable mocking,
+  - rename a scalar,
+  - or make the directory structure appear more architectural.
+- Optimize for the smallest coherent type system, not the smallest individual files.
+- Count abstraction overhead as part of the design cost:
+  - additional files,
+  - autoloaded symbols,
+  - dependency injection wiring,
+  - runtime dispatch,
+  - configuration,
+  - testing surface,
+  - and maintenance burden.
+- Reject abstractions whose expected value is speculative or smaller than their ongoing operational and cognitive cost.
+
 ## Iteration And Algorithmic Efficiency
 
 - Treat total work, algorithmic complexity, allocations and I/O as more important than the number of visible loops.
@@ -460,7 +585,7 @@ composer install \
 - Use static analysis at the strongest practical level supported by the project.
 - Add or update tests for affected behavior, boundaries, failures and contracts.
 - Add benchmarks only for meaningful, stable, performance-sensitive behavior.
-- After implementation or function/method documentation work, use the automation and workflow described in [AGENTS.md](vendor\infocyph\phpforge\resources\AGENTS.md) if exists.
+- After implementation or function/method documentation work, use the automation and workflow described in [AGENTS.md](./AGENTS.md).
 - Review automated changes for correctness.
 - Keep automated changes within scope.
 - Do not accept generated or automated refactoring without reviewing the resulting behavior.
