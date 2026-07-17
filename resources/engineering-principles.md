@@ -721,7 +721,7 @@ composer install \
 - Use static analysis at the strongest practical level supported by the project.
 - Add or update tests for affected behavior, boundaries, failures and contracts.
 - Add benchmarks only for meaningful, stable, performance-sensitive behavior.
-- After implementation or function/method documentation work, use the automation and workflow described in [AGENTS.md](./AGENTS.md).
+- After implementation or function/method documentation work, use the automation and workflow described in [AGENTS.md](vendor\infocyph\phpforge\resources\AGENTS.md) if exists.
 - Review automated changes for correctness.
 - Keep automated changes within scope.
 - Do not accept generated or automated refactoring without reviewing the resulting behavior.
