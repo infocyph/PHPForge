@@ -31,7 +31,9 @@ final class TaskCatalog
      */
     public static function benchChart(): array
     {
-        return [self::benchCommand(['--report=chart'])];
+        return self::hasProjectDirectory('benchmarks')
+            ? [self::benchCommand(['--report=chart'])]
+            : [];
     }
 
     /**
@@ -39,7 +41,9 @@ final class TaskCatalog
      */
     public static function benchQuick(): array
     {
-        return [self::benchCommand(['--report=aggregate', '--revs=10', '--iterations=3', '--warmup=1'])];
+        return self::hasProjectDirectory('benchmarks')
+            ? [self::benchCommand(['--report=aggregate', '--revs=10', '--iterations=3', '--warmup=1'])]
+            : [];
     }
 
     /**
@@ -47,7 +51,9 @@ final class TaskCatalog
      */
     public static function benchRun(): array
     {
-        return [self::benchCommand(['--report=aggregate'])];
+        return self::hasProjectDirectory('benchmarks')
+            ? [self::benchCommand(['--report=aggregate'])]
+            : [];
     }
 
     /**
@@ -255,7 +261,7 @@ final class TaskCatalog
      */
     public static function testCode(): array
     {
-        return [self::pestCommand()];
+        return self::pestTasks();
     }
 
     /**
@@ -440,7 +446,7 @@ final class TaskCatalog
     {
         return [
             ...self::syntax(),
-            self::pestCommand(true),
+            ...self::pestTasks(true),
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
             ...self::duplicates(),
@@ -451,6 +457,11 @@ final class TaskCatalog
             [Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
             ...self::refactorCheck(),
         ];
+    }
+
+    private static function hasProjectDirectory(string $directory): bool
+    {
+        return is_dir(Paths::projectRootPath() . DIRECTORY_SEPARATOR . $directory);
     }
 
     private static function isBundledConfig(string $configPath): bool
@@ -549,6 +560,16 @@ final class TaskCatalog
     private static function pestProcesses(): string
     {
         return self::envInt('IC_PEST_PROCESSES', 10, 1, 64);
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    private static function pestTasks(bool $parallel = false): array
+    {
+        return self::hasProjectDirectory('tests')
+            ? [self::pestCommand($parallel)]
+            : [];
     }
 
     private static function phpstanMemoryLimit(): string
