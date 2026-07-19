@@ -3,49 +3,212 @@
 ## Core Principles
 
 - Stay framework-agnostic unless the project clearly requires otherwise.
-- Treat correctness and security as non-negotiable constraints. Among solutions that satisfy them, prioritize lower wall-clock latency, higher sustainable throughput, predictable tail latency, reliability, resource efficiency and maintainability.
-- Prefer the fastest measured or strongly reasoned implementation when its resource use remains within explicit operational limits.
-- When behavior, security and compatibility are equivalent, choose the implementation that performs less total work or provides lower measured runtime cost.
-- Prefer simple, explicit, measurable solutions.
+- Treat correctness, security, data integrity and operational stability as non-negotiable constraints.
+- The primary performance objective is the highest sustainable number of successful requests per minute (`RPM`) on production-equivalent infrastructure.
+- Among correct, secure and stable implementations, choose the implementation with the highest measured sustained throughput.
+- Optimize the complete execution path rather than isolated syntax, minimum resource usage or architectural fashion.
+- Prefer simple, explicit and measurable solutions.
 - Avoid speculative architecture, unnecessary abstractions and unnecessary layers.
-- Follow project conventions unless they conflict with correctness, security or a clearly better design.
+- Follow project conventions unless they conflict with correctness, security, throughput or a clearly better design.
 - Use modern PHP, relevant PHP-FIG standards, strict typing and clear contracts where appropriate (`PER`, `PSRs`).
-- Apply `SOLID` pragmatically. Prefer composition over inheritance unless inheritance is clearly the better fit.
+- Apply `SOLID` pragmatically. Prefer composition over inheritance only when it creates a real contract, substitution boundary or reduction in total complexity.
 - Be skeptical of defaults, conventions and abstractions that introduce hidden runtime or operational costs.
-- Choose the design with the best balance of speed, scalability, operational safety and maintainability.
-- When uncertain, choose the simpler design that is easier to profile, test, operate and change.
+- When sustained throughput is practically equivalent, choose the implementation with lower complexity, lower operating cost and more predictable behavior.
+- When uncertain, choose the simpler design that is easier to benchmark, profile, operate and change.
 
-## Speed-First Performance Priority
+## Maximum Throughput Objective
 
-- Treat correctness and security as non-negotiable constraints.
-- Among correct and secure solutions, prioritize:
-  1. lower wall-clock latency,
-  2. higher sustainable throughput,
-  3. predictable `p95` and `p99` latency,
-  4. reliability,
-  5. resource efficiency,
-  6. and maintainability.
-- Prefer the fastest measured implementation when its resource usage remains within defined operational limits.
-- Do not optimize for minimum CPU usage, minimum memory usage, minimum allocation count or minimum file count when doing so materially slows the application.
-- Accept additional CPU, memory, caching, precomputation, indexing, duplication or process capacity when it produces a meaningful measured speed improvement.
-- Every speed-for-resource trade must remain bounded by explicit limits such as:
-  - maximum request memory,
+- The primary performance metric is sustained successful requests per minute (`RPM`).
+- Use successful requests per second (`RPS`) when convenient and convert consistently:
+
+  `RPM = RPS × 60`
+
+- Count only complete, correct and valid responses as successful throughput.
+- Do not count failed, timed-out, partial, invalid, incorrectly authorized or incorrectly cached responses as successful throughput.
+- Optimize for the highest stable RPM the complete system can sustain on production-equivalent hardware.
+- Resource efficiency, minimum latency for one isolated request, minimum allocation count, minimum file count and architectural elegance are secondary to sustained successful RPM.
+- Accept additional CPU, memory, caching, precomputation, indexing, duplication, persistent workers or process capacity when they materially increase sustained successful RPM.
+- Do not reject a higher-throughput implementation merely because it uses moderately more CPU or memory.
+- Keep every resource-for-throughput trade bounded by explicit limits such as:
+  - request memory,
   - worker memory,
   - cache size,
   - process count,
-  - concurrency,
-  - payload size,
-  - queue depth,
   - connection count,
-  - or execution timeout.
-- Prefer predictable bounded resource usage over aggressive resource minimization.
-- Do not reject a faster implementation merely because it uses moderately more memory or CPU.
-- Do not introduce additional CPU work solely to reduce temporary memory unless memory pressure, worker density or process stability requires it.
-- Prefer keyed lookups, cached results, prepared structures or precomputed values when their construction cost is amortized by sufficient reuse.
-- Avoid precomputation, indexing or caching for one-time operations when construction and allocation cost more than the work removed.
-- Optimize the complete workload rather than one isolated operation.
-- Do not accept a single-request latency improvement that materially reduces sustained throughput, exhausts PHP-FPM workers, causes swapping, increases queueing or destabilizes downstream systems.
-- When two implementations have practically equivalent speed, choose the one with lower resource cost and lower complexity.
+  - concurrency,
+  - queue depth,
+  - payload size,
+  - execution timeout,
+  - database capacity,
+  - and downstream rate limits.
+- Do not accept a single-request latency improvement that lowers total sustained RPM.
+- Do not accept a short burst result when queues, memory, errors, timeouts or downstream pressure continue growing.
+- Sustainable throughput requires:
+  - stable queue depth,
+  - bounded memory,
+  - bounded connection usage,
+  - acceptable error and timeout rates,
+  - correct responses,
+  - and no progressive degradation during the benchmark period.
+- Prefer the implementation that produces the highest median sustained successful RPM across repeated representative runs.
+- When two implementations provide practically equivalent RPM, choose the one with lower complexity, lower operating cost and safer operations.
+- Do not require a dedicated benchmark for every trivial, semantically equivalent reduction in work.
+- Require representative measurement for architectural changes, hot paths, repeated operations and changes likely to affect request throughput.
+
+## Universal Applicability
+
+- Apply these instructions to all first-party PHP code, including:
+  - applications,
+  - frameworks,
+  - libraries,
+  - SDKs,
+  - packages,
+  - command-line tools,
+  - workers,
+  - database abstractions,
+  - query builders,
+  - cache clients,
+  - authentication components,
+  - OTP and cryptographic libraries,
+  - serializers,
+  - middleware,
+  - adapters,
+  - and infrastructure utilities.
+- Assume any reusable PHP component may eventually execute inside a high-volume request-response lifecycle.
+- Design every package so it contributes the least practical overhead to the host application's sustained successful RPM.
+- Do not treat code as performance-insensitive merely because it does not directly serve HTTP requests.
+- A component may execute:
+  - once during bootstrap,
+  - once per request,
+  - several times per request,
+  - once per database row,
+  - inside a hot loop,
+  - inside a worker,
+  - or inside a persistent application server.
+- Evaluate cost according to expected call frequency and placement in the complete execution path.
+- For reusable libraries, isolated calls per second are a supporting metric; the primary metric remains the effect on representative host-application RPM.
+- Do not claim application-level throughput from a component-only microbenchmark.
+- Avoid framework-specific assumptions unless the package explicitly targets that framework.
+- Keep reusable code safe for normal PHP-FPM execution and persistent-worker runtimes where practical.
+- Do not retain request-specific, tenant-specific or user-specific state in static or long-lived objects unless the lifecycle is explicit and safely reset.
+- Keep package bootstrap deterministic, minimal and free from unnecessary I/O.
+- Avoid automatic filesystem scanning, network access, environment parsing, reflection discovery or service registration during package loading.
+- Do not perform work at file-include time beyond declarations and immutable compile-time-safe setup.
+- Defer optional work until it is actually required.
+- Keep dependencies minimal and justify each dependency by substantial functional or measured throughput value.
+- Preserve a short, direct common path for the most frequently used operations.
+- Keep optional diagnostics, tracing and logging disabled by default unless required by the contract.
+- Expose observability hooks without imposing expensive work on users who do not enable them.
+- Benchmark realistic repeated invocation for packages that may run inside loops or row processing.
+- Benchmark cold and warm loading for packages used during bootstrap.
+- Soak-test repeated execution and state reset for packages intended for persistent workers.
+
+## Request-Path Throughput Rules
+
+- Minimize the amount of PHP code executed per request.
+- Keep the common request path short, direct and predictable.
+- Avoid loading, resolving, validating, constructing or serializing data that the request does not use.
+- Avoid unnecessary middleware, listeners, observers, decorators, wrappers, DTO conversions and container lookups on hot routes.
+- Do not add a cross-cutting layer to every request when only a subset of routes requires it.
+- Compile stable routes, configuration, dependency mappings and metadata before serving traffic.
+- Do not perform route discovery, directory scanning, annotation parsing, reflection discovery or container compilation during requests.
+- Avoid repeated `.env`, YAML, XML or JSON configuration parsing in request paths.
+- Prefer direct calls over dynamic dispatch when extension or substitution is not required.
+- Avoid chains of tiny method calls in measured hot paths when equivalent cohesive code is clearer and materially faster.
+- Avoid exceptions for expected control flow.
+- Validate and normalize untrusted input once at the trust boundary, then use the validated internal representation.
+- Do not repeat equivalent validation at every internal layer.
+- Keep response payloads limited to fields required by the caller.
+- Avoid eager object hydration when arrays, scalar projections or streamed rows are sufficient.
+- Avoid callbacks and intermediate arrays in large, frequently executed transformations when one explicit loop performs the same work.
+- Avoid synchronous database, filesystem, network or process calls that are not required to complete the response.
+- Batch required I/O whenever batching improves total RPM.
+- Use bounded concurrency for independent I/O only when it improves end-to-end throughput and does not overload downstream systems.
+- Cache or precompute stable high-cost work when the hit rate and reuse justify construction, storage and invalidation costs.
+- Do not add caching to one-time or low-reuse operations.
+- Keep mandatory observability structured, bounded and inexpensive.
+- Do not construct expensive log context when the corresponding log level is disabled.
+- Keep authentication and authorization correct while avoiding duplicate resolution, parsing and database access.
+- Reuse already loaded immutable request data instead of fetching or transforming it repeatedly.
+- Remove dead request-path work before pursuing syntax-level micro-optimizations.
+
+## Component And Library Throughput
+
+- Optimize library APIs for repeated use, not only one isolated invocation.
+- Keep common operations allocation-conscious and avoid unnecessary object graphs, wrappers and conversions.
+- Do not create an interface, DTO, value object, event, exception or adapter merely because the code is packaged as a library.
+- Retain stronger types and abstractions when they prevent invalid states or define a real public contract.
+- Avoid hidden initialization on the first business call when initialization can be performed explicitly or amortized safely.
+- Reuse immutable validated configuration instead of reparsing or renormalizing it on every call.
+- Do not cache caller-specific, tenant-specific, secret or mutable values across requests unless safely scoped and explicitly supported.
+- Avoid hidden global state and service location.
+- Make optional integrations lazy so unused dependencies do not affect bootstrap or common-path RPM.
+- Benchmark:
+  - first call,
+  - warm repeated calls,
+  - valid input,
+  - invalid input,
+  - failure paths,
+  - large input,
+  - and repeated calls inside one request.
+- Report both isolated component throughput and representative end-to-end request throughput.
+- Reject an isolated optimization when integration overhead lowers complete application RPM.
+
+## Security-Critical Library Throughput
+
+- Apply maximum-throughput rules to security-sensitive libraries only after correctness and security requirements are fully preserved.
+- Never weaken:
+  - cryptographic algorithms,
+  - entropy sources,
+  - secret handling,
+  - timing-safety requirements,
+  - replay protection,
+  - rate limiting,
+  - token validation,
+  - authorization,
+  - or input validation
+  to improve RPM.
+- For OTP libraries:
+  - avoid unnecessary object creation and repeated normalization,
+  - validate reusable configuration once where safe,
+  - reuse immutable algorithm configuration,
+  - avoid repeated encoding or time-source work within the same operation,
+  - and use timing-safe comparison where required.
+- Do not cache generated OTP values, secrets or verification decisions across callers unless the protocol explicitly requires it and scope is secure.
+- Benchmark OTP generation and verification separately.
+- Include valid, invalid, expired, malformed and replay-related paths in representative benchmarks.
+- Treat rate limiting and replay protection as part of the production throughput model rather than removing them from tests.
+
+## Runtime Architecture For Throughput
+
+- Choose the PHP runtime model by measured sustained successful RPM, not convention.
+- Benchmark supported execution models where relevant, including:
+  - PHP-FPM,
+  - persistent-worker application servers,
+  - and other production-supported SAPIs.
+- Prefer the execution model with the highest stable successful RPM for the representative workload.
+- Persistent workers may remove repeated bootstrap and autoload cost, but use them only when:
+  - request-specific state is reliably reset,
+  - memory growth is bounded,
+  - services do not retain tenant or user state,
+  - database and network resources are managed safely,
+  - and soak tests confirm stability.
+- Do not adopt persistent workers solely because a synthetic Hello World benchmark is faster.
+- Size worker and process counts from a measured throughput curve.
+- Increase concurrency until throughput stops improving or errors, queueing, context switching, database pressure or tail latency rise materially.
+- Do not assume one worker per CPU core is universally optimal.
+- Align PHP worker capacity with:
+  - database connection limits,
+  - cache connections,
+  - external-service limits,
+  - available memory,
+  - and CPU saturation.
+- Prefer connection reuse and keep-alive where they improve RPM and remain operationally safe.
+- Avoid excessive persistent connections that reduce database availability or worker density.
+- Offload static files and large immutable assets from PHP when a web server or CDN can serve them more efficiently.
+- Apply response compression only when its network savings improve end-to-end RPM.
+- Use queues for work that is not required to complete the response when deferral materially increases request throughput and preserves correctness.
+- Keep request handlers free from non-essential background work.
 
 ## Scope And Change Discipline
 
@@ -326,6 +489,7 @@ cognitive_complexity:
 - Use `while` when iteration is naturally condition-driven.
 - Do not choose `for`, `foreach` or `while` based solely on generic syntax benchmarks.
 - Do not convert associative arrays into key lists merely to iterate with `for`.
+
 ### By-Reference `foreach` Cleanup
 
 - Avoid by-reference `foreach` unless in-place mutation is required and preferable to constructing a replacement array.
@@ -436,8 +600,13 @@ return $items;
 - Prefer predictable, bounded memory consumption over the lowest possible memory consumption.
 - Do not optimize memory in a way that adds significant CPU work unless memory pressure, worker density or peak-memory limits require it.
 
-## Database And Storage Performance
+## Database, Storage And Database-Library Performance
 
+- Apply these rules to applications, database libraries, query builders, repositories, storage adapters and ORM layers.
+- Avoid hidden queries, implicit metadata discovery, unnecessary automatic count queries and per-row object construction.
+- Keep connection acquisition, statement preparation, parameter binding, execution and result conversion explicit enough to profile.
+- Support prepared-statement reuse, batching, streaming and cursors when they increase complete workload RPM.
+- Do not optimize the PHP database layer in a way that overloads the database or lowers total successful RPM.
 - Treat query count, rows examined, rows returned, transferred bytes, lock duration and transaction duration as measurable costs.
 - Avoid N+1 query patterns.
 - Do not rely on lazy loading in performance-sensitive paths without verifying the resulting query count.
@@ -513,39 +682,97 @@ return $items;
 
 ## Performance Measurement
 
-- Measure before optimizing.
-- Establish a baseline before making a performance change.
-- State the performance hypothesis and the affected resource:
-  - latency,
-  - throughput,
-  - CPU,
-  - memory,
-  - allocation,
+- Measure before and after every meaningful performance-sensitive change.
+- Establish a reproducible production-equivalent RPM baseline before optimization.
+- The primary result is sustained successful `RPM`; also record `RPS`.
+- Measure complete end-to-end requests rather than only isolated functions.
+- Confirm every benchmark candidate returns equivalent correct output.
+- Run benchmarks at several concurrency levels to produce a throughput curve.
+- Identify:
+  - the concurrency where throughput begins to rise,
+  - the concurrency where peak sustained RPM is reached,
+  - and the point where queueing, errors or timeouts begin to dominate.
+- Benchmark long enough to reach steady state and expose:
+  - worker saturation,
+  - CPU throttling,
+  - connection exhaustion,
+  - cache churn,
+  - memory growth,
+  - allocator pressure,
+  - and queue accumulation.
+- Warm OPcache, Composer metadata, generated configuration and relevant application caches before measuring warm-state production throughput.
+- Measure cold-start behavior separately when restarts, deployments or autoscaling are operationally frequent.
+- Use multiple runs and compare median sustained successful RPM.
+- Record variance and reject conclusions when the difference is within normal measurement noise.
+- Confirm the load generator, client CPU and network path are not the bottleneck.
+- Distribute load generation across multiple clients when one client cannot saturate the server reliably.
+- Record at minimum:
+  - successful `RPS`,
+  - successful `RPM`,
+  - total completed requests,
+  - failed requests,
+  - timeout rate,
+  - response-validation failures,
+  - benchmark duration,
+  - concurrency,
+  - `p50`, `p95` and `p99` latency,
+  - CPU utilization,
+  - peak and steady-state memory,
+  - PHP worker utilization,
+  - queue depth,
+  - database connections,
   - query count,
-  - I/O,
-  - lock time,
-  - or network transfer.
-- Profile the complete request, command, job or workflow before focusing on isolated syntax.
-- Benchmark representative workloads, data sizes, distributions, hit rates and failure paths.
-- Separate microbenchmarks from end-to-end benchmarks.
-- Use microbenchmarks for isolated implementation choices, not as proof of complete application performance.
-- Run multiple iterations.
-- Inspect variance, outliers and individual results.
-- Reject conclusions when measurement variance is similar to or larger than the reported improvement.
-- Warm relevant runtime state when production normally runs warm.
-- Measure cold-start behavior separately when it matters.
-- Use monotonic high-resolution timing for elapsed measurements.
-- Measure peak memory, not only final memory.
-- Ensure benchmark candidates produce identical observable results.
-- Include setup and teardown costs when they exist in the real execution path.
-- Exclude setup only when production genuinely amortizes or reuses it.
-- Test scaling behavior across several input sizes.
-- Control PHP version, extensions, OPcache state, dependencies, hardware, environment and datasets.
-- Record benchmark commands and environment details.
-- Do not benchmark with Xdebug enabled unless measuring Xdebug-enabled operation.
-- Add performance regression checks only for stable, business-critical hot paths with reliable signals.
-- Do not claim an improvement based on a single run.
-- Remove complexity introduced for an optimization when the measured benefit is insignificant.
+  - cache hit rate,
+  - and external-service calls.
+- Measure the complete production-like stack, including:
+  - web server,
+  - PHP runtime,
+  - OPcache,
+  - bootstrap,
+  - application or library code,
+  - database,
+  - cache,
+  - serialization,
+  - authentication,
+  - authorization,
+  - and required external dependencies.
+- Use microbenchmarks only to investigate a known hot operation.
+- Do not use a microbenchmark as proof that complete request RPM improved.
+- Control PHP version, extensions, OPcache settings, Composer mode, hardware, operating system, database state and datasets.
+- Disable Xdebug and non-production debugging extensions unless measuring their intentional production use.
+- Record benchmark commands, configuration and environment details so results can be reproduced.
+- Test scaling behavior across representative input sizes and data distributions.
+- Include expected failure, miss and retry paths when they materially affect production traffic.
+- Do not claim a throughput improvement from a single run, short burst or invalid response.
+
+## Required Throughput Benchmark Matrix
+
+- Maintain separate production-equivalent benchmarks for workload classes relevant to the project.
+- Include, where applicable:
+  - minimal bootstrap and routing,
+  - plain or minimal response,
+  - JSON serialization,
+  - cached read,
+  - cache miss and fill,
+  - single database read,
+  - multi-row database read,
+  - database write transaction,
+  - authenticated request,
+  - authorization-heavy request,
+  - validation-heavy request,
+  - OTP generation,
+  - OTP verification,
+  - external-service request,
+  - large response or export,
+  - file upload,
+  - repeated library calls inside one request,
+  - and background-job processing.
+- Do not extrapolate application RPM from a Hello World benchmark.
+- Use minimal-response benchmarks to identify bootstrap, routing and framework overhead.
+- Use representative business-route benchmarks to identify database, cache, serialization, authentication, validation and integration costs.
+- Weight benchmark scenarios according to actual or expected traffic distribution.
+- Optimize scenarios that dominate total production request volume.
+- Keep benchmark fixtures deterministic and large enough to expose realistic query, allocation and memory behavior.
 
 ## Micro-Optimization Policy
 
@@ -674,7 +901,7 @@ composer install \
 
 ## Runtime And Process Management
 
-- Size PHP-FPM workers from measured per-worker memory, CPU demand, expected concurrency and downstream capacity.
+- Size PHP-FPM or persistent-worker process counts from measured per-worker memory, CPU demand, expected concurrency, throughput curves and downstream capacity.
 - Do not increase worker counts beyond what databases, caches, filesystems and external services can sustain.
 - Configure request timeouts and slow-request logging where appropriate.
 - Recycle workers deliberately when required to control fragmentation, leaks or long-lived state.
@@ -730,49 +957,151 @@ composer install \
 
 ## Performance Acceptance And Enforcement
 
-- Treat these instructions as engineering guardrails, not proof that an implementation is performant.
-- Define measurable performance budgets for each important request, command, worker and batch workflow.
-- Do not use one universal latency, memory, query-count or throughput target for unrelated workloads.
+- Treat these instructions as engineering guardrails; only representative measurements prove that an implementation is performant.
+- The primary acceptance metric is median sustained successful requests per minute (`RPM`) across repeated production-equivalent runs.
+- Count only complete, correct, authorized and valid responses as successful throughput.
+- Define measurable performance budgets for each important:
+  - request path,
+  - command,
+  - worker,
+  - batch workflow,
+  - background job,
+  - and reusable library operation.
+- Do not use one universal RPM, latency, memory, query-count or throughput target for unrelated workloads.
+- Define workload-specific limits such as:
+
+```yaml
+throughput_budget:
+    successful_rpm_min: <baseline-or-target>
+    max_rpm_regression_percent: 2
+    max_error_rate_percent: <project-limit>
+    max_timeout_rate_percent: <project-limit>
+    max_p99_latency_ms: <safety-limit>
+    max_peak_memory_mb: <capacity-limit>
+    max_queue_growth: 0
+```
+
 - Establish a production-representative baseline before changing a performance-sensitive path.
 - Validate performance against representative:
   - data volume,
   - data distribution,
   - concurrency,
   - request mix,
+  - repeated call frequency,
   - dependency latency,
-  - cache state,
-  - and failure conditions.
-- Measure end-to-end behavior in addition to isolated functions.
+  - cache-hit and cache-miss states,
+  - database state,
+  - success paths,
+  - failure paths,
+  - and retry behavior.
+- Measure complete end-to-end behavior in addition to isolated functions or library calls.
+- For reusable libraries, measure both:
+  - isolated operation throughput,
+  - and the effect on representative host-application RPM.
+- Do not claim application-level throughput from a component-only microbenchmark.
 - Track at minimum where relevant:
+  - successful `RPS`,
+  - successful `RPM`,
+  - total completed requests,
+  - failed requests,
+  - error rate,
+  - timeout rate,
+  - response-validation failures,
+  - benchmark duration,
+  - concurrency,
   - `p50`, `p95` and `p99` latency,
-  - throughput,
-  - CPU usage,
-  - peak memory,
-  - allocation or memory growth,
+  - CPU utilization,
+  - peak and steady-state memory,
+  - allocation or memory-growth rate,
+  - worker utilization,
+  - queue depth and queue growth,
   - query count,
   - rows examined and returned,
-  - external calls,
-  - cache hit rate,
-  - lock time,
-  - timeout rate,
-  - and error rate.
-- Add automated performance regression checks only where the workload and environment are stable enough to produce a reliable signal.
+  - lock duration,
+  - transaction duration,
+  - database connection usage,
+  - external calls and dependency latency,
+  - and cache hit rate.
+- Add automated performance-regression checks only where the workload and environment are stable enough to produce a reliable signal.
 - Define an acceptable regression tolerance for each benchmark.
-- Do not fail builds based on timing differences that fall within normal benchmark variance.
-- Use static analysis to enforce structural rules, but do not treat static-analysis success as performance validation.
+- For stable, business-critical benchmarks, use a default maximum tolerated median RPM regression of `2%` unless measured variance requires a different threshold.
+- Do not fail builds for differences that remain within established benchmark variance.
+- Treat a material sustained RPM regression as a blocking defect unless explicitly approved.
+- Do not approve a change merely because it reduces:
+  - CPU,
+  - memory,
+  - allocations,
+  - file count,
+  - object count,
+  - or single-request latency
+  when sustained successful RPM decreases.
+- Do not approve higher RPM when:
+  - output correctness differs,
+  - authorization or validation is bypassed,
+  - data integrity changes,
+  - security protections are reduced,
+  - error or timeout rates exceed their budgets,
+  - queue depth grows continuously,
+  - memory grows without bound,
+  - workers or connections are exhausted,
+  - or downstream systems become unstable.
+- Treat `p95` and `p99` latency as safety constraints rather than the primary optimization target.
+- A latency increase may be accepted when sustained RPM materially improves and latency remains within the defined safety budget.
+- Do not accept a short-burst throughput increase when steady-state RPM is lower or the system progressively degrades.
+- Use static analysis to enforce structural rules, but never treat static-analysis success as performance validation.
 - Use query-plan analysis for important database paths.
 - Use load testing for concurrency-sensitive and capacity-sensitive paths.
-- Use soak testing for workers, consumers, daemons and processes where memory growth or resource leakage is possible.
+- Use soak testing for:
+  - persistent workers,
+  - consumers,
+  - daemons,
+  - repeated library execution,
+  - and processes where memory growth or resource leakage is possible.
 - Compare cold-start and warm-runtime performance separately.
-- Test with the same PHP major/minor version, extensions, Composer mode, OPcache configuration and relevant infrastructure used in production.
-- Record benchmark and load-test commands so results can be reproduced.
-- Verify critical performance metrics after deployment.
-- Define rollback or mitigation criteria for material latency, throughput, memory, timeout or error-rate regressions.
-- Review performance budgets as traffic, data volume, infrastructure and business requirements change.
+- Use warm-state sustained RPM as the primary production metric unless cold starts are operationally frequent.
+- Test with the same:
+  - PHP major and minor version,
+  - extensions,
+  - Composer mode,
+  - OPcache configuration,
+  - runtime model,
+  - operating system,
+  - hardware class,
+  - database configuration,
+  - cache configuration,
+  - and relevant infrastructure
+  used in production.
+- Confirm that the load generator, client CPU and network path are not the benchmark bottleneck.
+- Record benchmark and load-test commands, configuration and environment details so results can be reproduced.
+- Verify critical throughput and stability metrics after deployment through production telemetry or a controlled production-like canary.
+- Define rollback or mitigation criteria for:
+  - RPM regression,
+  - error-rate increase,
+  - timeout increase,
+  - unacceptable `p99` latency,
+  - unbounded queue growth,
+  - memory growth,
+  - worker exhaustion,
+  - database saturation,
+  - cache instability,
+  - and downstream overload.
+- Review performance budgets as traffic, call frequency, data volume, hardware, runtime and business requirements change.
 - Optimize the dominant measured bottleneck rather than attempting to apply every possible optimization.
-- Do not approve automated bulk transformations that add `unset()`, wrappers, object conversions, validation layers or helper calls across hot paths without representative before-and-after measurements.
-- Treat large elapsed-time regressions as blocking defects even when static analysis, style checks and unit tests pass.
-- Prefer maximum justified performance over maximum theoretical performance.
-- Treat resource growth as acceptable when it produces a material speed improvement and remains within explicit capacity and stability budgets.
-- Treat latency or throughput regressions as blocking when they exceed the project's accepted tolerance, even if resource usage improves.
-- Do not accept a performance gain that materially compromises correctness, security, reliability or operational safety unless the trade-off is explicitly approved.
+- Require explicit review before adding the following across hot or frequently called paths:
+  - middleware,
+  - wrappers,
+  - object-conversion layers,
+  - reflection,
+  - dynamic discovery,
+  - repeated validation,
+  - synchronous logging,
+  - additional database calls,
+  - additional serialization passes,
+  - broad `unset()` calls,
+  - helper dispatch,
+  - or additional bootstrap work.
+- Do not approve automated bulk transformations affecting hot paths without representative before-and-after RPM measurements.
+- Treat large elapsed-time or RPM regressions as blocking defects even when formatting, static analysis, style checks and unit tests pass.
+- Prefer the highest justified sustainable successful RPM over theoretical, short-lived or benchmark-only speed.
+- Treat resource growth as acceptable when it produces a material RPM improvement and remains within explicit stability and capacity budgets.
+- Never trade correctness, security, authorization, data integrity or operational stability for benchmark throughput.
