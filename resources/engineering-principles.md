@@ -179,6 +179,174 @@
 - Include valid, invalid, expired, malformed and replay-related paths in representative benchmarks.
 - Treat rate limiting and replay protection as part of the production throughput model rather than removing them from tests.
 
+## Hashing, HMAC, Identifiers And Passwords
+
+- Select a hashing primitive by purpose before considering benchmark speed.
+- Do not treat cryptographic hashes, non-cryptographic hashes, HMACs, password hashes, checksums and unique identifiers as interchangeable.
+- Optimize hashing only after preserving the required collision resistance, authenticity, interoperability and threat model.
+- Benchmark hashing with the project's actual:
+  - PHP version,
+  - CPU architecture,
+  - payload sizes,
+  - call frequency,
+  - output representation,
+  - and request lifecycle.
+- Do not choose an algorithm solely from a large-buffer throughput benchmark.
+- Measure the effect on complete sustained successful RPM in addition to isolated hashes per second or bytes per second.
+
+### Non-Cryptographic Hashing
+
+- Use non-cryptographic hashes only when maliciously chosen collisions cannot compromise:
+  - authorization,
+  - authentication,
+  - integrity,
+  - cache isolation,
+  - deduplication correctness,
+  - database uniqueness,
+  - signatures,
+  - or security decisions.
+- On supported PHP versions, prefer `xxh3` as the first candidate for high-throughput non-cryptographic hashing when a 64-bit result is sufficient.
+- Prefer `xxh128` when a wider 128-bit result materially reduces accidental-collision risk and the additional output size is acceptable.
+- Use MurmurHash variants when compatibility, seeded distribution or an existing contract requires them and representative benchmarks justify the choice.
+- Use `crc32c`, `crc32`, `crc32b` and Adler variants only for checksums, protocol compatibility or corruption detection where their collision properties are acceptable.
+- Do not use CRC, xxHash, MurmurHash, FNV, Jenkins or Adler hashes for cryptographic integrity, secrets, signatures, authentication tokens or attacker-controlled security decisions.
+- Treat every non-cryptographic digest as collision-prone.
+- Define how collisions are detected or handled before using a non-cryptographic hash as a lookup key, cache key, fingerprint or deduplication hint.
+- Prefer the shortest output that satisfies measured collision and storage requirements; do not widen every hash by default.
+- Use raw binary output internally when storage, comparison and transport contracts support it.
+- Encode to hexadecimal, Base64 or another text format only at a boundary that requires text.
+- Avoid hashing data that can be used directly as a safe bounded scalar key without additional work.
+- Do not repeatedly hash the same immutable value in one request; compute once and reuse the digest when the reuse is measurable and scope is clear.
+
+### Cryptographic Digests
+
+- Use a cryptographic hash when collision resistance or adversarial input matters but no secret-key authenticity is required.
+- Prefer `sha256` as the default interoperable cryptographic digest for new general-purpose designs.
+- Consider `sha512`, `sha512/256` or another approved cryptographic algorithm only when:
+  - interoperability permits it,
+  - output requirements are satisfied,
+  - and representative benchmarks on target hardware show a useful throughput improvement.
+- Do not assume `sha256` is always faster than SHA-512-family algorithms on every CPU.
+- Do not use `md5` or `sha1` for new collision-sensitive or security-sensitive designs.
+- Preserve legacy algorithms only when required by an established protocol or compatibility contract.
+- Do not replace a protocol-defined hash merely because another algorithm is faster.
+- Use streaming hash APIs or file-hashing APIs for large inputs instead of loading the complete payload into memory.
+- Avoid hashing the same payload multiple times with different encodings unless the external contract requires it.
+- Do not use a plain cryptographic digest where authenticity requires a secret; use HMAC or an appropriate digital-signature primitive.
+
+### Unique And Opaque Identifiers
+
+- Hashing does not create uniqueness.
+- Do not use a hash of a timestamp, sequence, email address, database identifier or other predictable value as a secure opaque identifier.
+- For random opaque identifiers, generate sufficient bytes with `random_bytes()` or an appropriate cryptographically secure identifier implementation.
+- Encode random identifiers only once for storage or transport.
+- Enforce uniqueness with a database or storage-level unique constraint and handle the extremely rare collision with a bounded retry when required.
+- For deterministic identifiers or fingerprints:
+  - define the canonical input representation,
+  - define whether hostile collisions are possible,
+  - define the acceptable collision probability,
+  - and define collision handling.
+- Use a cryptographic digest such as `sha256` for deterministic identifiers when collisions could affect correctness, tenancy, authorization, financial state or security.
+- Consider `xxh128` for non-adversarial deterministic fingerprints only when collision handling exists and representative throughput measurements justify it.
+- Do not truncate identifiers or digests without an explicit collision analysis.
+- Do not confuse obscuring an identifier with securing access to the underlying resource.
+
+### HMAC Selection And Usage
+
+- Use HMAC when a shared secret must authenticate a message or detect tampering.
+- Prefer `hash_hmac('sha256', ...)` as the default interoperable HMAC for new general-purpose designs.
+- Consider HMAC-SHA-512 or HMAC-SHA-512/256 only when:
+  - both sides support the algorithm,
+  - the protocol allows algorithm selection,
+  - and representative benchmarks show a useful end-to-end RPM improvement.
+- Use only algorithms returned by `hash_hmac_algos()`.
+- Do not attempt to use xxHash, CRC, MurmurHash or another non-cryptographic hash with HMAC.
+- Do not accept a user-controlled HMAC algorithm name directly.
+- Resolve and validate configurable algorithm names once at configuration or bootstrap time rather than repeatedly in a hot path.
+- Generate new HMAC keys from a cryptographically secure source such as `random_bytes()`.
+- Do not use predictable identifiers, timestamps or low-entropy passwords directly as HMAC keys.
+- Use an appropriate key-derivation function when an HMAC key must be derived from password-like material.
+- Keep HMAC keys separate by purpose.
+- Use explicit domain separation, protocol versioning or context prefixes when one key could otherwise authenticate several message types.
+- Avoid ambiguous field concatenation.
+- Canonicalize or length-prefix structured fields before computing the HMAC.
+- Compute the HMAC over the exact bytes defined by the protocol.
+- Prefer raw binary HMAC output for internal processing when contracts permit:
+
+```php
+$mac = hash_hmac('sha256', $payload, $secretKey, true);
+```
+
+- Encode the HMAC once at the external boundary when a textual signature is required.
+- Compare received and expected MAC values with `hash_equals()`.
+- Pass the trusted expected value as the first argument and the user-provided value as the second argument.
+- Compare values in the same encoding and expected length.
+- Do not compare secret MAC values with `==` or `===`.
+- Do not truncate an HMAC unless an established protocol requires it or a documented security analysis approves the tag length.
+- HMAC authenticates data; it does not encrypt or hide the message.
+- Use incremental HMAC or file-HMAC APIs for large streams and files instead of materializing the complete input.
+- Avoid recalculating the same HMAC more than once in one operation.
+- Benchmark HMAC independently from plain hashing because key setup, inner and outer hashing and payload size can change the relative result.
+
+### OTP And Protocol-Defined HMAC
+
+- Preserve the algorithm required by the OTP protocol and provisioning contract.
+- HOTP requires the protocol-defined HMAC-SHA-1 construction unless an explicitly compatible extension defines otherwise.
+- TOTP may use HMAC-SHA-1, HMAC-SHA-256 or HMAC-SHA-512 when the selected algorithm is consistently provisioned and supported by both generator and verifier.
+- Do not automatically replace HMAC-SHA-1 in HOTP or an existing TOTP deployment merely because another algorithm benchmarks faster.
+- Treat the moving factor as the exact protocol-defined binary value, not its printable hexadecimal text.
+- Decode Base32, hexadecimal or other secret encodings once per operation or once per safely scoped immutable instance.
+- Reuse the decoded binary secret inside repeated verification-window checks.
+- Keep verification windows and resynchronization ranges no larger than correctness and usability require because each additional candidate requires another HMAC operation.
+- Preserve throttling, replay protection, time-step behavior, counter behavior and timing-safe comparison while optimizing OTP throughput.
+- Benchmark:
+  - HOTP generation,
+  - HOTP verification,
+  - TOTP generation,
+  - TOTP verification,
+  - valid and invalid codes,
+  - each supported HMAC algorithm,
+  - realistic verification windows,
+  - and repeated calls inside one request.
+- Validate implementations against published protocol test vectors before accepting performance results.
+
+### Password Hashing And High-Entropy Secrets
+
+- Do not use fast general-purpose hashes or HMAC as a replacement for password hashing.
+- Use `password_hash()` and `password_verify()` or another approved password-hashing API.
+- Prefer the project's approved memory-hard password algorithm where available and compatible.
+- Tune password-hashing cost separately from general request-path hashing.
+- Password hashing is intentionally expensive; do not weaken its cost merely to improve benchmark RPM.
+- Capacity-plan authentication endpoints around the selected password-hashing cost.
+- Apply rate limiting and abuse controls rather than replacing password hashing with a faster digest.
+- For already high-entropy random API tokens, choose storage and verification strategy from the threat model; do not automatically apply password-hashing cost intended for human passwords.
+- Never log plaintext passwords, HMAC keys, OTP secrets, raw API tokens or derived secret material.
+
+### Hash And HMAC Benchmarking
+
+- Maintain separate benchmarks for:
+  - short scalar payloads,
+  - common request-sized payloads,
+  - large buffers,
+  - streaming input,
+  - raw binary output,
+  - encoded output,
+  - one-shot hashing,
+  - repeated hashing,
+  - one-shot HMAC,
+  - repeated HMAC with the same algorithm and key,
+  - file hashing,
+  - and end-to-end request throughput.
+- Include call overhead and output encoding when they occur in production.
+- Benchmark the actual payload-size distribution; large-buffer gigabytes-per-second results may not predict performance for 16-byte, 64-byte or 1-KiB messages.
+- Warm the runtime consistently and run enough iterations to separate algorithm cost from timer and function-call noise.
+- Confirm every candidate produces the required digest width, encoding and protocol-compatible result.
+- Measure collision-handling cost for non-cryptographic hashes where collisions are possible.
+- Record algorithm availability with `hash_algos()` and `hash_hmac_algos()` for the supported PHP runtime.
+- Do not add runtime algorithm discovery to every request.
+- Prefer build-time or startup validation of required algorithms.
+- Select the fastest measured algorithm that satisfies the exact security, collision, interoperability and output requirements.
+
 ## Runtime Architecture For Throughput
 
 - Choose the PHP runtime model by measured sustained successful RPM, not convention.
@@ -760,6 +928,9 @@ return $items;
   - authenticated request,
   - authorization-heavy request,
   - validation-heavy request,
+  - non-cryptographic hashing,
+  - cryptographic digest generation,
+  - HMAC generation and verification,
   - OTP generation,
   - OTP verification,
   - external-service request,
