@@ -351,6 +351,12 @@ final class DoctorCommand extends Command
             return $result;
         }
 
+        if (preg_match('/^\s*workflow_call:\s*(?:#.*)?$/m', $contents) === 1) {
+            $result['ref'] = 'local';
+
+            return $result;
+        }
+
         $parsed = $this->parseWorkflowWrapper($contents);
         $result['ref'] = $parsed['ref'];
         $result['inputs'] = $parsed['inputs'];

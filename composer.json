@@ -63,6 +63,7 @@
     "config": {
         "allow-plugins": {
             "ergebnis/composer-normalize": true,
+            "infocyph/phpforge": true,
             "pestphp/pest-plugin": true
         },
         "optimize-autoloader": true,
@@ -76,6 +77,8 @@
         "post-autoload-dump": "@php bin/install-captainhook.php",
         "ic:active-config": "@php bin/phpforge active-config",
         "ic:ci": "@php bin/phpforge ci",
+        "ic:doctor": "@php bin/phpforge doctor",
+        "ic:list-config": "@php bin/phpforge list-config",
         "ic:phpstan:sarif": "@php bin/phpforge phpstan-sarif",
         "ic:process": [
             "@composer normalize",

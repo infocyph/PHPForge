@@ -245,6 +245,28 @@ it('uses the bundled phpbench config directly for consuming projects', function 
     }
 });
 
+it('skips benchmark tasks when the project has no benchmarks directory', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
+
+    mkdir($projectRoot, 0755, true);
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+
+    chdir($projectRoot);
+
+    try {
+        expect(TaskCatalog::benchRun())->toBe([])
+            ->and(TaskCatalog::benchQuick())->toBe([])
+            ->and(TaskCatalog::benchChart())->toBe([]);
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        removeTaskCatalogTree($projectRoot);
+    }
+});
+
 it('uses the bundled pest config directly for consuming projects', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
@@ -267,6 +289,44 @@ it('uses the bundled pest config directly for consuming projects', function (): 
         expect($command)->toContain('--bootstrap');
         expect($command)->toContain($autoloadPath);
         expect($command)->toContain('tests');
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        removeTaskCatalogTree($projectRoot);
+    }
+});
+
+it('skips Pest when the project has no tests directory', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
+
+    mkdir($projectRoot, 0755, true);
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+
+    foreach ([
+        'deptrac.yaml',
+        'phpcs.xml.dist',
+        'phpprobe.json',
+        'phpstan.neon.dist',
+        'pint.json',
+        'psalm.xml',
+        'rector.php',
+    ] as $config) {
+        mirrorTaskCatalogConfig($projectRoot, $config);
+    }
+
+    chdir($projectRoot);
+
+    try {
+        $pestTasks = array_filter(
+            TaskCatalog::testAll(),
+            static fn(array $task): bool => basename(str_replace('\\', '/', $task[1] ?? $task[0])) === 'pest',
+        );
+
+        expect(TaskCatalog::testCode())->toBe([])
+            ->and($pestTasks)->toBe([]);
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);

@@ -65,6 +65,14 @@ it('prints version command output', function (): void {
         ->and($result['output'])->toContain('Vendor dir:');
 });
 
+it('exposes root diagnostic Composer scripts', function (): void {
+    $composer = json_decode((string) file_get_contents(__DIR__ . '/../../composer.json'), true);
+
+    expect(is_array($composer))->toBeTrue()
+        ->and($composer['scripts']['ic:doctor'] ?? null)->toBe('@php bin/phpforge doctor')
+        ->and($composer['scripts']['ic:list-config'] ?? null)->toBe('@php bin/phpforge list-config');
+});
+
 it('lists config inventory as json', function (): void {
     $result = runComposerCommand(
         new ListConfigCommand(),
@@ -202,6 +210,37 @@ it('reports normalize plugin status in doctor json diagnostics', function (): vo
         expect($result['exit_code'])->toBe(0)
             ->and(is_array($decoded))->toBeTrue()
             ->and(($decoded['plugins']['ergebnis/composer-normalize'] ?? null))->toBeTrue();
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        removeUtilityCommandsTree($projectRoot);
+    }
+});
+
+it('recognizes a local reusable security workflow', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-utility-doctor-local-workflow-'.uniqid('', true);
+    $workflowPath = $projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'workflows'.DIRECTORY_SEPARATOR.'security-standards.yml';
+
+    mkdir(dirname($workflowPath), 0755, true);
+    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
+    file_put_contents($workflowPath, "on:\n  workflow_call:\n");
+
+    chdir($projectRoot);
+
+    try {
+        $result = runComposerCommand(
+            new DoctorCommand(),
+            ['--json' => true],
+            [new Option('json', null, Option::VALUE_NONE)],
+        );
+        $decoded = json_decode($result['output'], true);
+
+        expect($result['exit_code'])->toBe(0)
+            ->and($decoded['workflow']['ref'] ?? null)->toBe('local')
+            ->and($decoded['workflow']['warnings'] ?? null)->toBe([]);
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);

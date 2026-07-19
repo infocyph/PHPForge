@@ -4,6 +4,10 @@
 declare(strict_types=1);
 
 use Infocyph\PHPForge\Support\Cli;
+use Infocyph\PHPForge\Composer\DoctorCommand;
+use Infocyph\PHPForge\Composer\ListConfigCommand;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Input\ArgvInput;
 
 $autoloaders = [
     __DIR__ . '/../vendor/autoload.php',
@@ -38,6 +42,21 @@ if (!class_exists(Cli::class)) {
     require __DIR__ . '/../src/Support/Runner.php';
     require __DIR__ . '/../src/Composer/TaskCatalog.php';
     require __DIR__ . '/../src/Support/Cli.php';
+}
+
+if (($argv[1] ?? null) === 'doctor' || ($argv[1] ?? null) === 'list-config') {
+    $command = ($argv[1] ?? null) === 'doctor'
+        ? new DoctorCommand()
+        : new ListConfigCommand();
+    $application = new Application('PHPForge');
+    $application->setAutoExit(false);
+    $application->addCommand($command);
+
+    exit($application->run(new ArgvInput([
+        $argv[0],
+        $command->getName(),
+        ...array_slice($argv, 2),
+    ])));
 }
 
 exit((new Cli())->run($argv));

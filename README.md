@@ -189,7 +189,7 @@ composer ic:int
 | `composer ic:tests:parallel`  | Runs syntax first, then executes the remaining quality checks with bounded parallelism and a buffered PASS/FAIL summary.                                       |
 | `composer ic:tests:details`   | Runs detailed checks without the parallel Pest shortcut.                                                                                                       |
 | `composer ic:test:syntax`     | Runs the PHP syntax checker using `phpprobe.json`, Git ignores, and configured excludes.                                                                     |
-| `composer ic:test:code`       | Runs Pest.                                                                                                                                                     |
+| `composer ic:test:code`       | Runs Pest when the project has a `tests/` directory; otherwise skips it.                                                                                     |
 | `composer ic:test:lint`       | Runs Pint in check mode.                                                                                                                                       |
 | `composer ic:test:sniff`      | Runs PHPCS with a full report against the project root and bundled/project excludes.                                                                           |
 | `composer ic:test:duplicates` | Runs duplicate detection using `phpprobe.json`.                                                                                                              |
@@ -200,7 +200,7 @@ composer ic:int
 | `composer ic:test:static`     | Runs PHPStan.                                                                                                                                                  |
 | `composer ic:test:security`   | Runs Psalm security analysis.                                                                                                                                  |
 | `composer ic:test:refactor`   | Runs Rector in dry-run mode.                                                                                                                                   |
-| `composer ic:test:bench`      | Runs PHPBench aggregate benchmarks.                                                                                                                            |
+| `composer ic:test:bench`      | Runs PHPBench aggregate benchmarks when the project has a `benchmarks/` directory; otherwise skips them.                                                     |
 
 Syntax, duplicates, API snapshot, and comments settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
 PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge api`, `phpforge comments`, and `phpforge check` commands are thin compatibility gateways that pass the same config to PHPProbe.
@@ -262,7 +262,7 @@ Useful checker options:
 
 | Command                     | Purpose                             |
 | --------------------------- | ----------------------------------- |
-| `composer ic:benchmark`   | Runs PHPBench aggregate benchmarks. |
+| `composer ic:benchmark`   | Runs PHPBench aggregate benchmarks when `benchmarks/` exists. |
 | `composer ic:bench:run`   | Alias of `ic:benchmark`.          |
 | `composer ic:bench:quick` | Runs a shorter PHPBench pass.       |
 | `composer ic:bench:chart` | Runs PHPBench chart report.         |
