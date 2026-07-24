@@ -10,6 +10,69 @@ use Symfony\Component\Console\Output\ConsoleOutput;
 final class Cli
 {
     /**
+     * @var array<string, array{group: string, usage: string, description: string}>
+     */
+    private const COMMANDS = [
+        'ci' => [
+            'group' => 'Quality',
+            'usage' => 'ci [--prefer-lowest]',
+            'description' => 'Run the CI quality suite.',
+        ],
+        'syntax' => [
+            'group' => 'Quality',
+            'usage' => 'syntax [paths...]',
+            'description' => 'Check PHP syntax.',
+        ],
+        'duplicates' => [
+            'group' => 'Quality',
+            'usage' => 'duplicates [options] [paths...]',
+            'description' => 'Find duplicated code.',
+        ],
+        'api' => [
+            'group' => 'Quality',
+            'usage' => 'api [options] [paths...]',
+            'description' => 'Check the public API snapshot.',
+        ],
+        'comments' => [
+            'group' => 'Quality',
+            'usage' => 'comments [options] [paths...]',
+            'description' => 'Check the comment policy.',
+        ],
+        'check' => [
+            'group' => 'Quality',
+            'usage' => 'check [options] [paths...]',
+            'description' => 'Run aggregate PHPProbe checks.',
+        ],
+        'doctor' => [
+            'group' => 'Configuration',
+            'usage' => 'doctor [--json]',
+            'description' => 'Inspect setup health and integration status.',
+        ],
+        'list-config' => [
+            'group' => 'Configuration',
+            'usage' => 'list-config [--json]',
+            'description' => 'Show where tool configurations resolve.',
+        ],
+        'active-config' => [
+            'group' => 'Configuration',
+            'usage' => 'active-config [files...] [--json] [--all]',
+            'description' => 'Inspect effective tool configuration.',
+        ],
+        'audit' => [
+            'group' => 'Utilities',
+            'usage' => 'audit',
+            'description' => 'Run the Composer security audit.',
+        ],
+        'phpstan-sarif' => [
+            'group' => 'Utilities',
+            'usage' => 'phpstan-sarif <input.json> [output.sarif]',
+            'description' => 'Convert PHPStan JSON output to SARIF.',
+        ],
+    ];
+
+    private const GROUPS = ['Quality', 'Configuration', 'Utilities'];
+
+    /**
      * @param list<string> $argv
      */
     public function run(array $argv): int
@@ -26,7 +89,8 @@ final class Cli
             'active-config' => $this->activeConfig(array_slice($argv, 2)),
             'phpstan-sarif' => (new PhpstanSarifConverter())->convert((string) ($argv[2] ?? ''), (string) ($argv[3] ?? 'phpstan-results.sarif')),
             'audit' => (new ComposerAuditor())->run(),
-            default => $this->help(),
+            'help', '--help', '-h' => $this->help(),
+            default => $this->unknownCommand($command),
         };
     }
 
@@ -143,8 +207,36 @@ final class Cli
 
     private function help(): int
     {
-        fwrite(STDOUT, 'Usage: phpforge ci [--prefer-lowest] | syntax [paths...] | duplicates [options] [paths...] | api [options] [paths...] | comments [options] [paths...] | check [options] [paths...] | active-config [files...] [--json] [--all] [--parameter=name] | audit | phpstan-sarif <phpstan-json> [sarif-output]' . PHP_EOL);
-        fwrite(STDOUT, 'Active-config file selection examples: phpforge active-config phpcs.xml.dist | composer ic:active-config phpcs.xml.dist | composer ic:active-config -- --phpcs.xml.dist' . PHP_EOL);
+        $lines = [
+            'PHPForge',
+            'Shared quality, security, refactoring, and release tooling for PHP projects.',
+            '',
+            'Usage:',
+            '  phpforge <command> [options]',
+        ];
+
+        foreach (self::GROUPS as $group) {
+            $lines[] = '';
+            $lines[] = $group . ':';
+
+            foreach (self::COMMANDS as $command) {
+                if ($command['group'] !== $group) {
+                    continue;
+                }
+
+                $lines[] = sprintf('  %-48s %s', $command['usage'], $command['description']);
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = 'Examples:';
+        $lines[] = '  phpforge doctor';
+        $lines[] = '  phpforge ci';
+        $lines[] = '  phpforge active-config phpstan.neon.dist --parameter=cognitive_complexity';
+        $lines[] = '';
+        $lines[] = 'Run "composer list ic" to see the complete Composer command catalog.';
+
+        fwrite(STDOUT, implode(PHP_EOL, $lines) . PHP_EOL);
 
         return 0;
     }
@@ -175,6 +267,43 @@ final class Cli
         fwrite(STDERR, $result->stderr);
 
         return $result->exitCode;
+    }
+
+    private function suggestCommand(string $command): ?string
+    {
+        $normalized = strtolower($command);
+        $bestCommand = null;
+        $bestDistance = PHP_INT_MAX;
+
+        foreach (self::COMMANDS as $candidate => $_metadata) {
+            $distance = levenshtein($normalized, $candidate);
+
+            if ($distance >= $bestDistance) {
+                continue;
+            }
+
+            $bestCommand = $candidate;
+            $bestDistance = $distance;
+        }
+
+        $maximumDistance = max(2, intdiv(strlen($normalized), 3));
+
+        return $bestDistance <= $maximumDistance ? $bestCommand : null;
+    }
+
+    private function unknownCommand(string $command): int
+    {
+        fwrite(STDERR, sprintf('Error: unknown command "%s".%s', $command, PHP_EOL));
+
+        $suggestion = $this->suggestCommand($command);
+
+        if (is_string($suggestion)) {
+            fwrite(STDERR, sprintf('Did you mean "%s"?%s', $suggestion, PHP_EOL));
+        }
+
+        fwrite(STDERR, 'Run "phpforge help" to list available commands.' . PHP_EOL);
+
+        return 2;
     }
 
     /**

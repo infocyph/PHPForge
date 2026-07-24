@@ -401,11 +401,12 @@ final class InitCommand extends Command
         }
 
         $workflowRefChoices['custom'] = 'custom';
+        $defaultChoice = array_search($defaultWorkflowRef, $workflowRefChoices, true);
 
         $workflowRef = $this->stringValue($helper->ask($input, $output, new ChoiceQuestion(
             'PHPForge workflow ref',
             $workflowRefChoices,
-            array_search($defaultWorkflowRef, $workflowRefChoices, true) ?: 'main',
+            is_string($defaultChoice) ? $defaultChoice : 'main',
         )), $defaultWorkflowRef);
 
         if ($workflowRef !== 'custom') {
@@ -618,9 +619,7 @@ final class InitCommand extends Command
                 continue;
             }
 
-            foreach ($packages as $package => $constraint) {
-                unset($constraint);
-
+            foreach ($packages as $package => $_constraint) {
                 if (!is_string($package) || !str_starts_with($package, 'ext-')) {
                     continue;
                 }

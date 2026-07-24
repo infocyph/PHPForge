@@ -56,13 +56,6 @@ final class ActiveConfigInspector
         return $this->normalizedDecodedArray(json_decode($contents, true));
     }
 
-    private function decodeNeon(string $contents): null
-    {
-        unset($contents);
-
-        return null;
-    }
-
     /**
      * @return array<string, mixed>|list<mixed>|null
      */
@@ -172,7 +165,7 @@ final class ActiveConfigInspector
         $decoded = match ($this->format($file)) {
             'json' => $this->decodeJson($contents),
             'xml' => $this->decodeXml($contents),
-            'neon' => $this->decodeNeon($contents),
+            'neon' => null,
             default => $contents,
         };
 
@@ -189,6 +182,12 @@ final class ActiveConfigInspector
             return true;
         }
 
-        return array_any($selectedFiles, fn($selectedFile) => in_array($selectedFile, $candidates, true));
+        foreach ($selectedFiles as $selectedFile) {
+            if (in_array($selectedFile, $candidates, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

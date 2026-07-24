@@ -58,6 +58,26 @@ it('keeps the bundled deptrac config project agnostic', function (): void {
         ->and($contents)->toContain('type: directory');
 });
 
+it('captures every PHP error level in bundled test configurations', function (): void {
+    foreach (['pest.xml', 'phpunit.xml'] as $file) {
+        $contents = file_get_contents(ConfigInventory::resolvedPath($file));
+
+        expect($contents)
+            ->toBeString()
+            ->toContain('<ini name="error_reporting" value="-1"/>');
+    }
+});
+
+it('lets Rector derive the target PHP version from the project contract', function (): void {
+    $contents = file_get_contents(ConfigInventory::resolvedPath('rector.php'));
+
+    expect($contents)
+        ->toBeString()
+        ->toContain('->withPhpSets()')
+        ->not->toContain('->withPhpVersion(')
+        ->not->toContain('PHP_MAJOR_VERSION');
+});
+
 it('reports project config sources before bundled sources', function (): void {
     expect(ConfigInventory::source('pint.json'))->toBe('phpforge');
     expect(ConfigInventory::source('missing-tool.xml'))->toBe('missing');

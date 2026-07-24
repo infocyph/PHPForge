@@ -33,10 +33,9 @@ final class InfocyphCommand extends Command
             ->setDescription($this->commandDescription);
     }
 
+    // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInExtendedClassBeforeLastUsed -- Inherited command signature.
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        unset($input);
-
         if ($this->parallel) {
             return (new ParallelRunner($output))->run($this->preflightTasks, $this->tasks);
         }

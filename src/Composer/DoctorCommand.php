@@ -144,7 +144,13 @@ final class DoctorCommand extends Command
             return false;
         }
 
-        return array_all($decoded, fn($item) => is_string($item));
+        foreach ($decoded as $item) {
+            if (!is_string($item)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function normalizeYamlScalar(string $value): string
@@ -228,23 +234,85 @@ final class DoctorCommand extends Command
     private function renderDiagnostics(OutputInterface $output, array $diagnostics): void
     {
         $output->writeln('<info>PHPForge Doctor</info>');
+        $output->writeln('===============');
         $output->writeln('Project root: ' . $diagnostics['project_root']);
         $output->writeln('Vendor dir:   ' . $diagnostics['vendor_dir']);
         $output->writeln('');
-        $output->writeln('<info>Config files</info>');
+        $output->writeln(sprintf('<info>Config files (%d)</info>', count($diagnostics['configs'])));
 
         foreach ($diagnostics['configs'] as $config) {
-            $output->writeln(sprintf('  %-18s %s', $config['file'], $config['source']));
+            $available = $config['source'] !== 'missing';
+            $output->writeln(sprintf(
+                '  %s %-18s %s',
+                $available ? '<info>[OK]</info>' : '<comment>[WARN]</comment>',
+                $config['file'],
+                $config['source'],
+            ));
         }
 
         $output->writeln('');
         $output->writeln('<info>Composer plugins</info>');
 
         foreach ($diagnostics['plugins'] as $plugin => $enabled) {
-            $output->writeln(sprintf('  %-24s %s', $plugin, $enabled ? 'enabled' : 'not enabled'));
+            $output->writeln(sprintf(
+                '  %s %-28s %s',
+                $enabled ? '<info>[OK]</info>' : '<comment>[WARN]</comment>',
+                $plugin,
+                $enabled ? 'enabled' : 'not enabled',
+            ));
         }
 
         $this->renderWorkflowDiagnostics($output, $diagnostics);
+        $this->renderHealthSummary($output, $diagnostics);
+    }
+
+    /**
+     * @param array{
+     *     configs: list<array{file: string, source: string, path: string}>,
+     *     plugins: array<string, bool>,
+     *     workflow: array{warnings: list<string>}
+     * } $diagnostics
+     */
+    private function renderHealthSummary(OutputInterface $output, array $diagnostics): void
+    {
+        $warningCount = count($diagnostics['workflow']['warnings']);
+        $hasMissingConfig = false;
+
+        foreach ($diagnostics['configs'] as $config) {
+            if ($config['source'] === 'missing') {
+                $warningCount++;
+                $hasMissingConfig = true;
+            }
+        }
+
+        foreach ($diagnostics['plugins'] as $enabled) {
+            $warningCount += $enabled ? 0 : 1;
+        }
+
+        $output->writeln('');
+
+        if ($warningCount === 0) {
+            $output->writeln('<info>Result: healthy</info>');
+
+            return;
+        }
+
+        $output->writeln(sprintf('<comment>Result: %d warning(s) need attention</comment>', $warningCount));
+        $output->writeln('<info>Suggested actions</info>');
+
+        if ($hasMissingConfig) {
+            $output->writeln('  composer install');
+        }
+
+        foreach ($diagnostics['plugins'] as $plugin => $enabled) {
+            if (!$enabled) {
+                $output->writeln(sprintf('  composer config allow-plugins.%s true', $plugin));
+            }
+        }
+
+        if ($diagnostics['workflow']['warnings'] !== []) {
+            $output->writeln('  composer ic:init --workflow --force');
+        }
     }
 
     /**
@@ -264,11 +332,18 @@ final class DoctorCommand extends Command
         $workflow = $diagnostics['workflow'];
 
         $output->writeln('');
-        $output->writeln('Pre-commit hook: ' . ($diagnostics['pre_commit_hook'] ? 'installed' : 'not installed'));
-        $output->writeln('');
-        $output->writeln('<info>Workflow wrapper</info>');
+        $output->writeln('<info>Integrations</info>');
+        $output->writeln(sprintf(
+            '  %s Pre-commit hook  %s',
+            $diagnostics['pre_commit_hook'] ? '<info>[OK]</info>' : '[--]',
+            $diagnostics['pre_commit_hook'] ? 'installed' : 'not configured (optional)',
+        ));
+        $output->writeln(sprintf(
+            '  %s Workflow wrapper %s',
+            $workflow['exists'] ? '<info>[OK]</info>' : '[--]',
+            $workflow['exists'] ? 'found' : 'not configured (optional)',
+        ));
         $output->writeln('Path:   ' . $workflow['path']);
-        $output->writeln('Status: ' . ($workflow['exists'] ? 'found' : 'not found'));
 
         if (!$workflow['exists']) {
             return;
@@ -285,7 +360,7 @@ final class DoctorCommand extends Command
         $output->writeln('Validation warnings:');
 
         foreach ($workflow['warnings'] as $warning) {
-            $output->writeln('  - ' . $warning);
+            $output->writeln('  <comment>[WARN]</comment> ' . $warning);
         }
     }
 

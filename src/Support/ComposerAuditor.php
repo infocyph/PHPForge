@@ -8,7 +8,13 @@ final class ComposerAuditor
 {
     public function run(): int
     {
-        $result = (new ProcRunner())->run('composer audit --format=json --no-interaction --abandoned=report');
+        $result = (new ProcRunner())->run([
+            'composer',
+            'audit',
+            '--format=json',
+            '--no-interaction',
+            '--abandoned=report',
+        ]);
 
         if (!$result instanceof ProcessResult) {
             fwrite(STDERR, 'Failed to start composer audit process.' . PHP_EOL);

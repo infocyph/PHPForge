@@ -30,10 +30,9 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         ];
     }
 
+    // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInImplementedInterfaceBeforeLastUsed -- Composer plugin contract.
     public function activate(Composer $composer, IOInterface $io): void
     {
-        unset($composer);
-
         $this->io = $io;
         $this->reportMissingAllowPlugins();
     }

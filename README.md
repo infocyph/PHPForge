@@ -28,6 +28,13 @@ PHPForge brings these tools through one package:
 | Composer Normalize          | `composer.json` normalization                     |
 | Composer audit              | Release/security audit guard                        |
 
+## Engineering Baseline
+
+PHPForge targets PHP 8.2 and later, uses PSR-4 autoloading, and formats first-party PHP against
+[PER Coding Style 3.0](https://www.php-fig.org/per/coding-style/) through the configured Pint toolchain.
+Bundled Pest and PHPUnit configurations run with every PHP error level enabled so deprecations remain
+visible during compatibility testing.
+
 ## Install
 
 Install in the consuming project (you will go through some series of approval, check and allow):
