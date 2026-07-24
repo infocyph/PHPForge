@@ -29,10 +29,9 @@ final class CleanCommand extends Command
         $this->setDescription('Remove known PHPForge tool output files and directories.');
     }
 
+    // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInExtendedClassBeforeLastUsed -- Inherited command signature.
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        unset($input);
-
         $removed = 0;
 
         foreach (self::PATHS as $path) {

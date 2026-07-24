@@ -22,10 +22,9 @@ final class VersionCommand extends Command
         $this->setDescription('Show PHPForge, PHP, Composer, and vendor-dir versions.');
     }
 
+    // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInExtendedClassBeforeLastUsed -- Inherited command signature.
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        unset($input);
-
         $version = InstalledVersions::isInstalled('infocyph/phpforge')
             ? InstalledVersions::getPrettyVersion('infocyph/phpforge') ?: 'root/dev'
             : 'root/dev';

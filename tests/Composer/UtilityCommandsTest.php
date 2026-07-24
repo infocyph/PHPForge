@@ -86,6 +86,20 @@ it('lists config inventory as json', function (): void {
         ->and(array_values(array_filter($decoded, static fn (mixed $row): bool => is_array($row) && (($row['file'] ?? null) === 'phpprobe.json'))) !== [])->toBeTrue();
 });
 
+it('renders a labelled config resolution table for people', function (): void {
+    $result = runComposerCommand(
+        new ListConfigCommand(),
+        [],
+        [new Option('json', null, Option::VALUE_NONE)],
+    );
+
+    expect($result['exit_code'])->toBe(0)
+        ->and($result['output'])->toContain('PHPForge Config Resolution')
+        ->and($result['output'])->toContain('TOOL')
+        ->and($result['output'])->toContain('SOURCE')
+        ->and($result['output'])->toContain('phpprobe.json');
+});
+
 it('reports active configs across supported tools as json', function (): void {
     $result = runComposerCommand(
         new ActiveConfigCommand(),
@@ -217,6 +231,21 @@ it('reports normalize plugin status in doctor json diagnostics', function (): vo
 
         removeUtilityCommandsTree($projectRoot);
     }
+});
+
+it('renders scannable doctor status markers and a health summary', function (): void {
+    $result = runComposerCommand(
+        new DoctorCommand(),
+        [],
+        [new Option('json', null, Option::VALUE_NONE)],
+    );
+
+    expect($result['exit_code'])->toBe(0)
+        ->and($result['output'])->toContain('PHPForge Doctor')
+        ->and($result['output'])->toContain('[OK]')
+        ->and($result['output'])->toContain('Composer plugins')
+        ->and($result['output'])->toContain('Integrations')
+        ->and($result['output'])->toContain('Result:');
 });
 
 it('recognizes a local reusable security workflow', function (): void {

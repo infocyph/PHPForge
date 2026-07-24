@@ -45,6 +45,10 @@ final class ListConfigCommand extends Command
             return 0;
         }
 
+        $output->writeln('<info>PHPForge Config Resolution</info>');
+        $output->writeln(sprintf('%-12s %-18s %-8s %s', 'TOOL', 'FILE', 'SOURCE', 'PATH'));
+        $output->writeln(str_repeat('-', 80));
+
         foreach ($rows as $row) {
             $output->writeln(sprintf('%-12s %-18s %-8s %s', $row['tool'], $row['file'], $row['source'], $row['path']));
         }
