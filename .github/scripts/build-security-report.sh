@@ -278,14 +278,32 @@ while IFS=$'\t' read -r benchmark_job_id benchmark_job_name benchmark_job_conclu
   fi
 done < <(jq -r '
   .jobs // []
-  | map(select(.name | test("(^| / )Benchmark - PHP [0-9]+(\\.[0-9]+)*$")))
-  | sort_by((.name | capture("Benchmark - PHP (?<v>[0-9]+(\\.[0-9]+)*)").v | split(".") | map(tonumber)))
+  | map(
+      . as $job
+      | (
+          [
+            $job.steps[]?
+            | .name // ""
+            | capture("^Benchmark context - PHP (?<v>[0-9]+(\\.[0-9]+)*)$")?
+            | .v
+          ]
+          | .[0]
+        ) as $php_version
+      | select($php_version != null)
+      | {
+          id: $job.id,
+          name: ("Benchmark - PHP " + $php_version),
+          conclusion: ($job.conclusion // "missing"),
+          php_version: $php_version
+        }
+    )
+  | sort_by((.php_version | split(".") | map(tonumber)))
   | .[]
   | [
       (.id | tostring),
       .name,
-      (.conclusion // "missing"),
-      (.name | capture("Benchmark - PHP (?<v>[0-9]+(\\.[0-9]+)*)").v)
+      .conclusion,
+      .php_version
     ]
   | @tsv
 ' <<< "$jobs_json")

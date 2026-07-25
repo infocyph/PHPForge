@@ -536,7 +536,7 @@ jobs:
   benchmark:
     needs: prepare
     if: inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    name: ${{ inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && format('Benchmark - PHP {0}', matrix.php-versions) || 'Benchmark' }}
+    name: Benchmark
     runs-on: ubuntu-latest
     env:
       XDEBUG_MODE: off
@@ -548,7 +548,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup PHP
+      - name: Benchmark context - PHP ${{ matrix.php-versions }}
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-versions }}
