@@ -120,6 +120,8 @@
 - Avoid hidden global state and service location.
 - Accept deploy-varying configuration and attached resources from the caller instead of discovering them implicitly, unless discovery is the package's explicit responsibility.
 - Make optional integrations lazy so unused dependencies do not affect bootstrap or common-path RPM.
+- Eagerly construct lightweight, immutable dependencies used by nearly every operation only when startup cost, memory retention and failure behavior are acceptable.
+- Do not let lazy library initialization hide database, filesystem, network, reflection or container work.
 - Benchmark:
   - first call,
   - warm repeated calls,
@@ -476,6 +478,116 @@ cognitive_complexity:
   - testing surface,
   - and maintenance burden.
 - Reject abstractions whose expected value is speculative or smaller than their ongoing operational and cognitive cost.
+
+## Lazy Loading, Eager Loading And Prefetching
+
+- Do not treat lazy loading, eager loading or prefetching as universally faster.
+- Select the strategy using representative:
+  - sustained successful RPM,
+  - query count,
+  - I/O round trips,
+  - first-use latency,
+  - warm-reuse latency,
+  - peak memory,
+  - worker density,
+  - tail latency,
+  - and resource lifetime.
+- Use lazy loading for optional, expensive work that most execution paths do not require.
+- Use eager loading or prefetching when:
+  - data or dependencies are required by nearly every execution,
+  - related work can be batched,
+  - initialization can be amortized safely,
+  - or delayed loading would create repeated I/O or unpredictable latency.
+- Do not use lazy loading merely to hide expensive work behind:
+  - property access,
+  - magic methods,
+  - service locators,
+  - container resolution,
+  - reflection,
+  - database relations,
+  - filesystem discovery,
+  - configuration lookup,
+  - secret-store access,
+  - or network calls.
+- Keep expensive I/O explicit at the request, service, repository, adapter or operation boundary.
+- Avoid ORM or repository lazy loading inside loops when it can create N+1 queries.
+- Prefer explicit joins, projections, batch lookups, `WHERE IN` queries, data loaders or bounded prefetching when they reduce total round trips.
+- Do not eagerly load complete object graphs when only a scalar, identifier, aggregate or narrow projection is required.
+- Select only the fields and relationships needed by the current operation.
+- Do not eager-load large or unbounded relationships without:
+  - limits,
+  - pagination,
+  - streaming,
+  - cursors,
+  - or chunking.
+- Prefer bounded prefetching when full eager loading would exceed memory, result-size, query, lock or transaction budgets.
+- Do not issue several lazy loads for values that can be resolved in one request or one database round trip.
+- Do not perform eager initialization for optional integrations that most requests never use.
+- For optional dependencies:
+  - initialize lazily,
+  - memoize only when reuse is expected,
+  - keep the lifecycle explicit,
+  - and ensure state cannot leak across requests or callers.
+- For dependencies used by nearly every request, compare eager startup construction with lazy first-use construction and repeated lazy checks.
+- Validate mandatory dependencies, configuration and required backing services before traffic is accepted.
+- Compile stable routes, dependency mappings, event mappings, serializer metadata and similar structures during build, release or startup.
+- Do not lazily perform directory scanning, annotation parsing, reflection discovery, route compilation or container compilation during requests.
+- Keep first-use initialization deterministic and bounded.
+- Avoid lazy initialization whose first call produces unacceptable `p95` or `p99` latency.
+- Prevent concurrent first-use stampedes when several workers or requests may initialize the same expensive resource.
+- Use locking, single-flight behavior, build-time generation or deployment warm-up only when the coordination cost is justified.
+- Do not let eager cache or metadata warming overload databases, caches or external services during startup or deployment.
+- Warm only representative high-reuse entries, routes, classes or metadata.
+- Use bounded concurrency for warm-up.
+- Keep warm-up failure behavior explicit and operationally safe.
+- Generators, iterators, cursors and streams are lazy execution mechanisms, not automatically lower-cost execution mechanisms.
+- Use lazy iteration for large or unbounded data when reduced peak memory outweighs longer resource occupancy.
+- Do not let a lazy iterator retain:
+  - a database connection,
+  - transaction,
+  - lock,
+  - file descriptor,
+  - stream,
+  - HTTP response body,
+  - or external-service lease
+  longer than intended.
+- Prefer bounded eager chunks when they:
+  - release resources sooner,
+  - increase worker availability,
+  - improve batching,
+  - or produce higher total RPM.
+- Do not convert a lazy iterable into a full array unless full materialization is required.
+- Do not consume a lazy stream more than once unless it is explicitly rewindable or buffered.
+- Cache a lazily loaded value only when:
+  - it is immutable or safely scoped,
+  - repeated reuse is expected,
+  - memory remains bounded,
+  - invalidation behavior is defined,
+  - and persistent-worker state cannot leak across callers.
+- Do not memoize request-specific, user-specific, tenant-specific, authorization-sensitive or secret data in static or long-lived objects.
+- In persistent workers, test:
+  - first initialization,
+  - repeated reuse,
+  - request reset,
+  - tenant isolation,
+  - failure recovery,
+  - and memory stability.
+- Treat eager validation differently from eager data loading:
+  - eagerly validate mandatory configuration and contracts before accepting work,
+  - but do not eagerly fetch optional business data that the operation may never use.
+- Treat eager dependency construction differently from eager external connection:
+  - constructing a lightweight immutable client may be safe,
+  - opening a database, cache, file or network connection should remain demand-driven unless startup validation explicitly requires it.
+- Do not keep an external connection open merely because its client object was eagerly constructed.
+- Measure cold-first-use and warm-reuse behavior separately.
+- Include the actual request mix so optional-path savings and common-path penalties are represented correctly.
+- Prefer the strategy with the highest sustainable successful RPM that stays within explicit:
+  - query,
+  - latency,
+  - memory,
+  - worker-density,
+  - connection,
+  - and operational-stability budgets.
 
 ## Request Handling And Request-Path Throughput
 
@@ -963,6 +1075,9 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 - Treat query count, rows examined, rows returned, transferred bytes, lock duration and transaction duration as measurable costs.
 - Avoid N+1 query patterns.
 - Do not rely on lazy loading in performance-sensitive paths without verifying the resulting query count.
+- Prefer explicit eager loading, joins, projections or batched prefetching when related data is required across a collection.
+- Do not eager-load large relationship graphs when the request needs only a subset of fields or relations.
+- Benchmark lazy, joined, batched and chunked relation-loading strategies with representative cardinality and concurrency.
 - Batch inserts, updates, deletes and lookups where correctness permits.
 - Select only required columns.
 - Avoid loading complete records when only existence, count, aggregate or identifier data is needed.
@@ -1363,6 +1478,8 @@ composer install \
 - Do not disable `opcache.use_cwd` unless path uniqueness and application isolation are guaranteed.
 - Consider controlled warm-up when cold-start latency is operationally significant.
 - Warm representative frequently used code, not every file blindly.
+- Compare warm-up cost against the first-request and sustained-RPM benefit.
+- Avoid warm-up stampedes when several workers start together.
 - Do not call `opcache_compile_file()` from normal request paths.
 - Treat preloading as optional and workload-dependent.
 - Preload only stable, frequently used code after measurement.
@@ -1470,6 +1587,8 @@ composer install \
   - and queue accumulation.
 - Warm OPcache, Composer metadata, generated configuration and relevant application caches before measuring warm-state production throughput.
 - Measure cold-start behavior separately when restarts, deployments or autoscaling are operationally frequent.
+- Measure lazy first-use cost separately from warm memoized or reused execution.
+- Include representative optional-feature usage so eager and lazy strategies are compared against the real request mix.
 - Use multiple runs and compare median sustained successful RPM.
 - Record variance and reject conclusions when the difference is within normal measurement noise.
 - Confirm the load generator, client CPU and network path are not the bottleneck.
@@ -1544,6 +1663,10 @@ composer install \
   - large response or export,
   - file upload,
   - repeated library calls inside one request,
+  - lazy first-use initialization,
+  - eager startup initialization,
+  - batched or prefetched relation loading,
+  - lazy streaming or cursor consumption,
   - and background-job processing.
 - Do not extrapolate application RPM from a Hello World benchmark.
 - Use minimal-response benchmarks to identify bootstrap, routing and framework overhead.
