@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 ![GitHub Code Size](https://img.shields.io/github/languages/code-size/infocyph/PHPForge)
 
-Shared Composer-powered QA, refactoring, benchmark, release, hook and CI tooling for Infocyph PHP projects.
+Reusable Composer-powered QA, refactoring, benchmark, release, hook and CI tooling for PHP libraries and applications.
 
 PHPForge is installed as a dev dependency in PHP libraries and packages. It provides Composer commands under the `ic:*` namespace, ships default tool configuration, installs CaptainHook hooks, exposes a reusable GitHub Actions workflow and includes starter templates for GitLab CI, Bitbucket Pipelines and Forgejo Actions.
 
@@ -40,7 +40,7 @@ visible during compatibility testing.
 Install in the consuming project (you will go through some series of approval, check and allow):
 
 ```bash
-composer require --dev infocyph/phpforge:dev-main
+composer require --dev infocyph/phpforge
 ```
 
 If approval is needed (if not allowed in primary run or missed somehow), run:
@@ -273,13 +273,140 @@ Useful checker options:
 | `composer ic:bench:run`   | Alias of `ic:benchmark`.          |
 | `composer ic:bench:quick` | Runs a shorter PHPBench pass.       |
 | `composer ic:bench:chart` | Runs PHPBench chart report.         |
+| `composer ic:benchmark:validate result.json` | Validates a workload-neutral representative benchmark result. |
+| `composer ic:benchmark:compare baseline.json candidate.json --stable-environment` | Enforces a like-for-like successful-RPM regression budget; defaults to 2%. |
+| `composer ic:soak:worker --duration=300 -- command [args...]` | Soak-tests any long-running web or queue worker for early exit and RSS growth. |
 
 ### Release Commands
 
 | Command                       | Purpose                                                                 |
 | ----------------------------- | ----------------------------------------------------------------------- |
 | `composer ic:release:audit` | Runs Composer audit. Security advisories fail; abandoned packages warn. |
-| `composer ic:release:guard` | Runs Composer validation, audit, and the full test suite.               |
+| `composer ic:release:constraints` | Rejects development branches, aliases, commit references, pre-stable flags, and non-stable minimum stability in runtime requirements. |
+| `composer ic:release:guard` | Runs Composer validation, stable runtime constraints, audit, and the full test suite. |
+
+### Representative Benchmark Contract
+
+PHPForge can be used by any PHP library or application. Its representative result contract is therefore workload-neutral: producers map component operations, HTTP requests, persistent-worker work, queue jobs, or custom operations into the same fields. PHPForge validates and compares the result; it does not own a framework-specific load generator.
+
+The schema is installed at `vendor/infocyph/phpforge/resources/benchmark-result.schema.json`. A minimal complete document has this shape:
+
+```json
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-29T12:00:00+00:00",
+  "environment": {
+    "stable": true,
+    "fingerprint": "dedicated-runner-a",
+    "php_version": "8.4.23",
+    "php_sapi": "cli",
+    "operating_system": "Linux 6.8",
+    "cpu_model": "Dedicated benchmark CPU",
+    "memory_limit": "-1",
+    "opcache": false,
+    "jit": false,
+    "xdebug": false,
+    "extensions": ["json"],
+    "runner": "project-runner 1.0",
+    "release": "4b6"
+  },
+  "workloads": [
+    {
+      "name": "map-and-filter",
+      "type": "component",
+      "metadata": {
+        "fixture_size": 1000
+      },
+      "repetitions": 3,
+      "warmup_operations": 100,
+      "duration_seconds": 30,
+      "concurrency": 1,
+      "result": {
+        "attempted_operations": 30000,
+        "successful_operations": 30000,
+        "failed_operations": 0,
+        "timeouts": 0,
+        "successful_rpm": 60000,
+        "error_rate": 0,
+        "latency_ms": {
+          "minimum": 0.5,
+          "average": 0.8,
+          "p50": 0.7,
+          "p95": 1,
+          "p99": 1.2,
+          "maximum": 2
+        },
+        "cpu": {
+          "average_percent": 90,
+          "peak_percent": 100
+        },
+        "memory": {
+          "average_mb": 20,
+          "peak_mb": 24,
+          "growth_mb": 0.5
+        },
+        "stability": {
+          "status": "stable",
+          "spread_percent": 1
+        }
+      }
+    }
+  ]
+}
+```
+
+Use `null` for unavailable latency, CPU, or memory measurements; do not invent zero values. `metadata` is producer-owned and records the data size, request mix, queue shape, cache state, or other workload inputs needed for reproduction.
+
+The contract uses these workload-neutral meanings:
+
+| Field | Meaning |
+| --- | --- |
+| `environment.fingerprint` | A producer-defined identity for the benchmark host and relevant runtime configuration. Change it when hardware, PHP, extensions, or tuning changes. |
+| `environment.stable` | `true` only for controlled infrastructure where repeated results are suitable for a release gate. |
+| `workloads[].type` | One of `component`, `http`, `persistent-worker`, `queue-worker`, or `custom`; it selects no framework behavior. |
+| `metadata` | Reproduction inputs owned by the producer, including what one operation represents. |
+| `repetitions` | Number of independent measured repetitions represented by the result. |
+| `warmup_operations` | Operations completed before measurement; excluded from result counters. |
+| `duration_seconds` | Total measured duration represented by the result. |
+| `attempted_operations` | All measured operations; it must equal successful plus failed operations. |
+| `successful_rpm` | Successful operations per minute, regardless of whether an operation is a function call, request, message, or job. |
+| `error_rate` | Failed operations divided by attempted operations, expressed from `0` to `1`. |
+| `stability` | The producer's repeated-sample assessment and spread; regression enforcement requires `stable`. |
+
+Validation always checks counters, failure/timeout bounds, percentile order, resource values, unique workload names, and required environment metadata:
+
+```bash
+composer ic:benchmark:validate build/benchmark-result.json
+```
+
+Regression enforcement is intentionally opt-in:
+
+```bash
+composer ic:benchmark:compare \
+  benchmarks/baseline.json \
+  build/benchmark-result.json \
+  --max-regression=2 \
+  --stable-environment
+```
+
+Without `--stable-environment`, comparison validates both documents and exits successfully with a skipped notice. With it, both documents must declare `environment.stable: true`, use the same environment fingerprint and runtime metadata, contain the same workload settings, and report stable samples. The gate compares successful RPM and rejects increased error rate; it never turns noisy shared-runner output into a release failure.
+
+The generic soak helper monitors the direct worker process on Linux without retaining worker output in PHPForge memory:
+
+```bash
+composer ic:soak:worker \
+  --duration=900 \
+  --warmup=5 \
+  --sample-interval=1 \
+  --max-rss-mb=256 \
+  --max-growth-mb=16 \
+  --report=build/worker-soak.json \
+  -- php bin/worker.php
+```
+
+The command applies equally to persistent application servers and queue consumers. The project remains responsible for providing representative traffic or queued work while the worker runs.
+
+Use the `composer ic:*` commands in consuming packages. PHPForge does not require those packages to add `composer/composer` as a runtime dependency; Composer supplies the plugin command runtime.
 
 ### Config And Utility Commands
 
@@ -520,6 +647,12 @@ jobs:
       run_analysis: true
       run_svg_report: true
       fail_on_skipped_tests: false
+      run_clean_install: true
+      benchmark_composer_script: ""
+      benchmark_result_file: ""
+      benchmark_baseline_file: ""
+      benchmark_max_regression_percent: 2
+      benchmark_stable_environment: false
       enable_redis_service: false
       enable_valkey_service: false
       enable_memcached_service: false
@@ -547,6 +680,12 @@ Workflow inputs:
 | `run_analysis`            | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.                                                      |
 | `run_svg_report`          | `true`                              | Generates `security-report.svg` and `security-summary.json` with per-version matrix results, per-version benchmark timings/trends, and tool versions. |
 | `fail_on_skipped_tests`   | `false`                             | Adds `--fail-on-skipped` to Pest execution so skipped tests fail the CI test job.                                                    |
+| `run_clean_install`       | `true`                              | Verifies a production-style `--no-dev` install and authoritative autoload on the final configured PHP version.                      |
+| `benchmark_composer_script` | `""`                              | Optional Composer script name that produces a representative result. Empty keeps the existing PHPBench discovery behavior.           |
+| `benchmark_result_file`   | `""`                                | Optional workload-neutral result JSON file validated after the benchmark script.                                                     |
+| `benchmark_baseline_file` | `""`                                | Optional repository baseline compared with `benchmark_result_file`.                                                                  |
+| `benchmark_max_regression_percent` | `2`                       | Maximum successful-RPM regression for the stable-environment gate.                                                                   |
+| `benchmark_stable_environment` | `false`                         | Enables regression failure only when result metadata also proves the same stable environment.                                        |
 | `enable_redis_service`    | `false`                             | Starts a Redis service container and waits for readiness before running test commands.                                               |
 | `enable_valkey_service`   | `false`                             | Starts a Valkey service container and waits for readiness before running test commands.                                              |
 | `enable_memcached_service`| `false`                             | Starts a Memcached service container and waits for readiness before running test commands.                                           |
@@ -684,6 +823,26 @@ with:
 with:
   fail_on_skipped_tests: true
 ```
+
+`run_clean_install` adds a separate release-install check. It selects the last entry in `php_versions`, installs from a clean checkout with `--no-dev --optimize-autoloader`, checks platform requirements, and verifies an authoritative classmap:
+
+```yaml
+with:
+  run_clean_install: true
+```
+
+Representative benchmark integration is optional and works with any PHP library:
+
+```yaml
+with:
+  benchmark_composer_script: "benchmark:representative"
+  benchmark_result_file: "build/benchmark-result.json"
+  benchmark_baseline_file: "benchmarks/baseline.json"
+  benchmark_max_regression_percent: 2
+  benchmark_stable_environment: true
+```
+
+The Composer script must write `benchmark_result_file` using the PHPForge schema. Each PHP matrix result is validated; the regression comparison runs only for the final configured PHP version so one baseline cannot be compared against a different runtime. Keep `benchmark_stable_environment: false` on GitHub-hosted or otherwise noisy runners; comparison then reports a skip instead of failing on unreliable variance.
 
 `artifact_retention_days` controls how long uploaded report artifacts are kept:
 
@@ -868,10 +1027,8 @@ Before:
 
 After:
 
-```json
-"require-dev": {
-    "infocyph/phpforge": "dev-main"
-}
+```bash
+composer require --dev infocyph/phpforge
 ```
 
 Remove old local QA scripts such as:

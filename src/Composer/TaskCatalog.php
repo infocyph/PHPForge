@@ -189,10 +189,19 @@ final class TaskCatalog
     /**
      * @return list<list<string>>
      */
+    public static function releaseConstraints(): array
+    {
+        return [[Paths::php(), Paths::bin('phpforge'), 'release-constraints']];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
     public static function releaseGuard(): array
     {
         return [
             ['composer', 'validate', '--strict'],
+            ...self::releaseConstraints(),
             ...self::releaseAudit(),
             ...self::testAll(),
         ];

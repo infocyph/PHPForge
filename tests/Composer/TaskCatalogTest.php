@@ -71,6 +71,14 @@ it('runs composer normalize as part of process all', function (): void {
     expect(TaskCatalog::processAll()[0])->toBe(['composer', 'normalize']);
 });
 
+it('runs stable runtime constraints before audit and quality in the release guard', function (): void {
+    $tasks = TaskCatalog::releaseGuard();
+
+    expect($tasks[0])->toBe(['composer', 'validate', '--strict'])
+        ->and($tasks[1])->toBe(TaskCatalog::releaseConstraints()[0])
+        ->and($tasks[2])->toBe(TaskCatalog::releaseAudit()[0]);
+});
+
 it('runs duplicate detection against code paths', function (): void {
     $command = TaskCatalog::duplicates()[0];
     $cacheArg = null;

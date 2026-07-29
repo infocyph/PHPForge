@@ -48,6 +48,36 @@ on:
         required: false
         type: boolean
         default: false
+      run_clean_install:
+        description: "Verify a clean production-style Composer install on the final configured PHP version."
+        required: false
+        type: boolean
+        default: true
+      benchmark_composer_script:
+        description: "Optional Composer script that produces the representative benchmark result."
+        required: false
+        type: string
+        default: ""
+      benchmark_result_file:
+        description: "Optional representative benchmark JSON result to validate."
+        required: false
+        type: string
+        default: ""
+      benchmark_baseline_file:
+        description: "Optional committed benchmark JSON baseline for regression comparison."
+        required: false
+        type: string
+        default: ""
+      benchmark_max_regression_percent:
+        description: "Maximum successful-RPM regression allowed in a stable environment."
+        required: false
+        type: number
+        default: 2
+      benchmark_stable_environment:
+        description: "Assert stable, like-for-like benchmark infrastructure before enforcing the regression budget."
+        required: false
+        type: boolean
+        default: false
       enable_redis_service:
         description: "Enable Redis service container for integration tests."
         required: false
@@ -116,12 +146,18 @@ jobs:
     outputs:
       php_versions: ${{ steps.matrix.outputs.php_versions }}
       dependency_versions: ${{ steps.matrix.outputs.dependency_versions }}
+      clean_install_php_version: ${{ steps.matrix.outputs.clean_install_php_version }}
     steps:
       - name: Define shared matrix values
         id: matrix
+        shell: bash
+        env:
+          PHP_VERSIONS_INPUT: ${{ inputs.php_versions }}
         run: |
           echo 'php_versions=${{ inputs.php_versions }}' >> "$GITHUB_OUTPUT"
           echo 'dependency_versions=${{ inputs.dependency_versions }}' >> "$GITHUB_OUTPUT"
+          clean_install_php_version="$(jq -er 'if type == "array" and length > 0 and all(.[]; type == "string" and length > 0) then .[-1] else error("php_versions must be a non-empty string array") end' <<< "$PHP_VERSIONS_INPUT")"
+          echo "clean_install_php_version=${clean_install_php_version}" >> "$GITHUB_OUTPUT"
 
   run:
     needs: prepare
@@ -353,6 +389,49 @@ jobs:
             fi
           fi
 
+  clean-install:
+    needs: prepare
+    if: inputs.run_clean_install
+    name: Clean Composer Install - PHP ${{ needs.prepare.outputs.clean_install_php_version }}
+    runs-on: ubuntu-latest
+    env:
+      XDEBUG_MODE: off
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ needs.prepare.outputs.clean_install_php_version }}
+          tools: composer:v2
+          extensions: ${{ inputs.php_extensions }}
+          coverage: none
+
+      - name: Validate Composer
+        shell: bash
+        run: |
+          PACKAGE_NAME="$(composer config name --no-plugins --no-scripts 2>/dev/null || true)"
+
+          if [ "${PACKAGE_NAME}" = "infocyph/phpforge" ]; then
+            composer validate
+          else
+            composer validate --strict
+          fi
+
+      - name: Install production dependencies from a clean checkout
+        run: composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader ${{ inputs.composer_flags }}
+
+      - name: Verify production platform requirements
+        run: composer check-platform-reqs --no-dev
+
+      - name: Verify authoritative production autoload
+        run: |
+          composer dump-autoload --no-dev --classmap-authoritative --no-interaction
+          php -r 'require "vendor/autoload.php";'
+          composer ic:release:constraints
+
   analyze:
     needs: prepare
     if: inputs.run_analysis
@@ -535,7 +614,7 @@ jobs:
 
   benchmark:
     needs: prepare
-    if: inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: (inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || inputs.benchmark_composer_script != '' || inputs.benchmark_result_file != ''
     name: Benchmark
     runs-on: ubuntu-latest
     env:
@@ -572,6 +651,8 @@ jobs:
       - name: Run benchmark command
         id: run_benchmark
         shell: bash
+        env:
+          INPUT_BENCHMARK_COMPOSER_SCRIPT: ${{ inputs.benchmark_composer_script }}
         run: bash .phpforge-workflow/.github/scripts/run-benchmark.sh
 
       - name: Benchmark timing marker (command=${{ steps.run_benchmark.outputs.benchmark_command }}, duration=${{ steps.run_benchmark.outputs.duration_ms }} ms, metric_ns=${{ steps.run_benchmark.outputs.benchmark_metric_ns }}, metric_source=${{ steps.run_benchmark.outputs.benchmark_metric_source }})
@@ -603,12 +684,50 @@ jobs:
             echo '[]' > ".phpforge-report/benchmark-results-php-${{ matrix.php-versions }}.json"
           fi
 
+      - name: Validate representative benchmark result
+        if: inputs.benchmark_result_file != ''
+        shell: bash
+        env:
+          BENCHMARK_RESULT_FILE: ${{ inputs.benchmark_result_file }}
+        run: composer ic:benchmark:validate "$BENCHMARK_RESULT_FILE"
+
+      - name: Enforce representative benchmark regression budget
+        if: inputs.benchmark_result_file != '' && inputs.benchmark_baseline_file != '' && matrix.php-versions == needs.prepare.outputs.clean_install_php_version
+        shell: bash
+        env:
+          BENCHMARK_RESULT_FILE: ${{ inputs.benchmark_result_file }}
+          BENCHMARK_BASELINE_FILE: ${{ inputs.benchmark_baseline_file }}
+          BENCHMARK_MAX_REGRESSION_PERCENT: ${{ inputs.benchmark_max_regression_percent }}
+          BENCHMARK_STABLE_ENVIRONMENT: ${{ inputs.benchmark_stable_environment }}
+        run: |
+          benchmark_args=(
+            ic:benchmark:compare
+            "$BENCHMARK_BASELINE_FILE"
+            "$BENCHMARK_RESULT_FILE"
+            "--max-regression=$BENCHMARK_MAX_REGRESSION_PERCENT"
+          )
+
+          if [ "$BENCHMARK_STABLE_ENVIRONMENT" = "true" ]; then
+            benchmark_args+=(--stable-environment)
+          fi
+
+          composer "${benchmark_args[@]}"
+
       - name: Upload benchmark JSON artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: benchmark-raw-php-${{ matrix.php-versions }}
           path: .phpforge-report/benchmark-results-php-${{ matrix.php-versions }}.json
+          retention-days: ${{ inputs.artifact_retention_days }}
+          if-no-files-found: error
+
+      - name: Upload representative benchmark contract
+        if: always() && inputs.benchmark_result_file != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-contract-php-${{ matrix.php-versions }}
+          path: ${{ inputs.benchmark_result_file }}
           retention-days: ${{ inputs.artifact_retention_days }}
           if-no-files-found: error
 

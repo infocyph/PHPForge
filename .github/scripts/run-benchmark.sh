@@ -5,10 +5,18 @@ benchmark_command="none"
 benchmark_log=".phpforge-report/benchmark-output.log"
 benchmark_metric_ns="0"
 benchmark_metric_source="elapsed"
+custom_benchmark_script="${INPUT_BENCHMARK_COMPOSER_SCRIPT:-}"
 
 mkdir -p .phpforge-report
 
-if composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:bench:quick$'; then
+if [ -n "$custom_benchmark_script" ]; then
+  if [[ ! "$custom_benchmark_script" =~ ^[A-Za-z0-9:_-]+$ ]]; then
+    echo "Invalid benchmark_composer_script: expected a Composer script name."
+    exit 2
+  fi
+
+  benchmark_command="$custom_benchmark_script"
+elif composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:bench:quick$'; then
   benchmark_command="ic:bench:quick"
 elif composer list --raw 2>/dev/null | awk '{print $1}' | grep -q '^ic:test:bench$'; then
   benchmark_command="ic:test:bench"
@@ -28,7 +36,7 @@ if [ "$benchmark_command" = "none" ]; then
   exit 0
 fi
 
-if [ ! -f "vendor/bin/phpbench" ]; then
+if [ -z "$custom_benchmark_script" ] && [ ! -f "vendor/bin/phpbench" ]; then
   echo "PHPBench binary not found at vendor/bin/phpbench; skipping benchmark run."
   echo "benchmark_command=${benchmark_command}" >> "$GITHUB_OUTPUT"
   echo "duration_ms=0" >> "$GITHUB_OUTPUT"
@@ -73,17 +81,22 @@ for bench_path in \
   fi
 done
 
-echo "Running PHPBench JSON command: ${phpbench_bin} ${phpbench_args[*]}"
-
 start_ms="$(date +%s%3N)"
 set +e
-"$phpbench_bin" "${phpbench_args[@]}" 2>&1 | tee "$benchmark_log"
-command_exit_code="${PIPESTATUS[0]}"
+if [ -n "$custom_benchmark_script" ]; then
+  echo "Running representative benchmark Composer script: ${custom_benchmark_script}"
+  composer run-script "$custom_benchmark_script" 2>&1 | tee "$benchmark_log"
+  command_exit_code="${PIPESTATUS[0]}"
+else
+  echo "Running PHPBench JSON command: ${phpbench_bin} ${phpbench_args[*]}"
+  "$phpbench_bin" "${phpbench_args[@]}" 2>&1 | tee "$benchmark_log"
+  command_exit_code="${PIPESTATUS[0]}"
+fi
 set -e
 end_ms="$(date +%s%3N)"
 duration_ms=$((end_ms - start_ms))
 
-if [ "$command_exit_code" -eq 0 ] && [ -f "$benchmark_log" ]; then
+if [ -z "$custom_benchmark_script" ] && [ "$command_exit_code" -eq 0 ] && [ -f "$benchmark_log" ]; then
   parsed_metric_ns="$(jq -R -s -r '
     def extract_json_array:
       (gsub("\r"; "") | gsub("\u001b\\[[0-9;]*[A-Za-z]"; "")) as $clean

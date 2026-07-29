@@ -9,9 +9,9 @@ use Composer\Plugin\Capability\CommandProvider as CommandProviderCapability;
 final class CommandProvider implements CommandProviderCapability
 {
     private const COMMAND_ROWS = <<<'COMMANDS'
-quality|ic:tests|Run the full Infocyph quality suite.|testAll
-quality|ic:tests:all|Run the full Infocyph quality suite.|testAll
-quality|ic:tests:details|Run the detailed Infocyph quality suite.|testDetails
+quality|ic:tests|Run the full project quality suite.|testAll
+quality|ic:tests:all|Run the full project quality suite.|testAll
+quality|ic:tests:details|Run the detailed project quality suite.|testDetails
 quality|ic:test:syntax|Check PHP syntax in project paths.|syntax
 quality|ic:test:code|Run Pest tests.|testCode
 quality|ic:test:lint|Run Pint in check mode.|lintCheck
@@ -36,7 +36,7 @@ process|ic:bench:run|Run PHPBench aggregate benchmarks.|benchRun
 process|ic:bench:quick|Run a quick PHPBench aggregate pass.|benchQuick
 process|ic:bench:chart|Run PHPBench chart report.|benchChart
 release|ic:release:audit|Run Composer audit guard.|releaseAudit
-release|ic:release:guard|Run Composer validation, audit, and quality suite.|releaseGuard
+release|ic:release:guard|Run Composer validation, stable dependency constraints, audit, and quality suite.|releaseGuard
 release|ic:hooks|Install enabled CaptainHook hooks.|hooks
 COMMANDS;
 
@@ -44,7 +44,7 @@ COMMANDS;
     {
         return [
             ...$this->infocyphCommands('quality'),
-            new InfocyphCommand('ic:tests:parallel', 'Run the full Infocyph quality suite with bounded parallel checks.', TaskCatalog::testParallel(), true, TaskCatalog::syntax()),
+            new InfocyphCommand('ic:tests:parallel', 'Run the full project quality suite with bounded parallel checks.', TaskCatalog::testParallel(), true, TaskCatalog::syntax()),
             new CiCommand(),
             new InitCommand(),
             new InitCommand('ic:int'),
@@ -56,8 +56,12 @@ COMMANDS;
             new PublishCommunityTemplatesCommand('ic:publish-community-templates'),
             new CleanCommand(),
             new VersionCommand(),
+            new BenchmarkCommand('validate', 'ic:benchmark:validate'),
+            new BenchmarkCommand('compare', 'ic:benchmark:compare'),
+            new WorkerSoakCommand(),
             ...$this->infocyphCommands('process'),
             new PhpstanSarifCommand(),
+            new ReleaseConstraintsCommand(),
             ...$this->infocyphCommands('release'),
         ];
     }
