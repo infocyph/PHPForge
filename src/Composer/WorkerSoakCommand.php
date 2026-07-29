@@ -226,8 +226,15 @@ final class WorkerSoakCommand extends Command
         array $samples,
         ?string $failure,
     ): array {
-        $initial = $samples[0] ?? 0.0;
-        $final = $samples[array_key_last($samples)] ?? 0.0;
+        if ($samples === []) {
+            $initial = 0.0;
+            $final = 0.0;
+            $peak = 0.0;
+        } else {
+            $initial = $samples[0];
+            $final = $samples[count($samples) - 1];
+            $peak = max($samples);
+        }
 
         return [
             'schema_version' => 1,
@@ -241,7 +248,7 @@ final class WorkerSoakCommand extends Command
             'rss' => [
                 'initial_mb' => round($initial, 5),
                 'final_mb' => round($final, 5),
-                'peak_mb' => round($samples === [] ? 0.0 : max($samples), 5),
+                'peak_mb' => round($peak, 5),
                 'growth_mb' => round($final - $initial, 5),
             ],
             'failure' => $failure,
