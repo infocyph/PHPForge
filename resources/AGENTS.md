@@ -63,11 +63,15 @@
 - `composer ic:bench:run` - alias of `ic:benchmark`.
 - `composer ic:bench:quick` - shorter PHPBench run.
 - `composer ic:bench:chart` - generate PHPBench chart report.
+- `composer ic:benchmark:validate result.json` - validate a workload-neutral representative result contract.
+- `composer ic:benchmark:compare baseline.json candidate.json --stable-environment` - enforce the successful-RPM budget only for matching stable environments.
+- `composer ic:soak:worker --duration=300 -- command [args...]` - monitor a long-running web or queue worker for early exit and RSS growth.
 
 - `composer ic:ci` - run CI suite using the bounded parallel runner.
 - `composer ic:ci --prefer-lowest` - CI mode for prefer-lowest jobs (skips heavyweight static/security checks).
 - `composer ic:release:audit` - run Composer audit guard.
-- `composer ic:release:guard` - run Composer validation + audit + full quality suite.
+- `composer ic:release:constraints` - reject non-stable runtime dependency constraints.
+- `composer ic:release:guard` - run Composer validation + stable runtime constraints + audit + full quality suite.
 
 ## CI Notes
 
@@ -81,6 +85,9 @@
   - `enable_elasticsearch_service`, `enable_mongodb_service`
 - Reusable workflow shared credentials: `service_db_name`, `service_db_user`, `service_db_password`.
 - Reusable workflow strict skip gate: set `fail_on_skipped_tests: true` to pass `--fail-on-skipped` to Pest in CI.
+- Reusable workflow clean install gate: `run_clean_install` defaults to `true` and checks production installation on the final configured PHP version.
+- Representative benchmark inputs: `benchmark_composer_script`, `benchmark_result_file`, `benchmark_baseline_file`, `benchmark_max_regression_percent`, `benchmark_stable_environment`.
+- Never enable the benchmark regression budget on a noisy environment. Both result files must also declare matching stable environment metadata.
 - Extension requirements by service:
   - Redis/Valkey require `redis` extension.
   - Memcached requires `memcached` extension.

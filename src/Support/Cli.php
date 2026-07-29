@@ -9,66 +9,20 @@ use Symfony\Component\Console\Output\ConsoleOutput;
 
 final class Cli
 {
-    /**
-     * @var array<string, array{group: string, usage: string, description: string}>
-     */
-    private const COMMANDS = [
-        'ci' => [
-            'group' => 'Quality',
-            'usage' => 'ci [--prefer-lowest]',
-            'description' => 'Run the CI quality suite.',
-        ],
-        'syntax' => [
-            'group' => 'Quality',
-            'usage' => 'syntax [paths...]',
-            'description' => 'Check PHP syntax.',
-        ],
-        'duplicates' => [
-            'group' => 'Quality',
-            'usage' => 'duplicates [options] [paths...]',
-            'description' => 'Find duplicated code.',
-        ],
-        'api' => [
-            'group' => 'Quality',
-            'usage' => 'api [options] [paths...]',
-            'description' => 'Check the public API snapshot.',
-        ],
-        'comments' => [
-            'group' => 'Quality',
-            'usage' => 'comments [options] [paths...]',
-            'description' => 'Check the comment policy.',
-        ],
-        'check' => [
-            'group' => 'Quality',
-            'usage' => 'check [options] [paths...]',
-            'description' => 'Run aggregate PHPProbe checks.',
-        ],
-        'doctor' => [
-            'group' => 'Configuration',
-            'usage' => 'doctor [--json]',
-            'description' => 'Inspect setup health and integration status.',
-        ],
-        'list-config' => [
-            'group' => 'Configuration',
-            'usage' => 'list-config [--json]',
-            'description' => 'Show where tool configurations resolve.',
-        ],
-        'active-config' => [
-            'group' => 'Configuration',
-            'usage' => 'active-config [files...] [--json] [--all]',
-            'description' => 'Inspect effective tool configuration.',
-        ],
-        'audit' => [
-            'group' => 'Utilities',
-            'usage' => 'audit',
-            'description' => 'Run the Composer security audit.',
-        ],
-        'phpstan-sarif' => [
-            'group' => 'Utilities',
-            'usage' => 'phpstan-sarif <input.json> [output.sarif]',
-            'description' => 'Convert PHPStan JSON output to SARIF.',
-        ],
-    ];
+    private const COMMAND_ROWS = <<<'COMMANDS'
+ci|Quality|ci [--prefer-lowest]|Run the CI quality suite.
+syntax|Quality|syntax [paths...]|Check PHP syntax.
+duplicates|Quality|duplicates [options] [paths...]|Find duplicated code.
+api|Quality|api [options] [paths...]|Check the public API snapshot.
+comments|Quality|comments [options] [paths...]|Check the comment policy.
+check|Quality|check [options] [paths...]|Run aggregate PHPProbe checks.
+doctor|Configuration|doctor [--json]|Inspect setup health and integration status.
+list-config|Configuration|list-config [--json]|Show where tool configurations resolve.
+active-config|Configuration|active-config [files...] [--json] [--all]|Inspect effective tool configuration.
+audit|Utilities|audit|Run the Composer security audit.
+release-constraints|Utilities|release-constraints|Reject non-stable runtime dependency constraints.
+phpstan-sarif|Utilities|phpstan-sarif <input.json> [output.sarif]|Convert PHPStan JSON output to SARIF.
+COMMANDS;
 
     private const GROUPS = ['Quality', 'Configuration', 'Utilities'];
 
@@ -89,6 +43,7 @@ final class Cli
             'active-config' => $this->activeConfig(array_slice($argv, 2)),
             'phpstan-sarif' => (new PhpstanSarifConverter())->convert((string) ($argv[2] ?? ''), (string) ($argv[3] ?? 'phpstan-results.sarif')),
             'audit' => (new ComposerAuditor())->run(),
+            'release-constraints' => $this->releaseConstraints(),
             'help', '--help', '-h' => $this->help(),
             default => $this->unknownCommand($command),
         };
@@ -205,6 +160,25 @@ final class Cli
         return (new Runner($output, false))->run(TaskCatalog::ci(true));
     }
 
+    /**
+     * @return array<string, array{group: string, usage: string, description: string}>
+     */
+    private function commands(): array
+    {
+        $commands = [];
+
+        foreach (explode("\n", trim(self::COMMAND_ROWS)) as $line) {
+            $parts = explode('|', $line, 4);
+
+            if (count($parts) === 4) {
+                [$name, $group, $usage, $description] = $parts;
+                $commands[$name] = compact('group', 'usage', 'description');
+            }
+        }
+
+        return $commands;
+    }
+
     private function help(): int
     {
         $lines = [
@@ -219,7 +193,7 @@ final class Cli
             $lines[] = '';
             $lines[] = $group . ':';
 
-            foreach (self::COMMANDS as $command) {
+            foreach ($this->commands() as $command) {
                 if ($command['group'] !== $group) {
                     continue;
                 }
@@ -269,13 +243,33 @@ final class Cli
         return $result->exitCode;
     }
 
+    private function releaseConstraints(): int
+    {
+        $composerFile = Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'composer.json';
+        $violations = (new StableRuntimeConstraints())->violations($composerFile);
+
+        if ($violations === []) {
+            fwrite(STDOUT, 'Stable runtime constraint guard passed.' . PHP_EOL);
+
+            return 0;
+        }
+
+        fwrite(STDERR, 'Stable runtime constraint guard failed:' . PHP_EOL);
+
+        foreach ($violations as $violation) {
+            fwrite(STDERR, '  - ' . $violation . PHP_EOL);
+        }
+
+        return 1;
+    }
+
     private function suggestCommand(string $command): ?string
     {
         $normalized = strtolower($command);
         $bestCommand = null;
         $bestDistance = PHP_INT_MAX;
 
-        foreach (self::COMMANDS as $candidate => $_metadata) {
+        foreach ($this->commands() as $candidate => $_metadata) {
             $distance = levenshtein($normalized, $candidate);
 
             if ($distance >= $bestDistance) {

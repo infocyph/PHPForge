@@ -301,6 +301,12 @@ jobs:
       run_analysis: true
       run_svg_report: true
       fail_on_skipped_tests: false
+      run_clean_install: true
+      benchmark_composer_script: ""
+      benchmark_result_file: ""
+      benchmark_baseline_file: ""
+      benchmark_max_regression_percent: 2
+      benchmark_stable_environment: false
       enable_redis_service: true
       enable_valkey_service: true
       enable_memcached_service: true

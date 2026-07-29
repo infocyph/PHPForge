@@ -47,3 +47,11 @@ it('reports invalid commands with a useful suggestion', function (): void {
         ->and($result->stderr)->toContain('Did you mean "doctor"?')
         ->and($result->stderr)->toContain('phpforge help');
 });
+
+it('checks stable runtime constraints without the Composer command runtime', function (): void {
+    $result = runPhpforgeCli(['release-constraints']);
+
+    expect($result->exitCode)->toBe(0)
+        ->and($result->stdout)->toContain('Stable runtime constraint guard passed.')
+        ->and($result->stderr)->toBe('');
+});
