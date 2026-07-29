@@ -18,6 +18,15 @@ use Symfony\Component\Process\Process;
 
 final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
 {
+    /**
+     * @var list<string>
+     */
+    private const RECOMMENDED_PLUGINS = [
+        'infocyph/phpforge',
+        'ergebnis/composer-normalize',
+        'pestphp/pest-plugin',
+    ];
+
     private ?IOInterface $io = null;
 
     /**
@@ -51,6 +60,10 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
 
     public function installHooks(Event $event): void
     {
+        if (!$event->isDevMode()) {
+            return;
+        }
+
         try {
             $configPath = $this->ensureProjectCaptainHookConfig();
 
@@ -106,64 +119,103 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         return $projectConfig;
     }
 
-    private function reportMissingAllowPlugins(): void
+    /**
+     * @param array<array-key, mixed> $allowPlugins
+     * @return list<string>
+     */
+    private function missingAllowPlugins(array $allowPlugins): array
     {
-        $composerJson = (getcwd() ?: '') . DIRECTORY_SEPARATOR . 'composer.json';
-
-        if (!is_file($composerJson) || !is_readable($composerJson)) {
-            return;
-        }
-
-        $contents = file_get_contents($composerJson);
-
-        if (!is_string($contents) || $contents === '') {
-            return;
-        }
-
-        $data = json_decode($contents, true);
-
-        if (!is_array($data)) {
-            return;
-        }
-
-        $config = $data['config'] ?? [];
-
-        if (!is_array($config)) {
-            $config = [];
-        }
-
-        $allowPlugins = $config['allow-plugins'] ?? [];
-
-        if ($allowPlugins === true) {
-            return;
-        }
-
-        if (!is_array($allowPlugins)) {
-            $allowPlugins = [];
-        }
-
-        $wanted = [
-            'infocyph/phpforge',
-            'ergebnis/composer-normalize',
-            'pestphp/pest-plugin',
-        ];
-
         $missing = [];
 
-        foreach ($wanted as $package) {
+        foreach (self::RECOMMENDED_PLUGINS as $package) {
             if (($allowPlugins[$package] ?? null) !== true) {
                 $missing[] = $package;
             }
         }
 
-        if ($missing === [] || !$this->io instanceof IOInterface) {
+        return $missing;
+    }
+
+    /**
+     * @return array<array-key, mixed>|true|null
+     */
+    private function readAllowPlugins(): array|true|null
+    {
+        $data = $this->readComposerJson();
+
+        if ($data === null) {
+            return null;
+        }
+
+        $config = $data['config'] ?? [];
+
+        if (!is_array($config)) {
+            return [];
+        }
+
+        $allowPlugins = $config['allow-plugins'] ?? [];
+
+        if ($allowPlugins === true) {
+            return true;
+        }
+
+        return is_array($allowPlugins) ? $allowPlugins : [];
+    }
+
+    /**
+     * @return array<array-key, mixed>|null
+     */
+    private function readComposerJson(): ?array
+    {
+        $composerJson = (getcwd() ?: '') . DIRECTORY_SEPARATOR . 'composer.json';
+
+        if (!is_file($composerJson) || !is_readable($composerJson)) {
+            return null;
+        }
+
+        $contents = file_get_contents($composerJson);
+
+        if (!is_string($contents) || $contents === '') {
+            return null;
+        }
+
+        $data = json_decode($contents, true);
+
+        return is_array($data) ? $data : null;
+    }
+
+    private function reportMissingAllowPlugins(): void
+    {
+        $io = $this->io;
+
+        if (!$io instanceof IOInterface) {
             return;
         }
 
-        $this->io->writeError('<info>PHPForge recommends enabling these Composer plugins:</info>');
+        $allowPlugins = $this->readAllowPlugins();
+
+        if ($allowPlugins === null || $allowPlugins === true) {
+            return;
+        }
+
+        $missing = $this->missingAllowPlugins($allowPlugins);
+
+        if ($missing === []) {
+            return;
+        }
+
+        $this->writeMissingAllowPlugins($io, $missing);
+    }
+
+    /**
+     * @param list<string> $missing
+     */
+    private function writeMissingAllowPlugins(IOInterface $io, array $missing): void
+    {
+        $io->writeError('<info>PHPForge recommends enabling these Composer plugins:</info>');
 
         foreach ($missing as $package) {
-            $this->io->writeError(sprintf('  composer config allow-plugins.%s true', $package));
+            $io->writeError(sprintf('  composer config allow-plugins.%s true', $package));
         }
     }
 }
