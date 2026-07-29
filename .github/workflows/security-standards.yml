@@ -373,6 +373,9 @@ jobs:
       - name: Resolve dependencies (${{ matrix.dependency-version }})
         run: composer update --no-interaction --prefer-dist --no-progress --${{ matrix.dependency-version }} ${{ inputs.composer_flags }}
 
+      - name: Verify stable runtime dependency constraints
+        run: composer ic:release:constraints
+
       - name: Test
         env:
           IC_PHPSTAN_MEMORY_LIMIT: ${{ inputs.phpstan_memory_limit }}
@@ -430,7 +433,6 @@ jobs:
         run: |
           composer dump-autoload --no-dev --classmap-authoritative --no-interaction
           php -r 'require "vendor/autoload.php";'
-          composer ic:release:constraints
 
   analyze:
     needs: prepare
