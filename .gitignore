@@ -5,6 +5,7 @@
 .windsurf
 .codex
 .phpprobe-duplicates-cache.json
+/config.io
 *~
 *.patch
 *.txt
