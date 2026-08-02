@@ -1970,6 +1970,50 @@ composer install \
 - Configure automated formatting for the declared PER Coding Style or established repository standard.
 - Keep formatting checks separate from semantic and performance validation.
 - Use static analysis at the strongest practical level supported by the project.
+- Treat findings from tests, static analysis, formatters, linters, mutation testing, security scanners, compatibility checks, complexity checks, coverage gates, performance gates and other quality detectors as issues to resolve at their root cause.
+
+**Quality-Gate Issue Resolution**
+
+- Fix the code, configuration, test or contract that causes a valid finding.
+- Do not make a failing quality gate pass by:
+  - weakening or disabling the detector,
+  - reducing its configured scope,
+  - increasing a threshold,
+  - lowering a required analysis level,
+  - removing or weakening an assertion,
+  - deleting a relevant test,
+  - excluding affected files, paths, symbols or rules,
+  - adding or expanding a baseline,
+  - adding suppressions, ignore directives, allowlists or exemptions,
+  - marking a failure as expected without correcting its cause,
+  - changing CI to skip the check,
+  - or bypassing the gate manually.
+- Do not move problematic code outside the detector's scan path merely to avoid a finding.
+- Do not replace a precise rule with a broader or weaker rule solely to make existing code pass.
+- Do not change production behavior, public contracts or security controls merely to satisfy a detector when the detector is misconfigured.
+- When a finding appears incorrect:
+  - reproduce it with the smallest relevant case,
+  - verify the detector's documented semantics,
+  - verify project configuration and supported runtime versions,
+  - and correct the detector configuration only when evidence shows that the configuration itself is wrong.
+- Treat detector configuration changes as code changes:
+  - keep them narrowly scoped,
+  - explain the reason,
+  - review their effect on all existing checks,
+  - and verify that they do not hide other valid findings.
+- Do not introduce inline suppression for a false positive unless no correct code or configuration fix exists and explicit approval is given.
+- Any approved suppression must be:
+  - as narrow as possible,
+  - tied to a specific detector and finding,
+  - documented with the technical reason,
+  - covered by tests where relevant,
+  - and assigned a review or removal condition.
+- Do not use a baseline to absorb new violations.
+- Do not update an existing baseline as part of ordinary feature or bug-fix work.
+- Resolve new findings before merging.
+- When legacy violations already exist, ensure the change does not add to them and fix any touched violation within the active scope where practical.
+- If a required detector cannot run, report the exact reason and do not claim the quality gate passed.
+- A clean result is valid only when the intended detector, rules, scope and thresholds remain active.
 - Run compatibility and deprecation checks against every supported PHP version and the next intended upgrade target.
 - Add or update tests for affected behavior, boundaries, failures and contracts.
 - Add benchmarks only for meaningful, stable, performance-sensitive behavior.

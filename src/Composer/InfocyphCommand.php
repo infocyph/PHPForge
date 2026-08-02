@@ -37,9 +37,9 @@ final class InfocyphCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         if ($this->parallel) {
-            return (new ParallelRunner($output))->run($this->preflightTasks, $this->tasks);
+            return new ParallelRunner($output)->run($this->preflightTasks, $this->tasks);
         }
 
-        return (new Runner($output, $this->failFast))->run($this->tasks);
+        return new Runner($output, $this->failFast)->run($this->tasks);
     }
 }

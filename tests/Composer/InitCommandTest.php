@@ -52,7 +52,7 @@ jobs:
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@old-ref
     with:
-      php_versions: '["8.1"]'
+      php_versions: '["9.9"]'
       dependency_versions: '["prefer-stable"]'
 YAML;
 
@@ -94,7 +94,8 @@ it('defaults community templates init selection to disabled', function (): void 
 
     $settings = $method->invoke($command, 'main');
 
-    expect($settings['community_templates'] ?? null)->toBeFalse();
+    expect($settings['community_templates'] ?? null)->toBeFalse()
+        ->and($settings['php_versions'] ?? null)->toBe('["8.4","8.5"]');
 });
 
 it('can be instantiated with the ic:int alias name', function (): void {

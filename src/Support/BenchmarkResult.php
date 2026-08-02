@@ -76,7 +76,7 @@ final class BenchmarkResult
 
         $data = ArrayShape::stringKeyed($decoded);
 
-        return ['data' => $data, 'errors' => (new BenchmarkResultValidator())->errors($data)];
+        return ['data' => $data, 'errors' => new BenchmarkResultValidator()->errors($data)];
     }
 
     /**

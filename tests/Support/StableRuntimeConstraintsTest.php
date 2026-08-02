@@ -18,7 +18,7 @@ function writePhpforgeComposerManifest(array $manifest): string
 it('accepts stable tagged runtime ranges and platform wildcards', function (): void {
     $path = writePhpforgeComposerManifest([
         'require' => [
-            'php' => '>=8.2',
+            'php' => '>=8.4',
             'ext-json' => '*',
             'vendor/library' => '^2.0 || ^3.0',
         ],

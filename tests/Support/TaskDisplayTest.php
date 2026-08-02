@@ -14,11 +14,6 @@ it('formats duplicate checks with a friendly title', function (): void {
         ->toBe('Duplicate Code');
 });
 
-it('formats api checks with a friendly title', function (): void {
-    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpforge', 'api']))
-        ->toBe('Public API');
-});
-
 it('formats comment checks with a friendly title', function (): void {
     expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpforge', 'comments']))
         ->toBe('Comment Policy');
@@ -37,9 +32,7 @@ it('formats phpprobe checker tasks with friendly titles', function (): void {
         ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'check']))
         ->toBe('PHPProbe Checks')
         ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'comments']))
-        ->toBe('Comment Policy')
-        ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'api']))
-        ->toBe('Public API');
+        ->toBe('Comment Policy');
 });
 
 it('formats deptrac tasks with config-file labels', function (): void {
@@ -52,6 +45,11 @@ it('formats deptrac tasks with config-file labels', function (): void {
 it('formats composer normalize with a friendly title', function (): void {
     expect(TaskDisplay::heading(['composer', 'normalize']))
         ->toBe('Composer Normalize');
+});
+
+it('formats the dependency-isolated Psalm PHAR with a friendly title', function (): void {
+    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/psalm.phar', '--config=psalm.xml']))
+        ->toBe('Psalm (Config: psalm.xml)');
 });
 
 it('labels config paths clearly', function (): void {

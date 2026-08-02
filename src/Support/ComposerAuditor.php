@@ -8,7 +8,7 @@ final class ComposerAuditor
 {
     public function run(): int
     {
-        $result = (new ProcRunner())->run([
+        $result = new ProcRunner()->run([
             'composer',
             'audit',
             '--format=json',

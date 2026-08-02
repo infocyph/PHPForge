@@ -41,7 +41,7 @@ PHPForge helps keep the project reliable by running checks for:
 - Dependency vulnerability audit
 - Architecture boundary validation
 - Duplicate-code detection
-- API snapshot and comment-policy checks
+- Comment-policy checks
 - Refactor safety checks
 - Benchmark and release-readiness checks
 - Git hooks and CI workflow protection

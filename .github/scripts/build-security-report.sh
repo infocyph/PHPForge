@@ -396,7 +396,7 @@ tools_json="$(jq -nc \
   --arg pint "$(package_version 'laravel/pint')" \
   --arg phpcs "$(package_version 'squizlabs/php_codesniffer')" \
   --arg phpstan "$(package_version 'phpstan/phpstan')" \
-  --arg psalm "$(package_version 'vimeo/psalm')" \
+  --arg psalm "$(package_version 'psalm/phar')" \
   --arg rector "$(package_version 'rector/rector')" \
   --arg phpbench "$(package_version 'phpbench/phpbench')" \
   '[
@@ -408,7 +408,7 @@ tools_json="$(jq -nc \
     {name: "Pint", package: "laravel/pint", version: $pint},
     {name: "PHP_CodeSniffer", package: "squizlabs/php_codesniffer", version: $phpcs},
     {name: "PHPStan", package: "phpstan/phpstan", version: $phpstan},
-    {name: "Psalm", package: "vimeo/psalm", version: $psalm},
+    {name: "Psalm", package: "psalm/phar", version: $psalm},
     {name: "Rector", package: "rector/rector", version: $rector},
     {name: "PHPBench", package: "phpbench/phpbench", version: $phpbench}
   ]'

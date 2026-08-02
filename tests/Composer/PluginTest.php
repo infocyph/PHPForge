@@ -42,6 +42,7 @@ it('copies bundled captainhook config into project root when missing', function 
 
     mkdir($vendorResources, 0755, true);
     mkdir($vendorBin, 0755, true);
+    mkdir($projectRoot . DIRECTORY_SEPARATOR . '.git');
     file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
     copy($bundledConfig, $vendorResources . DIRECTORY_SEPARATOR . 'captainhook.json');
     file_put_contents($vendorBin . DIRECTORY_SEPARATOR . 'captainhook', "<?php\nexit(0);\n");
@@ -81,6 +82,7 @@ it('does not publish or refresh the engineering skill on install hook run', func
 
     mkdir($vendorResources, 0755, true);
     mkdir($vendorBin, 0755, true);
+    mkdir($projectRoot . DIRECTORY_SEPARATOR . '.git');
     mkdir(dirname($skillTarget), 0755, true);
     file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
     file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'captainhook.json', '{}');
@@ -110,6 +112,7 @@ it('keeps strict hook installation when project captainhook config exists', func
     $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-plugin-' . uniqid('', true);
 
     mkdir($projectRoot, 0755, true);
+    mkdir($projectRoot . DIRECTORY_SEPARATOR . '.git');
     file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
     file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'captainhook.json', '{}');
 
@@ -141,6 +144,30 @@ it('skips dev-only hook installation during no-dev autoload dumps', function ():
 
     try {
         $event = new Event(ScriptEvents::POST_AUTOLOAD_DUMP, new Composer(), new NullIO(), false);
+        $plugin = new Plugin();
+
+        expect(fn() => $plugin->installHooks($event))->not->toThrow(RuntimeException::class);
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        removePluginTestTree($projectRoot);
+    }
+});
+
+it('skips hook installation outside a git checkout', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-plugin-' . uniqid('', true);
+
+    mkdir($projectRoot, 0755, true);
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'captainhook.json', '{}');
+
+    chdir($projectRoot);
+
+    try {
+        $event = new Event(ScriptEvents::POST_AUTOLOAD_DUMP, new Composer(), new NullIO(), true);
         $plugin = new Plugin();
 
         expect(fn() => $plugin->installHooks($event))->not->toThrow(RuntimeException::class);

@@ -49,7 +49,7 @@ deptrac:
             - symfony/string
             - symfony/var-dumper
             - tomasvotruba/cognitive-complexity
-            - vimeo/psalm
+            - psalm/phar
   ruleset:
     Project:
       - Project

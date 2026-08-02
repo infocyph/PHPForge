@@ -43,8 +43,7 @@
 - `composer ic:test:lint` - run Pint in check mode.
 - `composer ic:test:sniff` - run PHPCS checks.
 - `composer ic:test:duplicates` - duplicate code detection.
-- `composer ic:test:probe` - run aggregate PHPProbe checks (syntax, duplicates, API, comments).
-- `composer ic:test:api` - API snapshot checks via PHPProbe.
+- `composer ic:test:probe` - run aggregate PHPProbe checks (syntax, duplicates, comments).
 - `composer ic:test:comments` - comment policy checks via PHPProbe.
 - `composer ic:test:architecture` - Deptrac architecture checks.
 - `composer ic:test:static` - PHPStan analysis.

@@ -9,9 +9,9 @@ use Symfony\Component\Process\Process;
 
 final readonly class ParallelRunner
 {
-    private const DEFAULT_CONCURRENCY = 3;
+    private const int DEFAULT_CONCURRENCY = 3;
 
-    private const MAX_CONCURRENCY = 16;
+    private const int MAX_CONCURRENCY = 16;
 
     public function __construct(
         private OutputInterface $output,
