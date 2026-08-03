@@ -92,7 +92,6 @@ composer ic:test:lint
 composer ic:test:sniff
 composer ic:test:duplicates
 composer ic:test:probe
-composer ic:test:api
 composer ic:test:comments
 composer ic:test:architecture
 composer ic:test:static

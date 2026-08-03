@@ -15,3 +15,15 @@ it('defines publish pairs for community templates', function (): void {
             ->and(is_file($pair['source']))->toBeTrue();
     }
 });
+
+it('keeps repository community files synchronized with their canonical resources', function (): void {
+    $projectRoot = dirname(__DIR__, 2);
+
+    foreach (CommunityTemplateCatalog::files() as $targetRelative => $sourceRelative) {
+        $source = file_get_contents($projectRoot.DIRECTORY_SEPARATOR.$sourceRelative);
+        $target = file_get_contents($projectRoot.DIRECTORY_SEPARATOR.$targetRelative);
+
+        expect($source)->not->toBeFalse()
+            ->and($target)->toBe($source);
+    }
+});
