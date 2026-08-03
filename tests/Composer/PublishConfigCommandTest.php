@@ -11,6 +11,10 @@ it('ships strict comment policy without tightening unrelated PHPProbe detectors'
 
     expect($config)->toBe([
         'preset' => 'standard',
+        'duplicates' => [
+            'fail_on' => 'error',
+            'error_duplicate_percentage' => 10,
+        ],
         'commented_out_code' => ['policy' => 'strict'],
     ]);
 });

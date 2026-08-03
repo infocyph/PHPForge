@@ -231,7 +231,7 @@ composer ic:int
 
 Syntax, duplicate, and comment settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
 PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge comments`, and `phpforge check` commands are thin gateways that pass the same config to PHPProbe.
-By default the bundled config uses PHPProbe's standard syntax and duplicate profiles with the strict comment policy. Projects can still override individual sections in a published `phpprobe.json`.
+By default the bundled config uses PHPProbe's standard syntax and duplicate profiles with the strict comment policy. Duplicate findings remain visible, but become blocking only when duplicated lines reach 10% of the scanned code. Projects can still override individual sections in a published `phpprobe.json`.
 Use the lower-level binary for custom scans; CLI paths override configured paths, while CLI excludes are added to configured excludes:
 
 ```bash
@@ -495,6 +495,10 @@ Bundled default:
 ```json
 {
   "preset": "standard",
+  "duplicates": {
+    "fail_on": "error",
+    "error_duplicate_percentage": 10
+  },
   "commented_out_code": {
     "policy": "strict"
   }
@@ -517,8 +521,10 @@ composer ic:publish-config phpprobe.json --phpprobe-preset=strict
 ```
 
 The publishing option above intentionally opts every PHPProbe detector into its
-strict profile. PHPForge's bundled default narrows strictness to comment policy
-so syntax and duplicate thresholds retain their standard profiles.
+strict analysis profile. PHPForge's bundled default narrows blocking strictness
+to comment policy: duplicate analysis remains fully enabled and reported, while
+its gate fails only when duplicated lines reach the configured 10% error
+threshold.
 
 ### Deptrac Architecture Config
 
