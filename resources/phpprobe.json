@@ -1,3 +1,6 @@
 {
-  "preset": "standard"
+  "preset": "standard",
+  "commented_out_code": {
+    "policy": "strict"
+  }
 }

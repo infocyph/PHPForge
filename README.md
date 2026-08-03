@@ -32,7 +32,7 @@ PHPForge brings these tools through one package:
 
 PHPForge targets PHP 8.4 and later, uses PSR-4 autoloading, and formats first-party PHP against
 [PER Coding Style 3.0](https://www.php-fig.org/per/coding-style/) through the configured Pint toolchain.
-PHPProbe 0.6 provides the syntax, duplicate-code, and comment-policy checks used by PHPForge.
+PHPProbe 0.7 provides the syntax, duplicate-code, and comment-policy checks used by PHPForge.
 Bundled Pest and PHPUnit configurations run with every PHP error level enabled so deprecations remain
 visible during compatibility testing.
 
@@ -210,7 +210,7 @@ composer ic:int
 
 Syntax, duplicate, and comment settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
 PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge comments`, and `phpforge check` commands are thin gateways that pass the same config to PHPProbe.
-By default the bundled config uses preset-based behavior, so defaults come from the selected PHPProbe preset and can still be overridden per section in `phpprobe.json`.
+By default the bundled config uses PHPProbe's standard syntax and duplicate profiles with the strict comment policy. Projects can still override individual sections in a published `phpprobe.json`.
 Use the lower-level binary for custom scans; CLI paths override configured paths, while CLI excludes are added to configured excludes:
 
 ```bash
@@ -467,13 +467,16 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 ### PHPProbe Checker Config
 
 `phpprobe.json` configures PHPProbe syntax, duplicate-code, and comment-policy checks.
-PHPProbe 0.6 is preset-first, and PHPForge follows that model.
+PHPProbe 0.7 is preset-first, and PHPForge follows that model.
 
 Bundled default:
 
 ```json
 {
-  "preset": "standard"
+  "preset": "standard",
+  "commented_out_code": {
+    "policy": "strict"
+  }
 }
 ```
 
@@ -487,12 +490,14 @@ Presets for `phpprobe.json` publishing:
 | `standard`  | Recommended balanced preset. |
 | `ci`        | Quieter CI gate with stricter duplicate thresholds. |
 | `strict`    | Sensitive audit preset across duplicates and comments. |
-| `phpstorm`  | Legacy alias resolved to `standard`. |
-| `legacy-standard` | Legacy alias resolved to `ci`. |
 
 ```bash
-composer ic:publish-config phpprobe.json --phpprobe-preset=standard
+composer ic:publish-config phpprobe.json --phpprobe-preset=strict
 ```
+
+The publishing option above intentionally opts every PHPProbe detector into its
+strict profile. PHPForge's bundled default narrows strictness to comment policy
+so syntax and duplicate thresholds retain their standard profiles.
 
 ### Deptrac Architecture Config
 
@@ -1014,7 +1019,7 @@ Before:
 "require-dev": {
     "captainhook/captainhook": "^5.29.2",
     "ergebnis/composer-normalize": "^2.52",
-    "infocyph/phpprobe": "^0.6",
+    "infocyph/phpprobe": "^0.7",
     "laravel/pint": "^1.30.3",
     "pestphp/pest": "^5.0.2",
     "pestphp/pest-plugin-drift": "^5.0",
