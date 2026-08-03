@@ -21,7 +21,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
     /**
      * @var list<string>
      */
-    private const RECOMMENDED_PLUGINS = [
+    private const array RECOMMENDED_PLUGINS = [
         'infocyph/phpforge',
         'ergebnis/composer-normalize',
         'pestphp/pest-plugin',
@@ -60,7 +60,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
 
     public function installHooks(Event $event): void
     {
-        if (!$event->isDevMode()) {
+        if (!$event->isDevMode() || !$this->isGitCheckout()) {
             return;
         }
 
@@ -117,6 +117,13 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         }
 
         return $projectConfig;
+    }
+
+    private function isGitCheckout(): bool
+    {
+        $gitPath = Paths::projectRootPath() . DIRECTORY_SEPARATOR . '.git';
+
+        return is_dir($gitPath) || is_file($gitPath);
     }
 
     /**

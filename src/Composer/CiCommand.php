@@ -28,9 +28,9 @@ final class CiCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         if ((bool) $input->getOption('prefer-lowest')) {
-            return (new Runner($output, false))->run(TaskCatalog::ci(true));
+            return new Runner($output, false)->run(TaskCatalog::ci(true));
         }
 
-        return (new ParallelRunner($output))->run(TaskCatalog::syntax(), TaskCatalog::testParallelCi());
+        return new ParallelRunner($output)->run(TaskCatalog::syntax(), TaskCatalog::testParallelCi());
     }
 }

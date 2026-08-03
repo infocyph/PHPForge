@@ -9,7 +9,7 @@ use PHPStan\DependencyInjection\ContainerFactory;
 
 final class PhpstanActiveConfig
 {
-    public const DEFAULT_PARAMETER = 'cognitive_complexity';
+    public const string DEFAULT_PARAMETER = 'cognitive_complexity';
 
     /**
      * @return array{

@@ -13,14 +13,6 @@ final class TaskCatalog
     /**
      * @return list<list<string>>
      */
-    public static function api(): array
-    {
-        return [self::probeCommand('api')];
-    }
-
-    /**
-     * @return list<list<string>>
-     */
     public static function architecture(): array
     {
         return [[Paths::php(), Paths::bin('deptrac'), '--no-cache', 'analyse', '--config-file=' . Paths::config('deptrac.yaml'), '--no-progress']];
@@ -71,7 +63,6 @@ final class TaskCatalog
             ...self::lintCheck(),
             ...self::sniff(),
             ...self::duplicates(),
-            ...self::api(),
             ...self::commentsCi(),
             ...self::architecture(),
             ...self::refactorCheck(),
@@ -212,7 +203,7 @@ final class TaskCatalog
      */
     public static function security(): array
     {
-        return [[Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--security-analysis', '--threads=' . self::psalmThreads(), '--no-cache']];
+        return [[Paths::php(), Paths::bin('psalm.phar'), '--config=' . Paths::config('psalm.xml'), '--security-analysis', '--threads=' . self::psalmThreads(), '--no-cache']];
     }
 
     /**
@@ -284,7 +275,6 @@ final class TaskCatalog
             ...self::lintCheck(),
             ...self::sniff(),
             ...self::duplicates(),
-            ...self::api(),
             ...self::comments(),
             ...self::architecture(),
             ...self::staticAnalysis(),
@@ -459,11 +449,10 @@ final class TaskCatalog
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
             ...self::duplicates(),
-            ...self::api(),
             ...($ciComments ? self::commentsCi() : self::comments()),
             ...self::architecture(),
             ...self::staticAnalysis(),
-            [Paths::php(), Paths::bin('psalm'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
+            [Paths::php(), Paths::bin('psalm.phar'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
             ...self::refactorCheck(),
         ];
     }

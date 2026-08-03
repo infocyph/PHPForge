@@ -9,12 +9,11 @@ final class TaskDisplay
     /**
      * @var array<string, string>
      */
-    private const PROBE_TITLES = [
+    private const array PROBE_TITLES = [
         'syntax' => 'Checking Syntax',
         'duplicates' => 'Duplicate Code',
         'check' => 'PHPProbe Checks',
         'comments' => 'Comment Policy',
-        'api' => 'Public API',
     ];
 
     /**
@@ -171,7 +170,7 @@ final class TaskDisplay
             $tool === 'phpcs' => 'PHPCS',
             $tool === 'phpcbf' => 'PHPCBF',
             $tool === 'phpstan' => 'PHPStan',
-            $tool === 'psalm' => 'Psalm',
+            in_array($tool, ['psalm', 'psalm.phar'], true) => 'Psalm',
             $tool === 'rector' => 'Rector',
             $tool === 'phpbench' => 'PHPBench',
             $tool === 'deptrac' => 'Deptrac',

@@ -6,9 +6,9 @@ namespace Infocyph\PHPForge\Support;
 
 final class BenchmarkResultValidator
 {
-    private const LATENCY_FIELDS = ['minimum', 'average', 'p50', 'p95', 'p99', 'maximum'];
+    private const array LATENCY_FIELDS = ['minimum', 'average', 'p50', 'p95', 'p99', 'maximum'];
 
-    private const RESOURCE_FIELDS = [
+    private const array RESOURCE_FIELDS = [
         'cpu' => ['average_percent', 'peak_percent'],
         'memory' => ['average_mb', 'peak_mb', 'growth_mb'],
     ];

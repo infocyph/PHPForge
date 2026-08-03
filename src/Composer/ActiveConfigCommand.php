@@ -40,7 +40,7 @@ final class ActiveConfigCommand extends Command
             return 1;
         }
 
-        $activeConfig = (new ActiveConfigInspector())->inspect(
+        $activeConfig = new ActiveConfigInspector()->inspect(
             $validatedFiles,
             $this->optionString($input, 'parameter'),
         );
@@ -51,7 +51,7 @@ final class ActiveConfigCommand extends Command
             return 0;
         }
 
-        $output->writeln((new ActiveConfigFormatter())->text($activeConfig));
+        $output->writeln(new ActiveConfigFormatter()->text($activeConfig));
 
         return 0;
     }

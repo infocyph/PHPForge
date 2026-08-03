@@ -16,7 +16,6 @@ final class CommunityTemplateCatalog
             'CODE_OF_CONDUCT.md' => 'resources/community/CODE_OF_CONDUCT.md',
             'SECURITY.md' => 'resources/community/SECURITY.md',
             '.github/ISSUE_TEMPLATE/bug_report.yml' => 'resources/community/.github/ISSUE_TEMPLATE/bug_report.yml',
-            '.github/ISSUE_TEMPLATE/regression_report.yml' => 'resources/community/.github/ISSUE_TEMPLATE/regression_report.yml',
             '.github/ISSUE_TEMPLATE/ci_failure.yml' => 'resources/community/.github/ISSUE_TEMPLATE/ci_failure.yml',
             '.github/ISSUE_TEMPLATE/feature_request.yml' => 'resources/community/.github/ISSUE_TEMPLATE/feature_request.yml',
             '.github/ISSUE_TEMPLATE/question.yml' => 'resources/community/.github/ISSUE_TEMPLATE/question.yml',

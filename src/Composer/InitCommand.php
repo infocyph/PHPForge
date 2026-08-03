@@ -18,7 +18,9 @@ use Symfony\Component\Console\Question\Question;
 
 final class InitCommand extends Command
 {
-    private const END_OF_LIFE_PHP_API = 'https://endoflife.date/api/php.json';
+    private const string END_OF_LIFE_PHP_API = 'https://endoflife.date/api/php.json';
+
+    private const array FALLBACK_PHP_VERSIONS = ['8.4', '8.5'];
 
     /**
      * @var non-empty-array<string, string>|null
@@ -567,7 +569,7 @@ final class InitCommand extends Command
             'forgejo_workflow' => false,
             'community_templates' => false,
             'workflow_ref' => $workflowRef,
-            'php_versions' => '["8.2","8.3","8.4","8.5"]',
+            'php_versions' => (string) json_encode(self::FALLBACK_PHP_VERSIONS, JSON_UNESCAPED_SLASHES),
             'dependency_versions' => '["prefer-lowest","prefer-stable"]',
             'php_extensions' => $this->detectedPhpExtensions(),
             'composer_flags' => '',
@@ -794,7 +796,7 @@ final class InitCommand extends Command
         $supported = $this->supportedPhpVersionsFromApi();
 
         if ($supported === []) {
-            $supported = ['8.2', '8.3', '8.4', '8.5'];
+            $supported = self::FALLBACK_PHP_VERSIONS;
         }
 
         $current = array_slice($supported, -2);
@@ -942,7 +944,7 @@ final class InitCommand extends Command
                 continue;
             }
 
-            if (version_compare($cycle, '8.2', '<')) {
+            if (version_compare($cycle, self::FALLBACK_PHP_VERSIONS[0], '<')) {
                 continue;
             }
 

@@ -19,7 +19,7 @@ final class PublishConfigCommand extends Command
     /**
      * @var non-empty-list<string>
      */
-    private const PHPPROBE_PRESETS = ['default', 'standard', 'ci', 'strict', 'phpstorm', 'legacy-standard'];
+    private const array PHPPROBE_PRESETS = ['default', 'standard', 'ci', 'strict'];
 
     public function __construct()
     {
@@ -32,7 +32,7 @@ final class PublishConfigCommand extends Command
             ->setDescription('Publish bundled PHPForge config files into the project.')
             ->addArgument('files', InputArgument::IS_ARRAY, 'Specific config files to publish.')
             ->addOption('all', null, InputOption::VALUE_NONE, 'Publish all bundled config files.')
-            ->addOption('phpprobe-preset', null, InputOption::VALUE_REQUIRED, 'Apply a PHPProbe preset when publishing phpprobe.json: default, standard, ci, or strict (legacy aliases: phpstorm, legacy-standard).')
+            ->addOption('phpprobe-preset', null, InputOption::VALUE_REQUIRED, 'Apply a PHPProbe preset when publishing phpprobe.json: default, standard, ci, or strict.')
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing project files.');
     }
 
@@ -71,12 +71,11 @@ final class PublishConfigCommand extends Command
      */
     private static function phpprobePreset(string $preset): array
     {
-        return match ($preset) {
-            'default', 'standard', 'ci', 'strict' => ['preset' => $preset],
-            'phpstorm' => ['preset' => 'standard'],
-            'legacy-standard' => ['preset' => 'ci'],
-            default => throw new \InvalidArgumentException(sprintf('Unknown PHPProbe preset "%s". Expected one of: %s.', $preset, implode(', ', self::PHPPROBE_PRESETS))),
-        };
+        if (!in_array($preset, self::PHPPROBE_PRESETS, true)) {
+            throw new \InvalidArgumentException(sprintf('Unknown PHPProbe preset "%s". Expected one of: %s.', $preset, implode(', ', self::PHPPROBE_PRESETS)));
+        }
+
+        return ['preset' => $preset];
     }
 
     private function applyPhpprobePreset(string $contents, string $preset): ?string

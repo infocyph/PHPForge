@@ -9,11 +9,10 @@ use Symfony\Component\Console\Output\ConsoleOutput;
 
 final class Cli
 {
-    private const COMMAND_ROWS = <<<'COMMANDS'
+    private const string COMMAND_ROWS = <<<'COMMANDS'
 ci|Quality|ci [--prefer-lowest]|Run the CI quality suite.
 syntax|Quality|syntax [paths...]|Check PHP syntax.
 duplicates|Quality|duplicates [options] [paths...]|Find duplicated code.
-api|Quality|api [options] [paths...]|Check the public API snapshot.
 comments|Quality|comments [options] [paths...]|Check the comment policy.
 check|Quality|check [options] [paths...]|Run aggregate PHPProbe checks.
 doctor|Configuration|doctor [--json]|Inspect setup health and integration status.
@@ -24,7 +23,7 @@ release-constraints|Utilities|release-constraints|Reject non-stable runtime depe
 phpstan-sarif|Utilities|phpstan-sarif <input.json> [output.sarif]|Convert PHPStan JSON output to SARIF.
 COMMANDS;
 
-    private const GROUPS = ['Quality', 'Configuration', 'Utilities'];
+    private const array GROUPS = ['Quality', 'Configuration', 'Utilities'];
 
     /**
      * @param list<string> $argv
@@ -37,12 +36,11 @@ COMMANDS;
             'ci' => $this->ci(array_slice($argv, 2)),
             'syntax' => $this->probe('syntax', array_slice($argv, 2)),
             'duplicates' => $this->probe('duplicates', array_slice($argv, 2)),
-            'api' => $this->probe('api', array_slice($argv, 2)),
             'comments' => $this->probe('comments', array_slice($argv, 2)),
             'check' => $this->probe('check', array_slice($argv, 2)),
             'active-config' => $this->activeConfig(array_slice($argv, 2)),
-            'phpstan-sarif' => (new PhpstanSarifConverter())->convert((string) ($argv[2] ?? ''), (string) ($argv[3] ?? 'phpstan-results.sarif')),
-            'audit' => (new ComposerAuditor())->run(),
+            'phpstan-sarif' => new PhpstanSarifConverter()->convert((string) ($argv[2] ?? ''), (string) ($argv[3] ?? 'phpstan-results.sarif')),
+            'audit' => new ComposerAuditor()->run(),
             'release-constraints' => $this->releaseConstraints(),
             'help', '--help', '-h' => $this->help(),
             default => $this->unknownCommand($command),
@@ -74,13 +72,13 @@ COMMANDS;
             return 1;
         }
 
-        $activeConfig = (new ActiveConfigInspector())->inspect($files, $parameter);
+        $activeConfig = new ActiveConfigInspector()->inspect($files, $parameter);
 
         fwrite(
             STDOUT,
             $json
                 ? (string) json_encode($activeConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
-                : (new ActiveConfigFormatter())->text($activeConfig),
+                : new ActiveConfigFormatter()->text($activeConfig),
         );
         fwrite(STDOUT, PHP_EOL);
 
@@ -154,10 +152,10 @@ COMMANDS;
         $output = new ConsoleOutput();
 
         if (!in_array('--prefer-lowest', $args, true)) {
-            return (new ParallelRunner($output))->run(TaskCatalog::syntax(), TaskCatalog::testParallelCi());
+            return new ParallelRunner($output)->run(TaskCatalog::syntax(), TaskCatalog::testParallelCi());
         }
 
-        return (new Runner($output, false))->run(TaskCatalog::ci(true));
+        return new Runner($output, false)->run(TaskCatalog::ci(true));
     }
 
     /**
@@ -229,7 +227,7 @@ COMMANDS;
         }
 
         $arguments = $this->withDefaultProbeConfig($args);
-        $result = (new ProcRunner())->run([PHP_BINARY, $binary, $command, ...$arguments]);
+        $result = new ProcRunner()->run([PHP_BINARY, $binary, $command, ...$arguments]);
 
         if (!$result instanceof ProcessResult) {
             fwrite(STDERR, 'Could not start PHPProbe.' . PHP_EOL);
@@ -246,7 +244,7 @@ COMMANDS;
     private function releaseConstraints(): int
     {
         $composerFile = Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'composer.json';
-        $violations = (new StableRuntimeConstraints())->violations($composerFile);
+        $violations = new StableRuntimeConstraints()->violations($composerFile);
 
         if ($violations === []) {
             fwrite(STDOUT, 'Stable runtime constraint guard passed.' . PHP_EOL);

@@ -65,7 +65,7 @@ final class BenchmarkCommand extends Command
             return 2;
         }
 
-        $result = (new BenchmarkResult())->compare(
+        $result = new BenchmarkResult()->compare(
             $baseline,
             $candidate,
             $maximumRegression,
@@ -103,7 +103,7 @@ final class BenchmarkCommand extends Command
             return 2;
         }
 
-        $result = (new BenchmarkResult())->load($file);
+        $result = new BenchmarkResult()->load($file);
 
         if ($result['errors'] === []) {
             $output->writeln(sprintf('<info>Benchmark result contract passed: %s</info>', $file));

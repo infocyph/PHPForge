@@ -9,7 +9,7 @@ use Symfony\Component\Process\Process;
 
 final class ProcRunner
 {
-    private const DEFAULT_TIMEOUT_SECONDS = 60;
+    private const int DEFAULT_TIMEOUT_SECONDS = 60;
 
     /**
      * @param list<string>|string $command

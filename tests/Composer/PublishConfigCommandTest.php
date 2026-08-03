@@ -41,18 +41,6 @@ it('applies strict phpprobe preset to bundled config json', function (): void {
     expect($decoded['preset'] ?? null)->toBe('strict');
 });
 
-it('normalizes legacy phpprobe preset aliases to current preset names', function (): void {
-    $command = new PublishConfigCommand();
-    $source = '{"preset":"standard"}';
-    $method = new ReflectionMethod(PublishConfigCommand::class, 'applyPhpprobePreset');
-
-    $phpstorm = $method->invoke($command, $source, 'phpstorm');
-    $legacyStandard = $method->invoke($command, $source, 'legacy-standard');
-
-    expect(is_string($phpstorm) ? json_decode($phpstorm, true)['preset'] ?? null : null)->toBe('standard');
-    expect(is_string($legacyStandard) ? json_decode($legacyStandard, true)['preset'] ?? null : null)->toBe('ci');
-});
-
 it('returns null when phpprobe config content is invalid json', function (): void {
     $command = new PublishConfigCommand();
     $method = new ReflectionMethod(PublishConfigCommand::class, 'applyPhpprobePreset');

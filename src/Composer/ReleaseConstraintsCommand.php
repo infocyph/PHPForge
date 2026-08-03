@@ -26,7 +26,7 @@ final class ReleaseConstraintsCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $composerFile = Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'composer.json';
-        $violations = (new StableRuntimeConstraints())->violations($composerFile);
+        $violations = new StableRuntimeConstraints()->violations($composerFile);
 
         if ($violations === []) {
             $output->writeln('<info>Stable runtime constraint guard passed.</info>');

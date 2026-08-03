@@ -101,22 +101,13 @@ it('runs duplicate detection against code paths', function (): void {
         ->and($cacheArg)->toContain('phpprobe-duplicates-cache-');
 });
 
-it('runs api snapshot checks with the PHPProbe checker config', function (): void {
-    $command = TaskCatalog::api()[0];
-
-    expect(basename(str_replace('\\', '/', $command[1])))->toBe('phpprobe')
-        ->and($command)->toContain('api')
-        ->and(TaskCatalog::api()[0])->toContain('--config')
-        ->and(TaskCatalog::api()[0])->toContain(Paths::packageFile('resources/phpprobe.json'));
-});
-
 it('runs comment policy checks with the PHPProbe checker config', function (): void {
     $command = TaskCatalog::comments()[0];
 
     expect(basename(str_replace('\\', '/', $command[1])))->toBe('phpprobe')
         ->and($command)->toContain('comments')
-        ->and(TaskCatalog::comments()[0])->toContain('--config')
-        ->and(TaskCatalog::comments()[0])->toContain(Paths::packageFile('resources/phpprobe.json'));
+        ->and($command)->toContain('--config')
+        ->and($command)->toContain(Paths::packageFile('resources/phpprobe.json'));
 });
 
 it('runs CI comment policy checks with error-focused output', function (): void {
@@ -126,6 +117,17 @@ it('runs CI comment policy checks with error-focused output', function (): void 
         ->and($command)->toContain('--ci')
         ->and($command)->toContain('--config')
         ->and($command)->toContain(Paths::packageFile('resources/phpprobe.json'));
+});
+
+it('runs Psalm through the dependency-isolated PHAR binary', function (): void {
+    $security = TaskCatalog::security()[0];
+    $suitePsalm = array_values(array_filter(
+        TaskCatalog::testAll(),
+        static fn(array $command): bool => basename(str_replace('\\', '/', $command[1] ?? '')) === 'psalm.phar',
+    ));
+
+    expect(basename(str_replace('\\', '/', $security[1])))->toBe('psalm.phar')
+        ->and($suitePsalm)->toHaveCount(1);
 });
 
 it('runs aggregated PHPProbe checks with the PHPProbe checker config', function (): void {
@@ -182,13 +184,6 @@ it('includes comment policy checks in full and detailed quality suites', functio
 
     expect(TaskCatalog::testAll())->toContain($commentsTask)
         ->and(TaskCatalog::testDetails())->toContain($commentsTask);
-});
-
-it('includes api snapshot checks in full and detailed quality suites', function (): void {
-    $apiTask = TaskCatalog::api()[0];
-
-    expect(TaskCatalog::testAll())->toContain($apiTask)
-        ->and(TaskCatalog::testDetails())->toContain($apiTask);
 });
 
 it('allows disabling pest parallel in full test suites', function (): void {

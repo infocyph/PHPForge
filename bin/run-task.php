@@ -52,7 +52,6 @@ function taskCommands(string $task): array
         'test:bench' => TaskCatalog::benchRun(),
         'test:duplicates' => TaskCatalog::duplicates(),
         'test:probe' => TaskCatalog::probeCheck(),
-        'test:api' => TaskCatalog::api(),
         'test:comments' => TaskCatalog::comments(),
         'test:lint' => TaskCatalog::lintCheck(),
         'test:refactor' => TaskCatalog::refactorCheck(),

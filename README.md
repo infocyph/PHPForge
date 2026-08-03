@@ -19,7 +19,7 @@ PHPForge brings these tools through one package:
 | Pest                        | Test execution                                      |
 | Laravel Pint                | Code style checks and fixes                         |
 | PHP_CodeSniffer / PHPCBF    | Semantic sniffing and fixable sniff repairs         |
-| PHPProbe                    | Git-aware PHP syntax validation and duplicate detection |
+| PHPProbe                    | Git-aware PHP syntax, duplicate-code, and comment-policy checks |
 | Deptrac                     | Architecture boundary checks                        |
 | PHPStan                     | Static analysis and cognitive complexity            |
 | Psalm                       | Security and taint analysis                         |
@@ -30,8 +30,9 @@ PHPForge brings these tools through one package:
 
 ## Engineering Baseline
 
-PHPForge targets PHP 8.2 and later, uses PSR-4 autoloading, and formats first-party PHP against
+PHPForge targets PHP 8.4 and later, uses PSR-4 autoloading, and formats first-party PHP against
 [PER Coding Style 3.0](https://www.php-fig.org/per/coding-style/) through the configured Pint toolchain.
+PHPProbe 0.6 provides the syntax, duplicate-code, and comment-policy checks used by PHPForge.
 Bundled Pest and PHPUnit configurations run with every PHP error level enabled so deprecations remain
 visible during compatibility testing.
 
@@ -119,14 +120,14 @@ Selector presets include:
 | Prompt                | Built-in Choices                                                                                                                                                                                   |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | PHPForge workflow ref | `main`, configured ref, or custom                                                                                                                                                                |
-| PHP version matrix    | `supported`, `current`, `stable`, or custom JSON. Presets resolve live with fallback to `["8.2","8.3","8.4","8.5"]`.                                                                       |
+| PHP version matrix    | `supported`, `current`, `stable`, or custom JSON. Presets resolve live with fallback to `["8.4","8.5"]`.                                                                                   |
 | Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]`, or custom JSON. Prompt shows resolved JSON beside each option.                                             |
 | PHP extensions        | `none` => `""`, `detected` (from project `composer.json` `ext-*` entries in `require`, `require-dev`, and `suggest`), `common`, `mysql`, `pgsql`, `mysql+pgsql`, or custom |
 | Extra Composer flags  | `none` => `""`, `with-all-dependencies` => `--with-all-dependencies`, `ignore-ext-redis` => `--ignore-platform-req=ext-redis`, or custom. Prompt explains each option effect.          |
 | PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                                                                                                                  |
 | Psalm threads         | `1`, `2`, `4`, or custom                                                                                                                                                                     |
 
-`supported` includes non-EOL PHP minor cycles (>= `8.2`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
+`supported` includes non-EOL PHP minor cycles (>= `8.4`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
 When detected `ext-*` entries exist in `composer.json`, the PHP extensions selector defaults to the detected preset.
 PHP version, dependency matrix, PHP extensions, and Composer flags selectors show resolved values in the prompt and print the final resolved value after selection.
 
@@ -142,7 +143,6 @@ CONTRIBUTING.md
 CODE_OF_CONDUCT.md
 SECURITY.md
 .github/ISSUE_TEMPLATE/bug_report.yml
-.github/ISSUE_TEMPLATE/regression_report.yml
 .github/ISSUE_TEMPLATE/ci_failure.yml
 .github/ISSUE_TEMPLATE/feature_request.yml
 .github/ISSUE_TEMPLATE/question.yml
@@ -191,7 +191,7 @@ composer ic:int
 
 | Command                         | Purpose                                                                                                                                                        |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `composer ic:tests`           | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, API snapshot checks, comment policy checks, Deptrac, PHPStan, Psalm security analysis, and Rector dry run. |
+| `composer ic:tests`           | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, comment policy checks, Deptrac, PHPStan, Psalm security analysis, and Rector dry run. |
 | `composer ic:tests:all`       | Alias of `ic:tests`.                                                                                                                                         |
 | `composer ic:tests:parallel`  | Runs syntax first, then executes the remaining quality checks with bounded parallelism and a buffered PASS/FAIL summary.                                       |
 | `composer ic:tests:details`   | Runs detailed checks without the parallel Pest shortcut.                                                                                                       |
@@ -200,8 +200,7 @@ composer ic:int
 | `composer ic:test:lint`       | Runs Pint in check mode.                                                                                                                                       |
 | `composer ic:test:sniff`      | Runs PHPCS with a full report against the project root and bundled/project excludes.                                                                           |
 | `composer ic:test:duplicates` | Runs duplicate detection using `phpprobe.json`.                                                                                                              |
-| `composer ic:test:probe`      | Runs aggregate PHPProbe checks (syntax, duplicates, api, comments) using `phpprobe.json`.                                                                  |
-| `composer ic:test:api`        | Runs API snapshot checks using `phpprobe.json`.                                                                                                              |
+| `composer ic:test:probe`      | Runs aggregate PHPProbe checks (syntax, duplicates, comments) using `phpprobe.json`.                                                                       |
 | `composer ic:test:comments`   | Runs comment policy checks using `phpprobe.json`.                                                                                                            |
 | `composer ic:test:architecture` | Runs Deptrac architecture checks using `deptrac.yaml`.                                                                                                    |
 | `composer ic:test:static`     | Runs PHPStan.                                                                                                                                                  |
@@ -209,8 +208,8 @@ composer ic:int
 | `composer ic:test:refactor`   | Runs Rector in dry-run mode.                                                                                                                                   |
 | `composer ic:test:bench`      | Runs PHPBench aggregate benchmarks when the project has a `benchmarks/` directory; otherwise skips them.                                                     |
 
-Syntax, duplicates, API snapshot, and comments settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
-PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge api`, `phpforge comments`, and `phpforge check` commands are thin compatibility gateways that pass the same config to PHPProbe.
+Syntax, duplicate, and comment settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
+PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge comments`, and `phpforge check` commands are thin gateways that pass the same config to PHPProbe.
 By default the bundled config uses preset-based behavior, so defaults come from the selected PHPProbe preset and can still be overridden per section in `phpprobe.json`.
 Use the lower-level binary for custom scans; CLI paths override configured paths, while CLI excludes are added to configured excludes:
 
@@ -219,7 +218,6 @@ php vendor/bin/phpprobe syntax --config=phpprobe.json --exclude=storage
 php vendor/bin/phpprobe check --config=phpprobe.json
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --min-lines=5 --min-tokens=70
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --mode=audit --near-miss --json --exclude=tests
-php vendor/bin/phpprobe api --config=phpprobe.json --baseline=.phpprobe-api-baseline.json
 php vendor/bin/phpprobe comments --config=phpprobe.json --fail-on=warning
 php vendor/bin/phpprobe comments --config=phpprobe.json --ci
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --write-baseline=.phpprobe-duplicates-baseline.json
@@ -230,9 +228,9 @@ Useful checker options:
 
 | Option                      | Applies To         | Purpose                                                                 |
 | --------------------------- | ------------------ | ----------------------------------------------------------------------- |
-| `--config=FILE`           | Syntax, duplicates, api, comments, check | Reads checker settings from a custom `phpprobe.json` file.       |
-| `--preset=NAME`           | Syntax, duplicates, api, comments, check | Applies a runtime preset (`default`, `standard`, `ci`, `strict`). |
-| `--exclude=PATH`          | Syntax, duplicates, api, comments | Excludes one path; repeat it for multiple one-off exclusions.           |
+| `--config=FILE`           | Syntax, duplicates, comments, check | Reads checker settings from a custom `phpprobe.json` file.       |
+| `--preset=NAME`           | Syntax, duplicates, comments, check | Applies a runtime preset (`default`, `standard`, `ci`, `strict`). |
+| `--exclude=PATH`          | Syntax, duplicates, comments | Excludes one path; repeat it for multiple one-off exclusions.           |
 | `--exact`                 | Duplicates         | Disables variable/literal normalization.                                |
 | `--fuzzy`                 | Duplicates         | Also normalizes identifiers and calls for renamed-code scans.           |
 | `--mode=audit`            | Duplicates         | Enables statement-window matching in addition to token matching.        |
@@ -241,8 +239,8 @@ Useful checker options:
 | `--min-tokens=N`          | Duplicates         | Sets the token fingerprint window size.                                 |
 | `--min-statements=N`      | Duplicates         | Sets the structural statement window size for audit matching.           |
 | `--min-similarity=0.85`   | Duplicates         | Sets the near-miss similarity threshold.                                |
-| `--baseline=FILE`         | Duplicates, api    | Suppresses known clone groups or compares API snapshots against a baseline. |
-| `--write-baseline[=FILE]` | Duplicates, api    | Writes duplicate-clone or API snapshot baselines and exits successfully. |
+| `--baseline=FILE`         | Duplicates, comments | Suppresses known clone groups or comment findings.                    |
+| `--write-baseline[=FILE]` | Duplicates, comments | Writes duplicate-clone or comment baselines and exits successfully.   |
 | `--strict`                | Comments           | Escalates commented-out-code policy severities.                         |
 | `--ci`                    | Comments           | Emits only error-level findings (clean CI logs).                        |
 | `--json`                  | Duplicates         | Emits machine-readable JSON.                                            |
@@ -468,8 +466,8 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 
 ### PHPProbe Checker Config
 
-`phpprobe.json` configures PHPProbe syntax, duplicate-code, API snapshot, and comments checks.
-PHPProbe 0.3 is preset-first, and PHPForge now follows that model.
+`phpprobe.json` configures PHPProbe syntax, duplicate-code, and comment-policy checks.
+PHPProbe 0.6 is preset-first, and PHPForge follows that model.
 
 Bundled default:
 
@@ -479,7 +477,7 @@ Bundled default:
 }
 ```
 
-You can still add section overrides (`syntax`, `duplicates`, `api`, `comments`, `commented_out_code`) when a project needs custom thresholds or exclusions.
+You can still add section overrides (`syntax`, `duplicates`, `comments`, `commented_out_code`) when a project needs custom thresholds or exclusions.
 
 Presets for `phpprobe.json` publishing:
 
@@ -638,7 +636,7 @@ jobs:
       actions: read
       contents: read
     with:
-      php_versions: '["8.2","8.3","8.4","8.5"]'
+      php_versions: '["8.4","8.5"]'
       dependency_versions: '["prefer-lowest","prefer-stable"]'
       php_extensions: ""
       composer_flags: ""
@@ -671,7 +669,7 @@ Workflow inputs:
 
 | Input                       | Default                               | Purpose                                                                                                                               |
 | --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `php_versions`            | `["8.2","8.3","8.4","8.5"]`         | PHP matrix as a JSON array string.                                                                                                    |
+| `php_versions`            | `["8.4","8.5"]`                         | PHP matrix as a JSON array string. Unsupported versions are silently omitted before jobs are created.                                |
 | `dependency_versions`     | `["prefer-lowest","prefer-stable"]` | Composer dependency modes as a JSON array string.                                                                                     |
 | `php_extensions`          | `""`                                | Comma-separated PHP extensions passed to `shivammathur/setup-php`.                                                                  |
 | `composer_flags`          | `""`                                | Extra flags appended to Composer install/update commands.                                                                             |
@@ -705,8 +703,13 @@ Workflow inputs:
 
 ```yaml
 with:
-  php_versions: '["8.2","8.3","8.4","8.5"]'
+  php_versions: '["8.4","8.5"]'
 ```
+
+PHPForge currently supports the `8.4` and `8.5` cycles. Unsupported entries are
+silently removed from the matrix; when no supported entry remains, PHP-dependent
+jobs are skipped successfully. Exact patch releases within a supported cycle,
+such as `8.4.12`, are accepted.
 
 Use a smaller matrix for faster daily CI, or the full supported range for release confidence.
 
@@ -896,7 +899,7 @@ jobs:
       actions: read
       contents: read
     with:
-      php_versions: '["8.2","8.3","8.4","8.5"]'
+      php_versions: '["8.4","8.5"]'
       dependency_versions: '["prefer-lowest","prefer-stable"]'
       run_analysis: true
 ```
@@ -908,7 +911,7 @@ jobs:
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     with:
-      php_versions: '["8.2","8.3"]'
+      php_versions: '["8.4","8.5"]'
       php_extensions: "mbstring, intl, pdo_mysql"
       composer_flags: "--ignore-platform-req=ext-redis"
       run_analysis: false
@@ -949,7 +952,7 @@ jobs:
       actions: read
       contents: read
     with:
-      php_versions: '["8.2","8.3"]'
+      php_versions: '["8.4","8.5"]'
       dependency_versions: '["prefer-stable"]'
       php_extensions: "mbstring, intl, bcmath, pdo_mysql"
       composer_flags: "--ignore-platform-req=ext-redis"
@@ -994,7 +997,6 @@ Generated files:
 - `CODE_OF_CONDUCT.md`
 - `SECURITY.md`
 - `.github/ISSUE_TEMPLATE/bug_report.yml`
-- `.github/ISSUE_TEMPLATE/regression_report.yml`
 - `.github/ISSUE_TEMPLATE/ci_failure.yml`
 - `.github/ISSUE_TEMPLATE/feature_request.yml`
 - `.github/ISSUE_TEMPLATE/question.yml`
@@ -1011,17 +1013,18 @@ Before:
 ```json
 "require-dev": {
     "captainhook/captainhook": "^5.29.2",
-    "ergebnis/composer-normalize": "^2.51",
-    "laravel/pint": "^1.29",
-    "pestphp/pest": "^4.6.3",
-    "pestphp/pest-plugin-drift": "^4.1",
-    "phpbench/phpbench": "^1.6.1",
-    "phpstan/phpstan": "^2.1.50",
-    "rector/rector": "^2.4.2",
+    "ergebnis/composer-normalize": "^2.52",
+    "infocyph/phpprobe": "^0.6",
+    "laravel/pint": "^1.30.3",
+    "pestphp/pest": "^5.0.2",
+    "pestphp/pest-plugin-drift": "^5.0",
+    "phpbench/phpbench": "^1.7",
+    "phpstan/phpstan": "^2.2.7",
+    "psalm/phar": "^6.16.1",
+    "rector/rector": "^2.5.9",
     "squizlabs/php_codesniffer": "^4.0.1",
-    "symfony/var-dumper": "^7.3 || ^8.0.8",
-    "tomasvotruba/cognitive-complexity": "^1.1",
-    "vimeo/psalm": "^6.16.1"
+    "symfony/var-dumper": "^8.1.2",
+    "tomasvotruba/cognitive-complexity": "^1.2.0"
 }
 ```
 
@@ -1030,6 +1033,11 @@ After:
 ```bash
 composer require --dev infocyph/phpforge
 ```
+
+PHPForge installs the stable `psalm/phar` distribution. Its isolated
+dependency graph prevents Psalm's internal component constraints from colliding
+with the PHPUnit version selected by Pest, while preserving the normal Psalm
+configuration and security-analysis workflow.
 
 Remove old local QA scripts such as:
 

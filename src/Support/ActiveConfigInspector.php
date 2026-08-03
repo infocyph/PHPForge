@@ -134,7 +134,7 @@ final class ActiveConfigInspector
     private function parameterValue(array $summary, string $parameter): mixed
     {
         if (($summary['tool'] ?? null) === 'phpstan') {
-            $effectiveParameters = (new PhpstanActiveConfig())->summary($parameter, true)['parameters'] ?? null;
+            $effectiveParameters = new PhpstanActiveConfig()->summary($parameter, true)['parameters'] ?? null;
 
             if (is_array($effectiveParameters) && array_key_exists($parameter, $effectiveParameters)) {
                 return $effectiveParameters[$parameter];
@@ -182,12 +182,6 @@ final class ActiveConfigInspector
             return true;
         }
 
-        foreach ($selectedFiles as $selectedFile) {
-            if (in_array($selectedFile, $candidates, true)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($selectedFiles, fn($selectedFile) => in_array($selectedFile, $candidates, true));
     }
 }

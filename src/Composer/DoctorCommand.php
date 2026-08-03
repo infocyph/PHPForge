@@ -13,7 +13,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 final class DoctorCommand extends Command
 {
-    private const EXPECTED_WORKFLOW_INPUTS = [
+    private const array EXPECTED_WORKFLOW_INPUTS = [
         'php_versions',
         'dependency_versions',
         'php_extensions',
@@ -43,13 +43,13 @@ final class DoctorCommand extends Command
         'artifact_retention_days',
     ];
 
-    private const PLUGINS = [
+    private const array PLUGINS = [
         'infocyph/phpforge',
         'ergebnis/composer-normalize',
         'pestphp/pest-plugin',
     ];
 
-    private const WORKFLOW_PATH = '.github/workflows/security-standards.yml';
+    private const string WORKFLOW_PATH = '.github/workflows/security-standards.yml';
 
     public function __construct()
     {
@@ -150,13 +150,7 @@ final class DoctorCommand extends Command
             return false;
         }
 
-        foreach ($decoded as $item) {
-            if (!is_string($item)) {
-                return false;
-            }
-        }
-
-        return true;
+        return array_all($decoded, fn($item) => is_string($item));
     }
 
     private function normalizeYamlScalar(string $value): string
