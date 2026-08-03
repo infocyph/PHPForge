@@ -32,4 +32,4 @@ When those conditions are met:
    `composer ic:release:constraints`, and the complete `composer ic:ci` suite.
 7. Remove this TODO only after the stable dependency graph and all quality gates
    pass without downgrading another tool.
-8. Additionally, you can check commit `89a409282bb89bd6fc45c51818ec7b9e3833ba72` for relevant changes we've done for this (so you can revert the relevant ones only). Note: This commit also include some other changes that not relevant to this, so you must pick the correct ones.
+8. Additionally, you can check commit around 2-3 August for relevant changes we've done for this (so you can revert the relevant ones only). Note: These commits also include some other changes that not relevant to this, so you must pick the correct ones.

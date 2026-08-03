@@ -369,14 +369,13 @@ it('publishes generic community template files to project root', function (): vo
             ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'CODE_OF_CONDUCT.md'))->toBeTrue()
             ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'SECURITY.md'))->toBeTrue()
             ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'bug_report.yml'))->toBeTrue()
-            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'regression_report.yml'))->toBeTrue()
             ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'ci_failure.yml'))->toBeTrue()
             ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'feature_request.yml'))->toBeTrue()
             ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'question.yml'))->toBeTrue()
             ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'docs_improvement.yml'))->toBeTrue()
             ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'config.yml'))->toBeTrue()
             ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'PULL_REQUEST_TEMPLATE.md'))->toBeTrue()
-            ->and($result['output'])->toContain('Published 11 community template file(s).');
+            ->and($result['output'])->toContain('Published 10 community template file(s).');
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);

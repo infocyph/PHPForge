@@ -143,7 +143,6 @@ CONTRIBUTING.md
 CODE_OF_CONDUCT.md
 SECURITY.md
 .github/ISSUE_TEMPLATE/bug_report.yml
-.github/ISSUE_TEMPLATE/regression_report.yml
 .github/ISSUE_TEMPLATE/ci_failure.yml
 .github/ISSUE_TEMPLATE/feature_request.yml
 .github/ISSUE_TEMPLATE/question.yml
@@ -993,7 +992,6 @@ Generated files:
 - `CODE_OF_CONDUCT.md`
 - `SECURITY.md`
 - `.github/ISSUE_TEMPLATE/bug_report.yml`
-- `.github/ISSUE_TEMPLATE/regression_report.yml`
 - `.github/ISSUE_TEMPLATE/ci_failure.yml`
 - `.github/ISSUE_TEMPLATE/feature_request.yml`
 - `.github/ISSUE_TEMPLATE/question.yml`
