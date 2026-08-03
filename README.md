@@ -30,7 +30,7 @@ PHPForge brings these tools through one package:
 
 ## Engineering Baseline
 
-PHPForge targets PHP 8.4 and later, uses PSR-4 autoloading, and formats first-party PHP against
+PHPForge's current `dev-main` line targets PHP 8.4 and later, uses PSR-4 autoloading, and formats first-party PHP against
 [PER Coding Style 3.0](https://www.php-fig.org/per/coding-style/) through the configured Pint toolchain.
 PHPProbe 0.7 provides the syntax, duplicate-code, and comment-policy checks used by PHPForge.
 Bundled Pest and PHPUnit configurations run with every PHP error level enabled so deprecations remain
@@ -38,11 +38,32 @@ visible during compatibility testing.
 
 ## Install
 
-Install in the consuming project (you will go through some series of approval, check and allow):
+Check the consuming project's PHP version before selecting the PHPForge line:
 
 ```bash
-composer require --dev infocyph/phpforge
+php -r 'echo PHP_VERSION, PHP_EOL;'
 ```
+
+| PHPForge line | Minimum PHP | Intended use                                |
+| ------------- |---------|---------------------------------------------|
+| `dev-main@dev` | PHP 8.4 | Current development line and newest tooling |
+| `^1.0` | PHP 8.2 | Stable 1.x line for PHP 8.2-8.5             |
+
+Install the current development line on PHP 8.4 or later:
+
+```bash
+composer require --dev infocyph/phpforge:dev-main@dev
+```
+
+Use the stable 1.x line when the project must remain compatible with PHP 8.2
+or PHP 8.3:
+
+```bash
+composer require --dev infocyph/phpforge:^1.0
+```
+
+Composer enforces the selected line's PHP constraint and rejects an
+incompatible runtime.
 
 If approval is needed (if not allowed in primary run or missed somehow), run:
 
@@ -1036,7 +1057,7 @@ Before:
 After:
 
 ```bash
-composer require --dev infocyph/phpforge
+composer require --dev infocyph/phpforge:dev-main@dev
 ```
 
 PHPForge installs the stable `psalm/phar` distribution. Its isolated
