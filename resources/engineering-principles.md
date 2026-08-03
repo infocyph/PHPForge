@@ -499,6 +499,61 @@ throughput_budget:
 - Do not use deprecated PSR-2 as the coding-style target for new code.
 - Retain PSR-12 only where an established project or toolchain still requires it; prefer PER Coding Style for current PHP syntax.
 
+### Comments, PHPDoc And Documentation Examples
+
+- Treat comments and PHPDoc as maintained engineering contracts, not decoration.
+- Write comments correctly when the code is introduced; do not defer comment quality until release cleanup or CI remediation.
+- Explain intent, invariants, constraints, trade-offs, units, lifecycle rules or non-obvious behavior that the code and native types cannot communicate clearly.
+- Do not narrate straightforward statements, repeat symbol names or restate native parameter and return types.
+- Keep every comment accurate after behavior changes. Remove or update stale comments in the same change that makes them stale.
+- Prefer clearer code, names and types over comments that compensate for avoidable complexity.
+- Use `//` for a short local explanation and a proper `/** ... */` PHPDoc block for a documented symbol, structured contract or documentation example.
+- Format PHPDoc conventionally: begin with `/**`, prefix content lines with `*`, and keep prose and tags parseable by standard PHPDoc tooling.
+- Do not place decorative prefixes such as framework-style `|` rulers inside PHPDoc. Decorative block comments may be used only when they contain prose that cannot be mistaken for disabled PHP.
+- Add PHPDoc types only when they refine the native contract, such as array shapes, generics, non-empty values, callable signatures or conditional relationships.
+- Keep PHPDoc signatures synchronized with the implementation, including every documented parameter, return, thrown exception, template and property type.
+- Do not use an invalid, vague or broader PHPDoc type merely to silence static analysis.
+- Mark documentation code with a standalone, recognized label immediately before the sample: `Example:`, `Examples:`, `Usage:`, `Snippet:` or `Code sample:`.
+- Keep code-like syntax out of ordinary prose when it can be expressed clearly as prose. Put executable-looking arrays, calls, class constants and mappings under a labeled example.
+- A configuration documentation block that contains code-like examples must be a properly formatted PHPDoc example, not commented-out executable code.
+- For every public configuration key, document:
+  - its purpose and effective type,
+  - its default and null, empty or disabled semantics,
+  - every predefined allowed value,
+  - a representative value when the domain is open-ended,
+  - units, ranges and boundary behavior,
+  - applicable drivers or runtime modes,
+  - security or operational consequences,
+  - and whether it is validated, normalized, cached or read lazily.
+- Keep configuration documentation aligned with the actual effective surface accepted by the owning library. Do not advertise ignored, unsupported or pass-through keys as supported behavior.
+- Prefer one complete example over several partial examples that leave required relationships ambiguous.
+- Ensure examples use supported classes, keys, values and public APIs and remain executable after contract changes.
+
+Use this form for code-bearing configuration documentation:
+
+```php
+/**
+ * Shared lock configuration.
+ *
+ * `driver` accepts `file|redis|memcached|pdo`. A null value leaves locking
+ * disabled. `lease` is a positive number of seconds.
+ *
+ * Example:
+ * [
+ *     'driver' => 'redis',
+ *     'lease' => 30.0,
+ * ]
+ */
+'lock' => [],
+```
+
+- Do not retain commented-out code as history; delete it and rely on version control.
+- When disabled code is temporarily unavoidable, attach a directly adjacent allowed reason tag using `TAG(scope): explanation`, state why it remains and the condition for removal or restoration, and include an issue reference for a multi-line block.
+- Do not use weak reasons such as `temporary`, `needed later`, `old code` or `do not remove`.
+- Treat `TODO`, `FIXME`, `BUG`, `HACK`, `SECURITY`, `REVIEW` and `DEPRECATED` as tracked engineering markers, not casual prose labels.
+- Do not disguise commented-out code, weaken comment-policy severity, add a baseline, suppress a finding or exclude a file to make strict comment analysis pass.
+- Resolve comment-policy findings at their source and run the strict comment check while developing the change, before the full CI pipeline.
+
 ### PHP-FIG Standards Selection And Status
 
 - Treat accepted PSRs as stable interoperability contracts.
