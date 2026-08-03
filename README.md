@@ -669,7 +669,7 @@ Workflow inputs:
 
 | Input                       | Default                               | Purpose                                                                                                                               |
 | --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `php_versions`            | `["8.4","8.5"]`                         | PHP matrix as a JSON array string.                                                                                                    |
+| `php_versions`            | `["8.4","8.5"]`                         | PHP matrix as a JSON array string. Unsupported versions are silently omitted before jobs are created.                                |
 | `dependency_versions`     | `["prefer-lowest","prefer-stable"]` | Composer dependency modes as a JSON array string.                                                                                     |
 | `php_extensions`          | `""`                                | Comma-separated PHP extensions passed to `shivammathur/setup-php`.                                                                  |
 | `composer_flags`          | `""`                                | Extra flags appended to Composer install/update commands.                                                                             |
@@ -705,6 +705,11 @@ Workflow inputs:
 with:
   php_versions: '["8.4","8.5"]'
 ```
+
+PHPForge currently supports the `8.4` and `8.5` cycles. Unsupported entries are
+silently removed from the matrix; when no supported entry remains, PHP-dependent
+jobs are skipped successfully. Exact patch releases within a supported cycle,
+such as `8.4.12`, are accepted.
 
 Use a smaller matrix for faster daily CI, or the full supported range for release confidence.
 

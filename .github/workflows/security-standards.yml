@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       php_versions:
-        description: "JSON array of PHP versions."
+        description: "JSON array of PHP versions; versions unsupported by PHPForge are skipped."
         required: false
         type: string
         default: '["8.4","8.5"]'
@@ -147,20 +147,32 @@ jobs:
       php_versions: ${{ steps.matrix.outputs.php_versions }}
       dependency_versions: ${{ steps.matrix.outputs.dependency_versions }}
       clean_install_php_version: ${{ steps.matrix.outputs.clean_install_php_version }}
+      has_supported_php_versions: ${{ steps.matrix.outputs.has_supported_php_versions }}
     steps:
+      - name: Checkout workflow source
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .phpforge-workflow
+          sparse-checkout: |
+            .github/scripts/resolve-php-matrix.sh
+          sparse-checkout-cone-mode: false
+
       - name: Define shared matrix values
         id: matrix
         shell: bash
         env:
           PHP_VERSIONS_INPUT: ${{ inputs.php_versions }}
+          SUPPORTED_PHP_VERSIONS: '["8.4","8.5"]'
         run: |
-          echo 'php_versions=${{ inputs.php_versions }}' >> "$GITHUB_OUTPUT"
           echo 'dependency_versions=${{ inputs.dependency_versions }}' >> "$GITHUB_OUTPUT"
-          clean_install_php_version="$(jq -er 'if type == "array" and length > 0 and all(.[]; type == "string" and length > 0) then .[-1] else error("php_versions must be a non-empty string array") end' <<< "$PHP_VERSIONS_INPUT")"
-          echo "clean_install_php_version=${clean_install_php_version}" >> "$GITHUB_OUTPUT"
+          INPUT_PHP_VERSIONS="$PHP_VERSIONS_INPUT" \
+            bash .phpforge-workflow/.github/scripts/resolve-php-matrix.sh
 
   run:
     needs: prepare
+    if: needs.prepare.outputs.has_supported_php_versions == 'true'
     runs-on: ${{ matrix.operating-system }}
     services:
       redis:
@@ -394,7 +406,7 @@ jobs:
 
   clean-install:
     needs: prepare
-    if: inputs.run_clean_install
+    if: inputs.run_clean_install && needs.prepare.outputs.has_supported_php_versions == 'true'
     name: Clean Composer Install - PHP ${{ needs.prepare.outputs.clean_install_php_version }}
     runs-on: ubuntu-latest
     env:
@@ -436,7 +448,7 @@ jobs:
 
   analyze:
     needs: prepare
-    if: inputs.run_analysis
+    if: inputs.run_analysis && needs.prepare.outputs.has_supported_php_versions == 'true'
     name: Security Analysis - PHP ${{ matrix.php-versions }}
     runs-on: ubuntu-latest
     env:
@@ -616,7 +628,7 @@ jobs:
 
   benchmark:
     needs: prepare
-    if: (inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || inputs.benchmark_composer_script != '' || inputs.benchmark_result_file != ''
+    if: needs.prepare.outputs.has_supported_php_versions == 'true' && ((inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || inputs.benchmark_composer_script != '' || inputs.benchmark_result_file != '')
     name: Benchmark
     runs-on: ubuntu-latest
     env:
@@ -735,10 +747,11 @@ jobs:
 
   svg-report:
     needs:
+      - prepare
       - run
       - analyze
       - benchmark
-    if: always() && inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: always() && needs.prepare.outputs.has_supported_php_versions == 'true' && inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     name: Security SVG Report
     runs-on: ubuntu-latest
     env:
@@ -755,7 +768,7 @@ jobs:
         id: report_php
         shell: bash
         run: |
-          php_version="$(jq -r 'if type == "array" and length > 0 then .[-1] else empty end' <<< '${{ inputs.php_versions }}')"
+          php_version="$(jq -r 'if type == "array" and length > 0 then .[-1] else empty end' <<< '${{ needs.prepare.outputs.php_versions }}')"
 
           if [ -z "$php_version" ] || [ "$php_version" = "null" ]; then
             php_version="8.5"
@@ -799,7 +812,7 @@ jobs:
           RUN_RESULT: ${{ needs.run.result }}
           ANALYZE_RESULT: ${{ needs.analyze.result }}
           BENCHMARK_JOB_RESULT: ${{ needs.benchmark.result }}
-          PHP_VERSIONS_INPUT: ${{ inputs.php_versions }}
+          PHP_VERSIONS_INPUT: ${{ needs.prepare.outputs.php_versions }}
         run: bash .phpforge-workflow/.github/scripts/build-security-report.sh
       - name: Upload security report artifacts
         uses: actions/upload-artifact@v7
