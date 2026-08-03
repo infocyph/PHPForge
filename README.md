@@ -41,7 +41,7 @@ visible during compatibility testing.
 Install in the consuming project (you will go through some series of approval, check and allow):
 
 ```bash
-composer require --dev infocyph/phpforge
+composer require --dev infocyph/phpforge:dev-main@dev
 ```
 
 If approval is needed (if not allowed in primary run or missed somehow), run:
@@ -1036,7 +1036,7 @@ Before:
 After:
 
 ```bash
-composer require --dev infocyph/phpforge
+composer require --dev infocyph/phpforge:dev-main@dev
 ```
 
 PHPForge installs the stable `psalm/phar` distribution. Its isolated
