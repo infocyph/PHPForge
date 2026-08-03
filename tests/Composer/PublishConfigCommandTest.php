@@ -5,6 +5,16 @@ declare(strict_types=1);
 use Infocyph\PHPForge\Composer\PublishConfigCommand;
 use Symfony\Component\Console\Output\BufferedOutput;
 
+it('ships strict comment policy without tightening unrelated PHPProbe detectors', function (): void {
+    $contents = file_get_contents(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpprobe.json');
+    $config = is_string($contents) ? json_decode($contents, true) : null;
+
+    expect($config)->toBe([
+        'preset' => 'standard',
+        'commented_out_code' => ['policy' => 'strict'],
+    ]);
+});
+
 function removePublishConfigCommandTree(string $path): void
 {
     if (!is_dir($path)) {

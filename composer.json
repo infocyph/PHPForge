@@ -28,7 +28,7 @@
         "captainhook/captainhook": "^5.29.2",
         "deptrac/deptrac": "^4.7.1",
         "ergebnis/composer-normalize": "^2.52",
-        "infocyph/phpprobe": "^0.6",
+        "infocyph/phpprobe": "^0.7",
         "laravel/pint": "^1.30.3",
         "pestphp/pest": "^5.0.2",
         "pestphp/pest-plugin-drift": "^5.0",
