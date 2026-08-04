@@ -203,7 +203,7 @@ final class TaskCatalog
      */
     public static function security(): array
     {
-        return [[Paths::php(), Paths::bin('psalm.phar'), '--config=' . Paths::config('psalm.xml'), '--security-analysis', '--threads=' . self::psalmThreads(), '--no-cache']];
+        return [[Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--security-analysis', '--threads=' . self::psalmThreads(), '--no-cache']];
     }
 
     /**
@@ -317,7 +317,7 @@ final class TaskCatalog
      */
     private static function benchCommand(array $options): array
     {
-        $configPath = Paths::config('phpbench.json');
+        $configPath = Paths::firstConfig(['phpbench.json', 'phpbench.json.dist']);
 
         return [
             Paths::php(),
@@ -452,7 +452,7 @@ final class TaskCatalog
             ...($ciComments ? self::commentsCi() : self::comments()),
             ...self::architecture(),
             ...self::staticAnalysis(),
-            [Paths::php(), Paths::bin('psalm.phar'), '--config=' . Paths::config('psalm.xml'), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
+            [Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
             ...self::refactorCheck(),
         ];
     }
@@ -584,6 +584,11 @@ final class TaskCatalog
     private static function probeCommand(string $subcommand, array $extraArgs = []): array
     {
         return [Paths::php(), Paths::bin('phpprobe'), $subcommand, '--config', Paths::config('phpprobe.json'), ...$extraArgs];
+    }
+
+    private static function psalmConfig(): string
+    {
+        return Paths::firstConfig(['psalm.xml', 'psalm.xml.dist']);
     }
 
     private static function psalmThreads(): string

@@ -474,14 +474,14 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 
 | Tool                   | Lookup Order                                                                                                     |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Pest / PHPUnit         | `pest.xml`, then `phpunit.xml`, then `pest.xml.dist`, then `phpunit.xml.dist`, then bundled `pest.xml` |
-| PHPBench               | `phpbench.json`, then bundled `phpbench.json`                                                                |
+| Pest / PHPUnit         | `pest.xml`, `pest.xml.dist`, `phpunit.xml`, `phpunit.xml.dist`, then the first matching bundled config |
+| PHPBench               | `phpbench.json`, then `phpbench.json.dist`, then the first matching bundled config                          |
 | PHPProbe checker tasks | `phpprobe.json`, then bundled `phpprobe.json`                                                                |
 | Deptrac                | `deptrac.yaml`, then bundled `deptrac.yaml`                                                                  |
 | PHPCS / PHPCBF         | `phpcs.xml.dist`, then bundled `phpcs.xml.dist`                                                              |
-| PHPStan                | `phpstan.neon.dist`, then bundled `phpstan.neon.dist`                                                        |
+| PHPStan                | `phpstan.neon`, then `phpstan.neon.dist`, then the first matching bundled config                            |
 | Pint                   | `pint.json`, then bundled `pint.json`                                                                        |
-| Psalm                  | `psalm.xml`, then bundled `psalm.xml`                                                                        |
+| Psalm                  | `psalm.xml`, then `psalm.xml.dist`, then the first matching bundled config                                  |
 | Rector                 | `rector.php`, then bundled `rector.php`                                                                      |
 | CaptainHook            | `captainhook.json`, then bundled `captainhook.json`                                                          |
 
@@ -836,14 +836,18 @@ When a service is enabled, the workflow exports these environment variables in t
 - `IC_ELASTICSEARCH_HOST`, `IC_ELASTICSEARCH_PORT`, `IC_ELASTICSEARCH_URL`
 - `IC_MONGODB_HOST`, `IC_MONGODB_PORT`, `IC_MONGODB_DSN`
 
-`run_analysis` controls the SARIF upload job:
+`run_analysis` controls the dedicated Composer audit, PHPStan, Psalm, and SARIF
+analysis job:
 
 ```yaml
 with:
   run_analysis: false
 ```
 
-Set it to `false` when the repository does not use GitHub code scanning, does not grant `security-events: write`, or wants CI-only runs.
+SARIF publication is best-effort. A repository without GitHub code scanning or
+Advanced Security still runs the audit and local analysis gates; an unavailable
+upload does not fail the job. Set `run_analysis: false` only when the entire
+dedicated analysis job should be skipped.
 
 `run_svg_report` controls the SVG reporting artifact job:
 
@@ -993,7 +997,11 @@ jobs:
       run_analysis: true
 ```
 
-For code scanning, project-local PHPStan configs (`phpstan.neon`, then `phpstan.neon.dist`) and Psalm configs (`psalm.xml`, then `psalm.xml.dist`) are used when present; otherwise the workflow falls back to PHPForge defaults.
+For code scanning, project-local PHPStan configs (`phpstan.neon`, then
+`phpstan.neon.dist`) and Psalm configs (`psalm.xml`, then `psalm.xml.dist`) are
+used when present. The PHPForge repository itself falls back to its root
+`resources/` configs; every consuming project falls back to the installed
+`vendor/infocyph/phpforge/resources/` configs after Composer installation.
 
 ## Other CI Platforms
 
@@ -1154,7 +1162,10 @@ composer ic:hooks
 
 ### GitHub code scanning upload fails
 
-Set `run_analysis: false` in the workflow wrapper if the repository does not have SARIF upload permission:
+SARIF upload is non-blocking when GitHub code scanning or Advanced Security is
+unavailable. The Composer audit and local PHPStan/Psalm gates still determine
+the analysis job result. Use `run_analysis: false` only to disable that entire
+job:
 
 ```yaml
 with:

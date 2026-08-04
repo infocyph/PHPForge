@@ -108,19 +108,23 @@ it('hard fails for consuming projects when project and vendor configs are missin
     }
 });
 
-it('uses source-tree resources for non-PHPForge consuming projects', function (): void {
+it('ignores consuming-project resources and falls back to vendor PHPForge config', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-paths-'.uniqid('', true);
     $resourcesPath = $projectRoot.DIRECTORY_SEPARATOR.'resources';
+    $vendorResources = $projectRoot.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'infocyph'.DIRECTORY_SEPARATOR.'phpforge'.DIRECTORY_SEPARATOR.'resources';
+    $vendorConfig = $vendorResources.DIRECTORY_SEPARATOR.'deptrac.yaml';
 
     mkdir($resourcesPath, 0755, true);
+    mkdir($vendorResources, 0755, true);
     file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
-    file_put_contents($resourcesPath.DIRECTORY_SEPARATOR.'pint.json', '{}');
+    file_put_contents($resourcesPath.DIRECTORY_SEPARATOR.'deptrac.yaml', 'project resources');
+    file_put_contents($vendorConfig, 'vendor resources');
 
     chdir($projectRoot);
 
     try {
-        expect(Paths::config('pint.json'))->toBe($resourcesPath.DIRECTORY_SEPARATOR.'pint.json');
+        expect(Paths::config('deptrac.yaml'))->toBe($vendorConfig);
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);
@@ -153,9 +157,8 @@ it('uses source-tree resources only for the PHPForge project itself', function (
     }
 });
 
-it('returns source-tree config when project config from a list does not exist', function (): void {
-    expect(Paths::firstProjectConfig(['pest.xml', 'phpunit.xml']))
-        ->toBe(Paths::projectRootPath().DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'pest.xml');
+it('does not treat PHPForge source resources as project config', function (): void {
+    expect(Paths::firstProjectConfig(['pest.xml', 'phpunit.xml']))->toBeNull();
 });
 
 it('returns null when no project-only config exists', function (): void {
