@@ -125,3 +125,13 @@ it('resolves benchmark config from the project root or the correct PHPForge pack
         ->and($script)->toContain('config_candidates+=("resources/phpbench.json")')
         ->and($script)->toContain('${vendor_dir}/infocyph/phpforge/resources/phpbench.json');
 });
+
+it('skips the default benchmark run when the consuming project has no benchmark directory', function (): void {
+    $script = file_get_contents(dirname(__DIR__, 2).'/.github/scripts/run-benchmark.sh');
+
+    expect($script)->toBeString()
+        ->and($script)->toContain('benchmark_path=""')
+        ->and($script)->toContain('[ -z "$custom_benchmark_script" ] && [ -z "$benchmark_path" ]')
+        ->and($script)->toContain('No benchmark directory found; skipping benchmark run.')
+        ->and($script)->toContain('benchmark_status=skipped');
+});
