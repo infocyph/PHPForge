@@ -545,14 +545,16 @@ jobs:
         id: phpstan_scan
         run: |
           VENDOR_DIR="$(composer config vendor-dir)"
-          PHPSTAN_CONFIG="$VENDOR_DIR/infocyph/phpforge/resources/phpstan.neon.dist"
+          PACKAGE_NAME="$(composer config name --no-plugins --no-scripts 2>/dev/null || true)"
 
           if [ -f "phpstan.neon" ]; then
             PHPSTAN_CONFIG="phpstan.neon"
           elif [ -f "phpstan.neon.dist" ]; then
             PHPSTAN_CONFIG="phpstan.neon.dist"
-          elif [ -f "resources/phpstan.neon.dist" ]; then
+          elif [ "$PACKAGE_NAME" = "infocyph/phpforge" ]; then
             PHPSTAN_CONFIG="resources/phpstan.neon.dist"
+          else
+            PHPSTAN_CONFIG="$VENDOR_DIR/infocyph/phpforge/resources/phpstan.neon.dist"
           fi
 
           if [ ! -f "$PHPSTAN_CONFIG" ]; then
@@ -569,6 +571,7 @@ jobs:
       - name: Upload PHPStan Results
         id: upload_phpstan
         uses: github/codeql-action/upload-sarif@v4
+        continue-on-error: true
         with:
           sarif_file: phpstan-results.sarif
           category: "phpstan-${{ matrix.php-versions }}"
@@ -578,13 +581,16 @@ jobs:
         id: psalm_scan
         run: |
           VENDOR_DIR="$(composer config vendor-dir)"
-          PSALM_CONFIG="$VENDOR_DIR/infocyph/phpforge/resources/psalm.xml"
+          PACKAGE_NAME="$(composer config name --no-plugins --no-scripts 2>/dev/null || true)"
+
           if [ -f "psalm.xml" ]; then
             PSALM_CONFIG="psalm.xml"
           elif [ -f "psalm.xml.dist" ]; then
             PSALM_CONFIG="psalm.xml.dist"
-          elif [ -f "resources/psalm.xml" ]; then
+          elif [ "$PACKAGE_NAME" = "infocyph/phpforge" ]; then
             PSALM_CONFIG="resources/psalm.xml"
+          else
+            PSALM_CONFIG="$VENDOR_DIR/infocyph/phpforge/resources/psalm.xml"
           fi
 
           if [ ! -f "$PSALM_CONFIG" ]; then
@@ -598,6 +604,7 @@ jobs:
       - name: Upload Psalm Results
         id: upload_psalm
         uses: github/codeql-action/upload-sarif@v4
+        continue-on-error: true
         with:
           sarif_file: psalm-results.sarif
           category: "psalm-${{ matrix.php-versions }}"

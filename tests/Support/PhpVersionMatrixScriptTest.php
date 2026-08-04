@@ -85,3 +85,31 @@ it('guards every PHP workflow job with the filtered matrix result', function ():
         ->and($workflow['jobs']['svg-report']['if'] ?? null)
         ->toContain("needs.prepare.outputs.has_supported_php_versions == 'true'");
 });
+
+it('installs dependencies before resolving package-aware analysis configs', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $steps = $workflow['jobs']['analyze']['steps'] ?? [];
+    $stepsByName = array_column($steps, null, 'name');
+    $stepNames = array_column($steps, 'name');
+
+    $installIndex = array_search('Install dependencies', $stepNames, true);
+    $phpstanIndex = array_search('Run PHPStan (Code Scanning)', $stepNames, true);
+    $psalmIndex = array_search('Run Psalm Security Scan', $stepNames, true);
+    $phpstanScript = $stepsByName['Run PHPStan (Code Scanning)']['run'] ?? '';
+    $psalmScript = $stepsByName['Run Psalm Security Scan']['run'] ?? '';
+
+    expect($installIndex)->toBeInt()
+        ->and($phpstanIndex)->toBeInt()->toBeGreaterThan($installIndex)
+        ->and($psalmIndex)->toBeInt()->toBeGreaterThan($installIndex)
+        ->and($phpstanScript)->toContain('PACKAGE_NAME="$(composer config name --no-plugins --no-scripts')
+        ->and($phpstanScript)->toContain('elif [ "$PACKAGE_NAME" = "infocyph/phpforge" ]; then')
+        ->and($phpstanScript)->toContain('PHPSTAN_CONFIG="resources/phpstan.neon.dist"')
+        ->and($phpstanScript)->toContain(
+            'PHPSTAN_CONFIG="$VENDOR_DIR/infocyph/phpforge/resources/phpstan.neon.dist"',
+        )
+        ->and($psalmScript)->toContain('elif [ "$PACKAGE_NAME" = "infocyph/phpforge" ]; then')
+        ->and($psalmScript)->toContain('PSALM_CONFIG="resources/psalm.xml"')
+        ->and($psalmScript)->toContain('PSALM_CONFIG="$VENDOR_DIR/infocyph/phpforge/resources/psalm.xml"')
+        ->and($stepsByName['Upload PHPStan Results']['continue-on-error'] ?? null)->toBeTrue()
+        ->and($stepsByName['Upload Psalm Results']['continue-on-error'] ?? null)->toBeTrue();
+});
