@@ -36,6 +36,29 @@ if [ "$benchmark_command" = "none" ]; then
   exit 0
 fi
 
+benchmark_path=""
+
+for candidate in \
+  "benchmarks" \
+  "tests/Bench" \
+  "tests/Benchmark" \
+  "tests/Benchmarks"; do
+  if [ -d "$candidate" ]; then
+    benchmark_path="$candidate"
+    break
+  fi
+done
+
+if [ -z "$custom_benchmark_script" ] && [ -z "$benchmark_path" ]; then
+  echo "No benchmark directory found; skipping benchmark run."
+  echo "benchmark_command=${benchmark_command}" >> "$GITHUB_OUTPUT"
+  echo "duration_ms=0" >> "$GITHUB_OUTPUT"
+  echo "benchmark_metric_ns=0" >> "$GITHUB_OUTPUT"
+  echo "benchmark_metric_source=none" >> "$GITHUB_OUTPUT"
+  echo "benchmark_status=skipped" >> "$GITHUB_OUTPUT"
+  exit 0
+fi
+
 if [ -z "$custom_benchmark_script" ] && [ ! -f "vendor/bin/phpbench" ]; then
   echo "PHPBench binary not found at vendor/bin/phpbench; skipping benchmark run."
   echo "benchmark_command=${benchmark_command}" >> "$GITHUB_OUTPUT"
@@ -82,16 +105,9 @@ if [ "$benchmark_command" = "ic:bench:quick" ]; then
   phpbench_args+=(--revs=10 --iterations=3 --warmup=1)
 fi
 
-for bench_path in \
-  "benchmarks" \
-  "tests/Bench" \
-  "tests/Benchmark" \
-  "tests/Benchmarks"; do
-  if [ -d "$bench_path" ]; then
-    phpbench_args+=("$bench_path")
-    break
-  fi
-done
+if [ -n "$benchmark_path" ]; then
+  phpbench_args+=("$benchmark_path")
+fi
 
 start_ms="$(date +%s%3N)"
 set +e
