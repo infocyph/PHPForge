@@ -474,14 +474,14 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 
 | Tool                   | Lookup Order                                                                                                     |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Pest / PHPUnit         | `pest.xml`, then `phpunit.xml`, then `pest.xml.dist`, then `phpunit.xml.dist`, then bundled `pest.xml` |
-| PHPBench               | `phpbench.json`, then bundled `phpbench.json`                                                                |
+| Pest / PHPUnit         | `pest.xml`, `pest.xml.dist`, `phpunit.xml`, `phpunit.xml.dist`, then the first matching bundled config |
+| PHPBench               | `phpbench.json`, then `phpbench.json.dist`, then the first matching bundled config                          |
 | PHPProbe checker tasks | `phpprobe.json`, then bundled `phpprobe.json`                                                                |
 | Deptrac                | `deptrac.yaml`, then bundled `deptrac.yaml`                                                                  |
 | PHPCS / PHPCBF         | `phpcs.xml.dist`, then bundled `phpcs.xml.dist`                                                              |
-| PHPStan                | `phpstan.neon.dist`, then bundled `phpstan.neon.dist`                                                        |
+| PHPStan                | `phpstan.neon`, then `phpstan.neon.dist`, then the first matching bundled config                            |
 | Pint                   | `pint.json`, then bundled `pint.json`                                                                        |
-| Psalm                  | `psalm.xml`, then bundled `psalm.xml`                                                                        |
+| Psalm                  | `psalm.xml`, then `psalm.xml.dist`, then the first matching bundled config                                  |
 | Rector                 | `rector.php`, then bundled `rector.php`                                                                      |
 | CaptainHook            | `captainhook.json`, then bundled `captainhook.json`                                                          |
 

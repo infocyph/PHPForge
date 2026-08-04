@@ -48,12 +48,24 @@ fi
 
 phpbench_bin="vendor/bin/phpbench"
 config_path=""
+package_name="$(composer config name --no-plugins --no-scripts 2>/dev/null || true)"
 
-for candidate in \
-  "phpbench.json" \
-  "phpbench.json.dist" \
-  "resources/phpbench.json" \
-  "vendor/infocyph/phpforge/resources/phpbench.json"; do
+config_candidates=(
+  "phpbench.json"
+  "phpbench.json.dist"
+)
+
+if [ "$package_name" = "infocyph/phpforge" ]; then
+  config_candidates+=("resources/phpbench.json")
+else
+  vendor_dir="$(composer config vendor-dir --absolute --no-plugins --no-scripts 2>/dev/null || true)"
+
+  if [ -n "$vendor_dir" ]; then
+    config_candidates+=("${vendor_dir}/infocyph/phpforge/resources/phpbench.json")
+  fi
+fi
+
+for candidate in "${config_candidates[@]}"; do
   if [ -f "$candidate" ]; then
     config_path="$candidate"
     break

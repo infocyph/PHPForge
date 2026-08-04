@@ -113,3 +113,15 @@ it('installs dependencies before resolving package-aware analysis configs', func
         ->and($stepsByName['Upload PHPStan Results']['continue-on-error'] ?? null)->toBeTrue()
         ->and($stepsByName['Upload Psalm Results']['continue-on-error'] ?? null)->toBeTrue();
 });
+
+it('resolves benchmark config from the project root or the correct PHPForge package location', function (): void {
+    $script = file_get_contents(dirname(__DIR__, 2).'/.github/scripts/run-benchmark.sh');
+
+    expect($script)->toBeString()
+        ->and($script)->toContain('package_name="$(composer config name --no-plugins --no-scripts')
+        ->and($script)->toContain('"phpbench.json"')
+        ->and($script)->toContain('"phpbench.json.dist"')
+        ->and($script)->toContain('if [ "$package_name" = "infocyph/phpforge" ]; then')
+        ->and($script)->toContain('config_candidates+=("resources/phpbench.json")')
+        ->and($script)->toContain('${vendor_dir}/infocyph/phpforge/resources/phpbench.json');
+});

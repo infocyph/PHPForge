@@ -237,22 +237,7 @@ final class Paths
     {
         $projectFile = self::projectRoot() . DIRECTORY_SEPARATOR . $file;
 
-        if (is_file($projectFile)) {
-            return $projectFile;
-        }
-
-        $projectResourceFile = self::projectResourceFile($file);
-
-        if (is_file($projectResourceFile)) {
-            return $projectResourceFile;
-        }
-
-        return null;
-    }
-
-    private static function projectResourceFile(string $file): string
-    {
-        return self::projectRoot() . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . ltrim($file, '/\\');
+        return is_file($projectFile) ? $projectFile : null;
     }
 
     private static function projectRoot(): string
