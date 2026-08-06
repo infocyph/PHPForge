@@ -22,6 +22,17 @@
 - Be skeptical of defaults, conventions and abstractions that introduce hidden runtime or operational costs.
 - When sustained throughput is practically equivalent, choose the implementation with lower complexity, lower operating cost and more predictable behavior.
 - When uncertain, choose the simpler design that is easier to benchmark, profile, operate and change.
+- Interpret specific rules as refinements of general rules.
+- When rules appear to conflict, apply them in this order:
+  - correctness, security, authorization, data integrity and operational stability,
+  - explicit public, protocol and interoperability contracts,
+  - the more specific domain or boundary rule,
+  - the highest sustainable successful RPM within defined budgets,
+  - and then lower total complexity, operating cost and maintenance burden.
+- Do not use a general performance or simplification rule to override a stricter security, compatibility, quality-gate or protocol requirement.
+- When two applicable blocking requirements cannot both be satisfied, do not silently choose one or claim completion.
+- Redesign the change or report the conflict for an explicit project decision.
+- A change is acceptable only when every applicable blocking constraint is satisfied.
 
 - Focus on the active task and implement the smallest correct change set.
 - Do not perform broad cleanup, refactoring, renaming, file moves, dependency changes or rewrites without explicit approval.
@@ -631,6 +642,7 @@ array_search($value, $items, true);
 ### Cohesion, Size And Complexity
 
 - Keep methods, functions and closures small, cohesive and clear.
+- Interpret `small` as one cohesive responsibility with understandable control flow, not as a line-count target.
 - Split code when responsibilities, branch count or execution paths become difficult to reason about.
 - Avoid hidden side effects and mixed responsibilities.
 - Make state changes explicit.
@@ -645,7 +657,13 @@ array_search($value, $items, true);
 - Do not add docblocks that merely repeat method names or native type declarations.
 - Do not use references as a presumed optimization.
 - Use references only when reference semantics are functionally required.
-- Do not extract every small block into another method. Keep cohesive low-level operations local when extraction would add dispatch without improving reuse, testing, invariants or readability.
+- Do not extract every small block into another method.
+- Keep cohesive low-level operations local when extraction would add dispatch without improving:
+  - ownership,
+  - reuse,
+  - testability,
+  - invariants,
+  - or readability.
 - Avoid chains of tiny method calls inside measured hot loops when equivalent local code is clearer and materially faster.
 - Do not introduce DTOs, value objects, wrappers or custom collections into a hot path solely for stylistic consistency when they add allocations without enforcing a useful contract.
 
@@ -659,59 +677,366 @@ cognitive_complexity:
 ```
 
 - Treat cognitive complexity as a maintainability guard, not a runtime-performance target.
+- Treat cognitive-complexity values as maximum limits, not utilization targets.
+- Do not attempt to keep classes or functions close to their complexity limits.
+- Prefer cohesive classes with low complexity when the responsibility is naturally simple.
 - Do not increase complexity thresholds to pursue theoretical performance improvements.
 - Prefer simplifying control flow before extracting additional methods or classes.
 - Do not fragment cohesive hot-path logic into excessive wrappers solely to satisfy a complexity limit.
 - Do not raise a project-wide limit to accommodate one parser, protocol implementation, state machine, generated file or performance-critical algorithm.
-- Allow narrowly scoped exceptions only when profiling and representative benchmarks show that the simpler refactoring causes a material regression.
-- Document every exception with:
-  - the affected hot path,
-  - profiler or benchmark evidence,
-  - the tested workload,
-  - why the complexity is necessary,
-  - and when the exception should be reviewed.
-- Exclude generated code from cognitive-complexity enforcement where appropriate.
+- Do not resolve a cognitive-complexity finding by:
+  - raising a threshold,
+  - adding or expanding a baseline,
+  - excluding the affected code,
+  - suppressing the rule,
+  - or moving the code outside the detector's scope.
+- Profiling evidence may guide how a complex parser, protocol implementation, state machine or hot algorithm is refactored, but it does not justify bypassing the detector.
+- Simplify control flow, isolate a genuinely cohesive responsibility or correct a demonstrably misconfigured detector according to the quality-gate rules.
+- A valid complexity finding remains unresolved until the code or the demonstrably incorrect detector configuration is corrected.
+- Generated code may remain outside hand-written-code complexity limits only when:
+  - it is deterministically generated,
+  - the generator or source template remains analyzed and reviewed,
+  - the exclusion is an established project policy,
+  - and the exclusion is not being added merely to make a current finding pass.
+- Do not relabel, move or regenerate hand-written code to obtain a generated-code exclusion.
 - Configure dependency-tree analysis against relevant project root types instead of applying it blindly to every class.
 
-- Treat cognitive-complexity values as maximum limits, not utilization targets.
-- Do not attempt to keep classes or functions close to their complexity limits.
-- Prefer cohesive classes with low complexity when the responsibility is naturally simple.
-- A new class must reduce total system complexity, isolate a meaningful responsibility, enforce an invariant or establish a real architectural boundary.
-- Do not extract a new class merely to reduce a complexity score, shorten a file or satisfy an arbitrary line-count target.
-- Prefer private methods inside the existing class when extracted logic:
-  - belongs exclusively to that class,
-  - shares the same lifecycle,
-  - uses the same dependencies,
-  - and is unlikely to be reused or substituted independently.
-- Keep tightly related, single-use behavior together unless doing so causes mixed responsibilities or excessive branching.
-- Do not create one-method classes unless the type has a clear role, such as:
-  - an adapter,
-  - command,
-  - handler,
-  - strategy,
-  - specification,
-  - value object,
-  - middleware,
-  - or callable extension point.
-- Do not create separate files for trivial wrappers that add no validation, behavior, abstraction or operational value.
-- Do not split a cohesive class only because it contains many private methods.
-- Split a class when it has multiple reasons to change, unrelated dependencies, separate lifecycle requirements or independently replaceable behavior.
-- Evaluate extraction by net complexity:
+### Structural Simplification, Type Budget And Call-Hop Reduction
+
+**Default Ownership Rule**
+
+- Prefer the smallest coherent structure that preserves:
+  - correctness,
+  - security,
+  - cohesion,
+  - explicit contracts,
+  - maintainability,
+  - interoperability,
+  - and operational safety.
+- Behavior remains inside its existing cohesive owner unless a separate type provides a concrete boundary or a demonstrable reduction in total system complexity.
+- The default extraction target is a private method, not a new class.
+- Treat class count, interface count, file count, public-type count, method count and call depth as diagnostic signals rather than independent optimization targets.
+- Do not treat more classes, files, methods or abstractions as evidence of better architecture.
+- Do not minimize symbol or file count blindly when separation protects a meaningful boundary.
+- Do not merge unrelated behavior merely to reduce symbols, files, methods or directory entries.
+- Do not split cohesive behavior solely to reduce line count, lower one local complexity score or display a design pattern.
+- Optimize for the smallest coherent type system, not the smallest individual file.
+- Structural simplification is subordinate to correctness, security, public contracts, operational stability and sustained successful RPM.
+- Do not remove a meaningful boundary or a measured optimization merely to reduce class, method or file counts.
+- Preserve deliberate, bounded duplication or precomputation when it materially improves sustained RPM and its consistency and lifecycle are controlled.
+
+**Source-File And Type-Count Review**
+
+- Review a library when its production source-file count appears disproportionate to its:
+  - executable code,
+  - number of public capabilities,
+  - supported backends or providers,
+  - public contracts,
+  - security boundaries,
+  - and independently managed lifecycles.
+- File count is a review signal, not proof of a defect.
+- A source file or type should normally represent a meaningful:
+  - public capability,
+  - backend or provider,
+  - interoperability boundary,
+  - security boundary,
+  - lifecycle,
+  - protocol concept,
+  - reusable public value,
+  - or independently owned responsibility.
+- Reduce file count by removing unnecessary types and consolidating behavior into its correct cohesive owner.
+- Do not reduce file count by placing unrelated classes or public symbols in one file.
+- Prefer one primary public autoloadable symbol per file.
+- Co-locate tightly coupled, single-use implementation details only when the project structure supports it and separate files add navigation or declaration overhead without architectural value.
+- Do not create separate files for trivial wrappers that add no validation, behavior, contract, adaptation or operational value.
+
+**New Type Justification**
+
+- Every new production class, interface, enum, trait, DTO, result, wrapper, handler and source file must justify its independent existence.
+- Test-only fakes, fixtures, data providers and framework-required support files may remain separate when they have a clear test or integration responsibility.
+- Test or support structure does not justify expanding the production public surface.
+- Create a new type only when it provides at least one meaningful benefit:
+  - a public capability intentionally exposed to consumers,
+  - a genuine backend, driver, provider or adapter implementation,
+  - a stable public extension or interoperability contract,
+  - a framework-required extension, integration or entry-point type,
+  - stronger type safety,
+  - invariant enforcement,
+  - independent substitution,
+  - a distinct lifecycle,
+  - independently managed state,
+  - a security or authorization boundary,
+  - an independently selectable security policy,
+  - transaction or persistence ownership,
+  - an external-resource boundary,
+  - public contract stability,
+  - an immutable public configuration contract with meaningful validation,
+  - a security-sensitive value object that prevents invalid or unsafe states,
+  - a reusable result crossing a public boundary,
+  - a protocol-defined object or message,
+  - a complex algorithm with independent configuration, reuse or substitution,
+  - a separately deployable, scalable or executable process boundary,
+  - reuse by multiple otherwise independent owners,
+  - or a demonstrated reduction in total system complexity that exceeds the added abstraction cost.
+- Testability by itself does not justify a separate class.
+- Public visibility by itself does not justify an interface.
+- A block of code does not require a new class merely because it:
+  - has a name,
+  - can be tested separately,
+  - contains several conditions,
+  - can implement an interface,
+  - resembles a design pattern,
+  - or would reduce the line count of its current owner.
+- Do not create a type merely to:
+  - satisfy a pattern,
+  - reduce line count,
+  - lower a local complexity score,
+  - enable mocking,
+  - rename a scalar,
+  - or make the directory structure appear more architectural.
+- Count abstraction overhead as part of the design cost:
   - additional files,
-  - additional symbols,
+  - autoloaded symbols,
   - constructor dependencies,
-  - dispatch layers,
-  - autoload work,
+  - dependency-injection wiring,
+  - runtime dispatch,
   - configuration,
-  - and navigation cost.
+  - testing surface,
+  - stack depth,
+  - navigation cost,
+  - and maintenance burden.
+- Reject abstractions whose expected value is speculative or smaller than their ongoing operational and cognitive cost.
+- Record the justification when adding a new public type or a non-trivial internal abstraction.
+
+**Remove Unnecessary Abstractions**
+
+Remove or consolidate:
+
+- Interfaces with one internal implementation when:
+  - consumers cannot provide another implementation,
+  - no backend, provider or interoperability boundary exists,
+  - no independent substitution is required,
+  - and no second implementation is part of the active design.
+- Public wrappers that delegate every operation without adding:
+  - adaptation,
+  - validation,
+  - policy,
+  - authorization,
+  - caching,
+  - transaction ownership,
+  - compatibility,
+  - or lifecycle management.
+- Internal helper classes containing only one trivial method.
+- One-method classes that have no meaningful command, adapter, middleware, strategy, specification, value, result, extension or lifecycle role.
+- Classes created only to avoid several private methods in one cohesive service.
+- Separate validator classes for each field, claim, property or condition when one cohesive validator owns the complete operation.
+- Separate factory, builder, manager, handler, processor and executor classes that form a pass-through chain for one capability.
+- Separate result classes with equivalent success values and nearly identical failure semantics.
+- Enums used only inside one class when private typed constants provide equivalent safety and clarity.
+- Duplicate public entry points for the same capability.
+- Repeated DTO, entity, transport, array and response conversions that do not represent real boundaries.
+- Empty marker abstractions that enforce no contract and affect no behavior.
+- Interfaces created only to make a concrete class mockable.
+- Redundant names such as `Default`, `Base` or `Impl` when one implementation exists and no alternate implementation is part of the contract.
+- Paired files such as `UserServiceInterface` and `UserService` when the interface has no concrete architectural purpose.
+
+**Keep Small Classes When They Represent**
+
+- A small class is not automatically unnecessary.
+- Keep a small class when it represents:
+  - a public capability,
+  - a real adapter, driver, backend or provider,
+  - a public extension point,
+  - an immutable configuration contract,
+  - a value object that enforces a meaningful invariant,
+  - a security-sensitive value,
+  - a protocol-defined object or message,
+  - a reusable result crossing a public boundary,
+  - a framework- or PHP-FIG-required interoperability type,
+  - a distinct exception callers are expected to catch independently,
+  - a separately managed lifecycle or resource,
+  - a real command, middleware or process entry point,
+  - or an independently selectable security or protocol operation.
+- Keep classes separate when they represent:
+  - different responsibilities,
+  - different lifecycles,
+  - unrelated dependencies,
+  - independently replaceable implementations,
+  - public extension contracts,
+  - security or authorization boundaries,
+  - transaction ownership,
+  - external-provider boundaries,
+  - independently scalable processes,
+  - or independently testable policy with a real independent contract.
+- A small class should remain only when its independent semantic or architectural value exceeds its file, dependency, navigation and dispatch cost.
+
+**Private Method Preference**
+
+- Prefer private methods when behavior:
+  - has one clear owner,
+  - shares the same lifecycle as its owner,
+  - uses the same dependencies,
+  - is not independently configurable,
+  - is not reused by unrelated capabilities,
+  - is not independently replaceable,
+  - does not cross a security, authorization, transaction, persistence or provider boundary,
+  - is not part of the supported public API,
+  - does not need independently managed state,
+  - and exists primarily to name, organize or simplify the owner's internal algorithm.
+- Do not split a cohesive class only because it contains many private methods.
+- Private-method preference does not override class cohesion or cognitive-complexity limits.
+- Do not retain unrelated responsibilities in one class merely to avoid introducing a justified collaborator.
+- Keep tightly related, single-use behavior together when it has one owner and doing so does not create mixed responsibilities or excessive branching.
+- Split a class when it has:
+  - multiple reasons to change,
+  - unrelated dependencies,
+  - separate lifecycle requirements,
+  - independently replaceable behavior,
+  - or responsibilities that remain understandable and useful outside the original owner.
+- Inline a private method when it:
+  - is used once,
+  - performs a trivial operation,
+  - does not name an important concept,
+  - enforces no invariant,
+  - isolates no meaningful decision,
+  - and only adds another call hop.
+- Keep or extract a private method when it:
+  - names an important concept,
+  - isolates a complex decision,
+  - prevents meaningful duplication,
+  - improves readability,
+  - enforces an invariant,
+  - or keeps the caller materially easier to understand.
 - Reject a refactoring that lowers local cognitive complexity while increasing total system complexity.
-- Do not enforce arbitrary minimum or maximum class line counts.
-- Small value objects, enums, exceptions, DTOs, attributes and adapters are valid when they represent meaningful concepts.
 
-### Structural Compression And Call-Hop Reduction
+**Class Consolidation Rules**
 
-- Prefer the smallest coherent structure that preserves correctness, cohesion, explicit contracts, maintainability and operational safety.
-- Treat class count, file count, method count and call depth as diagnostic signals rather than independent optimization targets.
+- Merge classes when they:
+  - have the same lifecycle,
+  - use substantially the same dependencies,
+  - change for the same reason,
+  - cannot be meaningfully used independently,
+  - and become clearer as one cohesive type.
+- Consolidate field, claim or rule validators when they share:
+  - one owner,
+  - one lifecycle,
+  - one configuration model,
+  - and one public capability.
+- Keep such validators separate only when they are:
+  - independently configurable,
+  - independently reusable,
+  - independently replaceable,
+  - supplied by consumers,
+  - part of a deliberate extension contract,
+  - or security-significant as independent policies.
+
+Prefer:
+
+```php
+final class JwtValidator
+{
+    public function validate(string $jwt): ValidationResult
+    {
+        $this->validateIssuer($jwt);
+        $this->validateAudience($jwt);
+        $this->validateTimestamps($jwt);
+
+        return ValidationResult::valid();
+    }
+
+    private function validateIssuer(string $jwt): void
+    {
+    }
+
+    private function validateAudience(string $jwt): void
+    {
+    }
+
+    private function validateTimestamps(string $jwt): void
+    {
+    }
+}
+```
+
+Instead of:
+
+```text
+JwtValidator
+IssuerValidator
+AudienceValidator
+SubjectValidator
+ExpirationValidator
+NotBeforeValidator
+IssuedAtValidator
+JwtIdValidator
+ValidationPipeline
+ValidatorRegistry
+ValidatorFactory
+```
+
+**Result-Type Consolidation**
+
+- Prefer one result type for operations sharing the same:
+  - success representation,
+  - failure model,
+  - lifecycle,
+  - and public contract.
+- Prefer a failure enum or reason code when failures differ only by category.
+- Do not create `IssuerValidationResult`, `AudienceValidationResult`, `ExpirationValidationResult` and similar types when they carry equivalent data.
+- Keep separate result types when:
+  - their successful values differ materially,
+  - callers handle them through different public contracts,
+  - they expose different security guarantees,
+  - or they adapt genuinely different external systems.
+- Do not replace several precise and materially different results with one untyped generic result container.
+
+Example:
+
+```php
+enum ValidationFailure
+{
+    case Malformed;
+    case InvalidIssuer;
+    case InvalidAudience;
+    case Expired;
+    case NotYetValid;
+}
+
+final readonly class ValidationResult
+{
+    public function __construct(
+        public bool $valid,
+        public ?ValidationFailure $failure = null,
+    ) {
+    }
+}
+```
+
+**Public Capability Budget**
+
+- Prefer one primary public entry point for each coherent capability.
+- Prefer one public configuration model for each coherent capability unless configurations have materially different invariants.
+- Prefer one public result model for operations sharing equivalent result semantics.
+- A public result model does not require a dedicated result class.
+- Use the simplest precise contract, such as a scalar, enum, documented array shape or object, according to the operation's semantics.
+- Do not expose internal:
+  - orchestration,
+  - helpers,
+  - validators,
+  - mappers,
+  - intermediate representations,
+  - or implementation classes
+  as public API unless consumer construction, substitution or extension is intentional.
+- Remove public aliases and duplicate entry points unless backward compatibility requires them.
+- When retaining a compatibility alias:
+  - deprecate it,
+  - point to the canonical replacement,
+  - and define its removal timeline.
+- Do not create an interface, DTO, value object, event, exception or adapter merely because code is packaged as a library.
+- Retain stronger types and abstractions when they prevent invalid states or define a real public contract.
+
+**Call-Hop Reduction**
+
 - Reduce unnecessary:
   - classes,
   - interfaces,
@@ -728,8 +1053,6 @@ cognitive_complexity:
   - events,
   - DTO conversions,
   - and delegation layers.
-- Do not treat more classes, files or methods as evidence of better architecture.
-- Do not minimize symbol or file count blindly when separation protects a meaningful boundary.
 - Remove pass-through layers that only:
   - forward the same arguments,
   - delegate to one collaborator,
@@ -748,46 +1071,14 @@ cognitive_complexity:
   - repository → gateway → adapter → client,
   - command → dispatcher → executor → worker,
   - and model → mapper → DTO → presenter → response mapper.
-- Merge classes when they:
-  - have the same lifecycle,
-  - use substantially the same dependencies,
-  - change for the same reason,
-  - cannot be meaningfully used independently,
-  - and become clearer as one cohesive type.
-- Keep classes separate when they represent:
-  - different responsibilities,
-  - different lifecycles,
-  - independently replaceable implementations,
-  - public extension contracts,
-  - security or authorization boundaries,
-  - transaction ownership,
-  - external-provider boundaries,
-  - independently scalable processes,
-  - or independently testable policy.
-- Inline a private method when it:
-  - is used once,
-  - performs a trivial operation,
-  - does not name an important concept,
-  - enforces no invariant,
-  - isolates no meaningful decision,
-  - and only adds another call hop.
-- Keep or extract a method when it:
-  - names an important concept,
-  - isolates a complex decision,
-  - prevents meaningful duplication,
-  - improves testability,
-  - enforces an invariant,
-  - or makes the caller materially easier to understand.
-- Co-locate tightly coupled, single-use implementation details when separate files add navigation and autoload overhead without architectural value.
-- Prefer one primary public autoloadable symbol per file.
-- Do not combine unrelated public symbols merely to reduce file count.
-- Remove redundant entity, DTO, array, transport and response conversions.
+- Avoid unnecessary middleware, listeners, observers, decorators, wrappers, DTO conversions and container lookups on hot routes.
+- Prefer direct calls over dynamic dispatch when extension or substitution is not required.
+- Avoid chains of tiny method calls in measured hot paths when equivalent cohesive code is clearer and materially faster.
 - Keep one internal representation through as much of the execution path as practical.
 - Perform framework, PSR, transport, persistence and provider adaptation once at the relevant boundary.
 - Avoid repeated validation, normalization, mapping and serialization at successive call hops.
-- Do not split cohesive code solely to reduce line count, one local complexity score or satisfy a design pattern.
-- Do not merge unrelated code solely to reduce symbols, files or method calls.
-- Evaluate structural compression by its effect on:
+- Avoid hidden global state and service location.
+- Evaluate structural simplification by its effect on:
   - sustained successful RPM,
   - executed method calls,
   - autoloaded symbols,
@@ -801,53 +1092,84 @@ cognitive_complexity:
   - and navigation cost.
 - In measured hot paths, prefer fewer meaningful call hops when equivalent behavior remains clear and safe.
 - Do not require a dedicated benchmark for every trivial pass-through removal.
-- Require representative measurement when compression changes public behavior, lifecycle, dependency resolution, request composition, middleware, database access, serialization or another frequently executed path.
+- Require representative measurement when structural simplification changes:
+  - public behavior,
+  - lifecycle,
+  - dependency resolution,
+  - request composition,
+  - middleware,
+  - database access,
+  - serialization,
+  - or another frequently executed path.
 - When two structures provide equivalent correctness, safety and sustained RPM, prefer the one with fewer unnecessary abstractions, dependencies, conversions, execution hops and maintenance costs.
 
-- Every new class, interface, enum, trait, DTO, wrapper, handler and file must justify its existence.
-- Prefer adding behavior to an existing cohesive type over creating a new type with no independent responsibility.
-- Create a new type when it provides at least one meaningful benefit:
-  - stronger type safety,
-  - invariant enforcement,
-  - independent substitution,
-  - lifecycle separation,
-  - public contract stability,
-  - reusable behavior,
-  - or reduced total system complexity.
-- Do not create a type merely to:
-  - satisfy a pattern,
-  - reduce line count,
-  - lower a local complexity score,
-  - enable mocking,
-  - rename a scalar,
-  - or make the directory structure appear more architectural.
-- Optimize for the smallest coherent type system, not the smallest individual files.
-- Count abstraction overhead as part of the design cost:
-  - additional files,
-  - autoloaded symbols,
-  - dependency injection wiring,
-  - runtime dispatch,
-  - configuration,
-  - testing surface,
-  - and maintenance burden.
-- Reject abstractions whose expected value is speculative or smaller than their ongoing operational and cognitive cost.
+**Structural Review Triggers**
 
-- Do not create an interface, DTO, value object, event, exception or adapter merely because code is packaged as a library.
-- Retain stronger types and abstractions when they prevent invalid states or define a real public contract.
-- Avoid hidden global state and service location.
-- Avoid unnecessary middleware, listeners, observers, decorators, wrappers, DTO conversions and container lookups on hot routes.
-- Prefer direct calls over dynamic dispatch when extension or substitution is not required.
-- Avoid chains of tiny method calls in measured hot paths when equivalent cohesive code is clearer and materially faster.
-- Keep classes, interfaces, traits, enums and functions in predictable Composer-autoloadable locations.
-- Do not create unnecessary wrappers or fragmented files that add autoload and declaration overhead without design value.
+- Review whether consolidation is appropriate when:
+  - many production source files contain only one trivial method,
+  - many classes only delegate to another class,
+  - the public type count substantially exceeds the number of public capabilities,
+  - most interfaces have only one non-extensible implementation,
+  - several result classes carry the same fields,
+  - several validators share one owner and lifecycle,
+  - one capability is represented by several managers, handlers, processors or executors,
+  - or understanding one operation requires navigating through several files without encountering a meaningful boundary.
+- Exclude from structural-density calculations where appropriate:
+  - tests,
+  - fixtures,
+  - generated files,
+  - stubs,
+  - migrations,
+  - examples,
+  - benchmarks,
+  - framework-required entry points,
+  - trivial exceptions,
+  - attributes,
+  - enums,
+  - and legitimate immutable value objects.
+- Do not consolidate solely to improve a ratio.
+- Keep consolidation within the active task unless broader restructuring is explicitly approved.
+- Report larger structural concerns separately instead of hiding repository-wide cleanup inside feature or bug-fix work.
+- Consolidate only when the result has:
+  - clearer ownership,
+  - fewer unnecessary hops,
+  - fewer redundant public types,
+  - and lower total complexity.
+- Do not enforce arbitrary minimum or maximum class line counts.
+- Small value objects, enums, exceptions, DTOs, attributes and adapters remain valid when they represent meaningful concepts.
+
+**Non-Blocking Structural Review Thresholds**
+
+- Use the following as default review triggers, not automatic defects or quality-gate failures:
+
+```yaml
+structural_review:
+    production_source_files_min: 20
+    small_file_executable_lines_max: 40
+    small_file_ratio_review_above: 0.35
+    median_executable_lines_review_below: 50
+    trivial_single_method_class_ratio_review_above: 0.20
+    pass_through_class_ratio_review_above: 0.10
+    require_justification_for_new_public_type: true
+    require_boundary_for_single_implementation_interface: true
+```
+
+- Interpret these values as follows:
+  - ratio-based review is unnecessary for packages below `production_source_files_min`,
+  - a high small-file ratio requires ownership and boundary review,
+  - a high trivial single-method-class ratio requires consolidation review,
+  - and a high pass-through-class ratio requires immediate call-hop review.
+- Crossing a threshold does not prove the design is wrong.
+- These values describe package-level structural density; they are not per-file size targets, minimums or maximums.
+- Do not split or merge a file solely to move a metric across a review threshold.
+- Do not convert these review triggers into blocking detector rules without project-specific calibration, evidence and explicit approval.
+- Do not weaken an established detector or raise an established blocking threshold merely because the current design exceeds it.
 
 ### Interfaces, Containers And Extension Contracts
 
-- Create an interface only when it defines a meaningful contract or substitution boundary.
 - Do not create an interface for every class by default.
-- Do not create an interface solely because dependency injection, mocking or a design pattern makes it possible.
-- Do not create an interface when there is one internal implementation, no expected substitution and no meaningful architectural boundary.
-- Prefer a concrete `final` class for internal implementation details that are not designed for extension or substitution.
+- Create an interface only when it defines a meaningful contract or substitution boundary.
+- When an interface is justified, keep it narrow, behavior-focused and stable.
 - Introduce an interface when at least one of the following is true:
   - multiple implementations currently exist,
   - consumers must provide their own implementation,
@@ -855,15 +1177,14 @@ cognitive_complexity:
   - the implementation crosses a significant infrastructure or third-party boundary,
   - runtime strategy or driver selection is required,
   - or separate modules must depend on a stable contract rather than implementation details.
-- Public visibility alone does not require an interface.
-- Public immutable value objects, DTOs, factories, exceptions and utility types may remain concrete classes.
-- Do not create an interface only to make a class mockable in tests.
-- Prefer testing through observable behavior or substituting real architectural boundaries.
+- Prefer a concrete `final` class for internal implementation details that are not designed for extension or substitution.
+- Public immutable value objects, DTOs, factories, exceptions and utility types may remain concrete when no substitution contract is required.
+- Prefer testing through observable behavior or by substituting real architectural boundaries.
+- Do not introduce an interface solely to expose internals for mocking.
 - Keep internal interfaces private to the package or module when they are not part of the supported public API.
 - Do not expose an interface publicly unless compatibility and long-term maintenance of that contract are intentional.
-- When only one implementation exists, name it according to its actual responsibility rather than adding redundant names such as `Default`, `Base` or `Impl`.
-- Avoid paired files such as `UserServiceInterface` and `UserService` unless the interface has a concrete architectural purpose.
 - Design public library extension through interfaces and composition rather than requiring consumers to inherit from concrete classes.
+- Keep public contracts minimal because each method added to an interface becomes a compatibility obligation.
 
 **Dependency Containers And Composition Roots**
 
@@ -901,20 +1222,19 @@ cognitive_complexity:
   - cache-key prefixes,
   - or other values without independent domain identity.
 - Prefer private constants inside the owning class when the values are used only there.
-- Do not create a separate enum or constants file for values that belong exclusively to one class.
+- Do not create a separate enum or constants file for values that belong exclusively to one class when private typed constants provide equivalent safety and clarity.
 - Do not create generic `Constants`, `CommonConstants` or `GlobalConstants` classes.
 - Keep constants close to the behavior that owns them.
 - Do not use an enum for an open-ended or externally extensible set.
 - Do not use an enum when new values may be introduced independently by consumers, plugins, providers or third-party systems.
-- Do not create an enum for a single local conditional unless it improves the public contract or prevents invalid states.
+- Do not create an enum for a single local conditional unless it improves a public contract or prevents an invalid state.
 - Do not attach unrelated utility behavior to enums merely to avoid creating an appropriate service.
 - Prefer exhaustive `match` handling for enums when every case must be considered.
 - Avoid a default `match` arm for enums when explicit handling provides safer change detection.
 
-### Autoloadable File And Symbol Structure
+### Autoloadable Symbol And File Behavior
 
-- Prefer one primary autoloadable symbol per file.
-- Do not combine unrelated classes into large files merely to reduce file count.
+- Keep classes, interfaces, traits, enums and functions in predictable Composer-autoloadable locations.
 - Keep autoloadable files free from request-specific top-level execution and unrelated side effects.
 - Prefer file-scope declarations with runtime decisions inside methods.
 - Avoid conditional class, function, enum, interface or trait declarations unless explicitly required.
@@ -2030,6 +2350,8 @@ composer install \
 **Quality-Gate Issue Resolution**
 
 - Fix the code, configuration, test or contract that causes a valid finding.
+- When a domain-specific section prohibits suppression, baselines, exclusions or exemptions more strictly, the stricter domain rule applies.
+- The false-positive exception below does not override an explicit no-suppression rule elsewhere in this document.
 - Do not make a failing quality gate pass by:
   - weakening or disabling the detector,
   - reducing its configured scope,
@@ -2072,7 +2394,7 @@ composer install \
 - Run compatibility and deprecation checks against every supported PHP version and the next intended upgrade target.
 - Add or update tests for affected behavior, boundaries, failures and contracts.
 - Add benchmarks only for meaningful, stable, performance-sensitive behavior.
-- After implementation or function/method documentation work, use the automation and workflow described in [AGENTS.md](vendor\infocyph\phpforge\resources\AGENTS.md) if exists.
+- After implementation or function/method documentation work, use the automation and workflow described in [AGENTS.md](vendor/infocyph/phpforge/resources/AGENTS.md) when that file exists.
 - Review automated changes for correctness.
 - Keep automated changes within scope.
 - Do not accept generated or automated refactoring without reviewing the resulting behavior.
