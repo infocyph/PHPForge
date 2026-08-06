@@ -22,6 +22,13 @@ final class CommunityTemplateCatalog
             '.github/ISSUE_TEMPLATE/docs_improvement.yml' => 'resources/community/.github/ISSUE_TEMPLATE/docs_improvement.yml',
             '.github/ISSUE_TEMPLATE/config.yml' => 'resources/community/.github/ISSUE_TEMPLATE/config.yml',
             '.github/PULL_REQUEST_TEMPLATE.md' => 'resources/community/.github/PULL_REQUEST_TEMPLATE.md',
+            '.github/PULL_REQUEST_TEMPLATE/bug_fix.md' => 'resources/community/.github/PULL_REQUEST_TEMPLATE/bug_fix.md',
+            '.github/PULL_REQUEST_TEMPLATE/documentation.md' => 'resources/community/.github/PULL_REQUEST_TEMPLATE/documentation.md',
+            '.github/PULL_REQUEST_TEMPLATE/feature.md' => 'resources/community/.github/PULL_REQUEST_TEMPLATE/feature.md',
+            '.github/PULL_REQUEST_TEMPLATE/maintenance.md' => 'resources/community/.github/PULL_REQUEST_TEMPLATE/maintenance.md',
+            '.github/PULL_REQUEST_TEMPLATE/performance.md' => 'resources/community/.github/PULL_REQUEST_TEMPLATE/performance.md',
+            '.github/PULL_REQUEST_TEMPLATE/refactor.md' => 'resources/community/.github/PULL_REQUEST_TEMPLATE/refactor.md',
+            '.github/PULL_REQUEST_TEMPLATE/security_reliability.md' => 'resources/community/.github/PULL_REQUEST_TEMPLATE/security_reliability.md',
         ];
     }
 

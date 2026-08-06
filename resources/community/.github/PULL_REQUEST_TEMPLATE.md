@@ -32,26 +32,22 @@ Use `Closes #...`, `Fixes #...` or `Relates #...` where applicable.
 <!--
 Remove the compatibility notes below when no explanation is required.
 
-Describe relevant behavior changes, deprecations, compatibility concerns,
+Describe relevant behavior changes, deprecations, compatibility concerns
 or upgrade requirements.
 -->
 
 ## Validation
 
-### Complete Suite
-
 * [ ] `composer ic:ci`
 
-<!--
-When `composer ic:ci` passes, do not select focused checks.
--->
+<!-- When `composer ic:ci` passes, do not select focused checks. -->
 
 <details>
 <summary>Focused validation</summary>
 
 <!--
 Use only when `composer ic:ci` was not run or could not complete.
-Select every command that passed.
+Select every command that passed and explain the limitation below.
 -->
 
 * [ ] `composer ic:test:syntax`
@@ -68,21 +64,11 @@ Select every command that passed.
 
 </details>
 
-### Coverage
-
-* [ ] Expected or newly introduced behavior
-* [ ] Regression scenario
-* [ ] Boundary and edge cases
-* [ ] Failure and exception paths
-* [ ] Public API compatibility
-* [ ] Version, dependency, extension or platform-specific behavior
-* [ ] Not applicable
-
 <!--
 Remove the validation notes below when `composer ic:ci` passed without
 relevant limitations.
 
-Explain skipped or failed checks, environment limitations, manual validation,
+Explain skipped or failed checks, environment limitations, manual validation
 or other relevant results.
 -->
 
@@ -95,15 +81,9 @@ is being made.
 
 * [ ] Relevant benchmarks were added or updated
 * [ ] Results were compared against a relevant baseline
-
-<details>
-<summary>Benchmark commands</summary>
-
 * [ ] `composer ic:benchmark`
 * [ ] `composer ic:bench:quick`
 * [ ] `composer ic:bench:chart`
-
-</details>
 
 <!--
 Environment:
@@ -127,9 +107,7 @@ excluded work.
 <!--
 Remove this section when no special review focus is required.
 
-Highlight areas that deserve additional reviewer attention, such as public API
-compatibility, edge cases, exception handling, performance-sensitive paths,
-version compatibility or security-sensitive logic.
+Highlight areas that deserve additional reviewer attention.
 -->
 
 ## Checklist
@@ -140,4 +118,4 @@ version compatibility or security-sensitive logic.
 * [ ] Documentation, examples and type information were updated where required.
 * [ ] Performance claims are supported by reproducible benchmarks.
 * [ ] No credentials, secrets, personal data or sensitive debug output are included.
-* [ ] I followed `CONTRIBUTING.md`.
+* [ ] I followed `CONTRIBUTING.md` and the engineering principles.

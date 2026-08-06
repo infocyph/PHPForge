@@ -351,9 +351,15 @@ YAML
 it('publishes generic community template files to project root', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-community-templates-'.uniqid('', true);
+    $githubRoot = $projectRoot.DIRECTORY_SEPARATOR.'.github';
+    $issueTemplateRoot = $githubRoot.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE';
+    $pullRequestTemplateRoot = $githubRoot.DIRECTORY_SEPARATOR.'PULL_REQUEST_TEMPLATE';
 
-    mkdir($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE', 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
+    mkdir($issueTemplateRoot, 0755, true);
+    file_put_contents(
+        $projectRoot.DIRECTORY_SEPARATOR.'composer.json',
+        '{"name":"example/project"}',
+    );
 
     chdir($projectRoot);
 
@@ -364,18 +370,39 @@ it('publishes generic community template files to project root', function (): vo
             [new Option('force', 'f', Option::VALUE_NONE)],
         );
 
+        $expectedFiles = [
+            'CONTRIBUTING.md',
+            'CODE_OF_CONDUCT.md',
+            'SECURITY.md',
+
+            '.github/ISSUE_TEMPLATE/bug_report.yml',
+            '.github/ISSUE_TEMPLATE/ci_failure.yml',
+            '.github/ISSUE_TEMPLATE/docs_improvement.yml',
+            '.github/ISSUE_TEMPLATE/feature_request.yml',
+            '.github/ISSUE_TEMPLATE/question.yml',
+            '.github/ISSUE_TEMPLATE/config.yml',
+
+            '.github/PULL_REQUEST_TEMPLATE.md',
+            '.github/PULL_REQUEST_TEMPLATE/bug_fix.md',
+            '.github/PULL_REQUEST_TEMPLATE/documentation.md',
+            '.github/PULL_REQUEST_TEMPLATE/feature.md',
+            '.github/PULL_REQUEST_TEMPLATE/maintenance.md',
+            '.github/PULL_REQUEST_TEMPLATE/performance.md',
+            '.github/PULL_REQUEST_TEMPLATE/refactor.md',
+            '.github/PULL_REQUEST_TEMPLATE/security_reliability.md',
+        ];
+
         expect($result['exit_code'])->toBe(0)
-            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'CONTRIBUTING.md'))->toBeTrue()
-            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'CODE_OF_CONDUCT.md'))->toBeTrue()
-            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'SECURITY.md'))->toBeTrue()
-            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'bug_report.yml'))->toBeTrue()
-            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'ci_failure.yml'))->toBeTrue()
-            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'feature_request.yml'))->toBeTrue()
-            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'question.yml'))->toBeTrue()
-            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'docs_improvement.yml'))->toBeTrue()
-            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE'.DIRECTORY_SEPARATOR.'config.yml'))->toBeTrue()
-            ->and(is_file($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'PULL_REQUEST_TEMPLATE.md'))->toBeTrue()
-            ->and($result['output'])->toContain('Published 10 community template file(s).');
+            ->and($result['output'])->toContain(
+                sprintf('Published %d community template file(s).', count($expectedFiles)),
+            );
+
+        foreach ($expectedFiles as $file) {
+            $path = $projectRoot.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $file);
+
+            expect(is_file($path))
+                ->toBeTrue(sprintf('Expected community template was not published: %s', $file));
+        }
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);

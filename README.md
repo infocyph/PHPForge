@@ -19,7 +19,7 @@ PHPForge brings these tools through one package:
 | Pest                        | Test execution                                      |
 | Laravel Pint                | Code style checks and fixes                         |
 | PHP_CodeSniffer / PHPCBF    | Semantic sniffing and fixable sniff repairs         |
-| PHPProbe                    | Git-aware PHP syntax, duplicate-code, and comment-policy checks |
+| PHPProbe                    | Git-aware PHP syntax, duplicate-code and comment-policy checks |
 | Deptrac                     | Architecture boundary checks                        |
 | PHPStan                     | Static analysis and cognitive complexity            |
 | Psalm                       | Security and taint analysis                         |
@@ -30,9 +30,9 @@ PHPForge brings these tools through one package:
 
 ## Engineering Baseline
 
-PHPForge's current `dev-main` line targets PHP 8.4 and later, uses PSR-4 autoloading, and formats first-party PHP against
+PHPForge's current `dev-main` line targets PHP 8.4 and later, uses PSR-4 autoloading and formats first-party PHP against
 [PER Coding Style 3.0](https://www.php-fig.org/per/coding-style/) through the configured Pint toolchain.
-PHPProbe 0.7 provides the syntax, duplicate-code, and comment-policy checks used by PHPForge.
+PHPProbe provides the syntax, duplicate-code and comment-policy checks used by PHPForge.
 Bundled Pest and PHPUnit configurations run with every PHP error level enabled so deprecations remain
 visible during compatibility testing.
 
@@ -47,19 +47,11 @@ php -r 'echo PHP_VERSION, PHP_EOL;'
 | PHPForge line | Minimum PHP | Intended use                                |
 | ------------- |---------|---------------------------------------------|
 | `dev-main@dev` | PHP 8.4 | Current development line and newest tooling |
-| `^1.0` | PHP 8.2 | Stable 1.x line for PHP 8.2-8.5             |
 
 Install the current development line on PHP 8.4 or later:
 
 ```bash
 composer require --dev infocyph/phpforge:dev-main@dev
-```
-
-Use the stable 1.x line when the project must remain compatible with PHP 8.2
-or PHP 8.3:
-
-```bash
-composer require --dev infocyph/phpforge:^1.0
 ```
 
 Composer enforces the selected line's PHP constraint and rejects an
@@ -88,14 +80,16 @@ composer ic:doctor --json
 
 ## Quick Start
 
-Common daily commands:
+Common contributor commands:
 
 ```bash
-composer ic:tests
+composer ic:ci
 composer ic:process
 composer ic:benchmark
 composer ic:release:guard
 ```
+
+Use `composer ic:ci` as the normal complete validation command before opening a pull request. Run focused `ic:test:*` commands while developing or when the complete suite cannot run.
 
 Initialize optional project files:
 
@@ -111,7 +105,7 @@ Install GitHub Actions workflow wrapper (parallel CI, SARIF, SVG report)?
 Install GitLab CI pipeline (.gitlab-ci.yml)?
 Install Bitbucket pipeline (bitbucket-pipelines.yml)?
 Install Forgejo workflow (.forgejo/workflows/security-standards.yml)?
-Install generic contributing, issue, and pull request templates?
+Install community files, issue forms and typed pull request templates?
 PHPForge workflow ref
 PHP version matrix
 Dependency matrix
@@ -140,17 +134,17 @@ Selector presets include:
 
 | Prompt                | Built-in Choices                                                                                                                                                                                   |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PHPForge workflow ref | `main`, configured ref, or custom                                                                                                                                                                |
-| PHP version matrix    | `supported`, `current`, `stable`, or custom JSON. Presets resolve live with fallback to `["8.4","8.5"]`.                                                                                   |
-| Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]`, or custom JSON. Prompt shows resolved JSON beside each option.                                             |
-| PHP extensions        | `none` => `""`, `detected` (from project `composer.json` `ext-*` entries in `require`, `require-dev`, and `suggest`), `common`, `mysql`, `pgsql`, `mysql+pgsql`, or custom |
-| Extra Composer flags  | `none` => `""`, `with-all-dependencies` => `--with-all-dependencies`, `ignore-ext-redis` => `--ignore-platform-req=ext-redis`, or custom. Prompt explains each option effect.          |
-| PHPStan memory limit  | `1G`, `2G`, `4G`, or custom                                                                                                                                                                  |
-| Psalm threads         | `1`, `2`, `4`, or custom                                                                                                                                                                     |
+| PHPForge workflow ref | `main`, configured ref or custom                                                                                                                                                                |
+| PHP version matrix    | `supported`, `current`, `stable` or custom JSON. Presets resolve live with fallback to `["8.4","8.5"]`.                                                                                   |
+| Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]` or custom JSON. Prompt shows resolved JSON beside each option.                                             |
+| PHP extensions        | `none` => `""`, `detected` (from project `composer.json` `ext-*` entries in `require`, `require-dev` and `suggest`), `common`, `mysql`, `pgsql`, `mysql+pgsql` or custom |
+| Extra Composer flags  | `none` => `""`, `with-all-dependencies` => `--with-all-dependencies`, `ignore-ext-redis` => `--ignore-platform-req=ext-redis` or custom. Prompt explains each option effect.          |
+| PHPStan memory limit  | `1G`, `2G`, `4G` or custom                                                                                                                                                                  |
+| Psalm threads         | `1`, `2`, `4` or custom                                                                                                                                                                     |
 
-`supported` includes non-EOL PHP minor cycles (>= `8.4`), `current` uses the latest two supported cycles, and `stable` uses the latest supported cycle.
+`supported` includes non-EOL PHP minor cycles (>= `8.4`), `current` uses the latest two supported cycles and `stable` uses the latest supported cycle.
 When detected `ext-*` entries exist in `composer.json`, the PHP extensions selector defaults to the detected preset.
-PHP version, dependency matrix, PHP extensions, and Composer flags selectors show resolved values in the prompt and print the final resolved value after selection.
+PHP version, dependency matrix, PHP extensions and Composer flags selectors show resolved values in the prompt and print the final resolved value after selection.
 
 Depending on your selections, `ic:init` can generate:
 
@@ -165,14 +159,21 @@ CODE_OF_CONDUCT.md
 SECURITY.md
 .github/ISSUE_TEMPLATE/bug_report.yml
 .github/ISSUE_TEMPLATE/ci_failure.yml
+.github/ISSUE_TEMPLATE/docs_improvement.yml
 .github/ISSUE_TEMPLATE/feature_request.yml
 .github/ISSUE_TEMPLATE/question.yml
-.github/ISSUE_TEMPLATE/docs_improvement.yml
 .github/ISSUE_TEMPLATE/config.yml
 .github/PULL_REQUEST_TEMPLATE.md
+.github/PULL_REQUEST_TEMPLATE/bug_fix.md
+.github/PULL_REQUEST_TEMPLATE/feature.md
+.github/PULL_REQUEST_TEMPLATE/refactor.md
+.github/PULL_REQUEST_TEMPLATE/performance.md
+.github/PULL_REQUEST_TEMPLATE/security_reliability.md
+.github/PULL_REQUEST_TEMPLATE/documentation.md
+.github/PULL_REQUEST_TEMPLATE/maintenance.md
 ```
 
-`ic:init` sets up hook/workflow wrappers and optional community template files. Publish checker or architecture config separately with `composer ic:publish-config phpprobe.json deptrac.yaml` when customization is needed.
+`ic:init` sets up hook/workflow wrappers and optional community files, issue forms and general/typed pull request templates. Publish checker or architecture config separately with `composer ic:publish-config phpprobe.json deptrac.yaml` when customization is needed.
 
 After `ic:init`, run:
 
@@ -201,22 +202,25 @@ composer ic:int
 
 ## Command Reference
 
-### AI Mod
+### Engineering Guidance
 
-- `vendor/infocyph/phpforge/resources/engineering-principles.md`
-  Brief engineering principles for AI-assisted implementation decisions, code quality, performance, security, and scope control.
-- `vendor/infocyph/phpforge/resources/AGENTS.md`
-  Task execution workflow for agents, including which PHPForge commands to run first, validation flow, and automation expectations.
+Before implementing or reviewing changes, human contributors and automated coding agents should read:
+
+```text
+vendor/infocyph/phpforge/resources/engineering-principles.md
+```
+
+This is the primary engineering instruction for scope control, implementation decisions, architecture, performance, security, compatibility, testing and maintainability. It applies equally to human and automated contributions and directs agents to any additional execution guidance they require.
 
 ### Test Commands
 
 | Command                         | Purpose                                                                                                                                                        |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `composer ic:tests`           | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, comment policy checks, Deptrac, PHPStan, Psalm security analysis, and Rector dry run. |
+| `composer ic:tests`           | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, comment policy checks, Deptrac, PHPStan, Psalm security analysis and Rector dry run. |
 | `composer ic:tests:all`       | Alias of `ic:tests`.                                                                                                                                         |
 | `composer ic:tests:parallel`  | Runs syntax first, then executes the remaining quality checks with bounded parallelism and a buffered PASS/FAIL summary.                                       |
 | `composer ic:tests:details`   | Runs detailed checks without the parallel Pest shortcut.                                                                                                       |
-| `composer ic:test:syntax`     | Runs the PHP syntax checker using `phpprobe.json`, Git ignores, and configured excludes.                                                                     |
+| `composer ic:test:syntax`     | Runs the PHP syntax checker using `phpprobe.json`, Git ignores and configured excludes.                                                                     |
 | `composer ic:test:code`       | Runs Pest when the project has a `tests/` directory; otherwise skips it.                                                                                     |
 | `composer ic:test:lint`       | Runs Pint in check mode.                                                                                                                                       |
 | `composer ic:test:sniff`      | Runs PHPCS with a full report against the project root and bundled/project excludes.                                                                           |
@@ -229,8 +233,8 @@ composer ic:int
 | `composer ic:test:refactor`   | Runs Rector in dry-run mode.                                                                                                                                   |
 | `composer ic:test:bench`      | Runs PHPBench aggregate benchmarks when the project has a `benchmarks/` directory; otherwise skips them.                                                     |
 
-Syntax, duplicate, and comment settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
-PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge comments`, and `phpforge check` commands are thin gateways that pass the same config to PHPProbe.
+Syntax, duplicate and comment settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
+PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge comments` and `phpforge check` commands are thin gateways that pass the same config to PHPProbe.
 By default the bundled config uses PHPProbe's standard syntax and duplicate profiles with the strict comment policy. Duplicate findings remain visible, but become blocking only when duplicated lines reach 10% of the scanned code. Projects can still override individual sections in a published `phpprobe.json`.
 Use the lower-level binary for custom scans; CLI paths override configured paths, while CLI excludes are added to configured excludes:
 
@@ -277,7 +281,7 @@ Useful checker options:
 
 | Command                           | Purpose                                                  |
 | --------------------------------- | -------------------------------------------------------- |
-| `composer ic:process`           | Runs Composer Normalize, Rector, Pint, and PHPCBF fixes. |
+| `composer ic:process`           | Runs Composer Normalize, Rector, Pint and PHPCBF fixes. |
 | `composer ic:process:all`       | Alias of `ic:process`.                                 |
 | `composer ic:process:refactor`  | Runs Rector fixes.                                       |
 | `composer ic:process:lint`      | Runs Pint fixes.                                         |
@@ -301,12 +305,12 @@ Useful checker options:
 | Command                       | Purpose                                                                 |
 | ----------------------------- | ----------------------------------------------------------------------- |
 | `composer ic:release:audit` | Runs Composer audit. Security advisories fail; abandoned packages warn. |
-| `composer ic:release:constraints` | Rejects development branches, aliases, commit references, pre-stable flags, and non-stable minimum stability in runtime requirements. |
-| `composer ic:release:guard` | Runs Composer validation, stable runtime constraints, audit, and the full test suite. |
+| `composer ic:release:constraints` | Rejects development branches, aliases, commit references, pre-stable flags and non-stable minimum stability in runtime requirements. |
+| `composer ic:release:guard` | Runs Composer validation, stable runtime constraints, audit and the full test suite. |
 
 ### Representative Benchmark Contract
 
-PHPForge can be used by any PHP library or application. Its representative result contract is therefore workload-neutral: producers map component operations, HTTP requests, persistent-worker work, queue jobs, or custom operations into the same fields. PHPForge validates and compares the result; it does not own a framework-specific load generator.
+PHPForge can be used by any PHP library or application. Its representative result contract is therefore workload-neutral: producers map component operations, HTTP requests, persistent-worker work, queue jobs or custom operations into the same fields. PHPForge validates and compares the result; it does not own a framework-specific load generator.
 
 The schema is installed at `vendor/infocyph/phpforge/resources/benchmark-result.schema.json`. A minimal complete document has this shape:
 
@@ -374,25 +378,25 @@ The schema is installed at `vendor/infocyph/phpforge/resources/benchmark-result.
 }
 ```
 
-Use `null` for unavailable latency, CPU, or memory measurements; do not invent zero values. `metadata` is producer-owned and records the data size, request mix, queue shape, cache state, or other workload inputs needed for reproduction.
+Use `null` for unavailable latency, CPU or memory measurements; do not invent zero values. `metadata` is producer-owned and records the data size, request mix, queue shape, cache state or other workload inputs needed for reproduction.
 
 The contract uses these workload-neutral meanings:
 
 | Field | Meaning |
 | --- | --- |
-| `environment.fingerprint` | A producer-defined identity for the benchmark host and relevant runtime configuration. Change it when hardware, PHP, extensions, or tuning changes. |
+| `environment.fingerprint` | A producer-defined identity for the benchmark host and relevant runtime configuration. Change it when hardware, PHP, extensions or tuning changes. |
 | `environment.stable` | `true` only for controlled infrastructure where repeated results are suitable for a release gate. |
-| `workloads[].type` | One of `component`, `http`, `persistent-worker`, `queue-worker`, or `custom`; it selects no framework behavior. |
+| `workloads[].type` | One of `component`, `http`, `persistent-worker`, `queue-worker` or `custom`; it selects no framework behavior. |
 | `metadata` | Reproduction inputs owned by the producer, including what one operation represents. |
 | `repetitions` | Number of independent measured repetitions represented by the result. |
 | `warmup_operations` | Operations completed before measurement; excluded from result counters. |
 | `duration_seconds` | Total measured duration represented by the result. |
 | `attempted_operations` | All measured operations; it must equal successful plus failed operations. |
-| `successful_rpm` | Successful operations per minute, regardless of whether an operation is a function call, request, message, or job. |
+| `successful_rpm` | Successful operations per minute, regardless of whether an operation is a function call, request, message or job. |
 | `error_rate` | Failed operations divided by attempted operations, expressed from `0` to `1`. |
 | `stability` | The producer's repeated-sample assessment and spread; regression enforcement requires `stable`. |
 
-Validation always checks counters, failure/timeout bounds, percentile order, resource values, unique workload names, and required environment metadata:
+Validation always checks counters, failure/timeout bounds, percentile order, resource values, unique workload names and required environment metadata:
 
 ```bash
 composer ic:benchmark:validate build/benchmark-result.json
@@ -408,7 +412,7 @@ composer ic:benchmark:compare \
   --stable-environment
 ```
 
-Without `--stable-environment`, comparison validates both documents and exits successfully with a skipped notice. With it, both documents must declare `environment.stable: true`, use the same environment fingerprint and runtime metadata, contain the same workload settings, and report stable samples. The gate compares successful RPM and rejects increased error rate; it never turns noisy shared-runner output into a release failure.
+Without `--stable-environment`, comparison validates both documents and exits successfully with a skipped notice. With it, both documents must declare `environment.stable: true`, use the same environment fingerprint and runtime metadata, contain the same workload settings and report stable samples. The gate compares successful RPM and rejects increased error rate; it never turns noisy shared-runner output into a release failure.
 
 The generic soak helper monitors the direct worker process on Linux without retaining worker output in PHPForge memory:
 
@@ -437,12 +441,12 @@ Use the `composer ic:*` commands in consuming packages. PHPForge does not requir
 | `composer ic:init --gitlab-ci`                      | Copies `.gitlab-ci.yml` starter pipeline.                                                                    |
 | `composer ic:init --bitbucket-ci`                   | Copies `bitbucket-pipelines.yml` starter pipeline.                                                           |
 | `composer ic:init --forgejo-workflow`               | Copies `.forgejo/workflows/security-standards.yml` starter workflow.                                         |
-| `composer ic:init --community-templates`            | Copies generic `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, issue forms/config, and PR template files. |
+| `composer ic:init --community-templates`            | Copies community policy files, issue forms/config, the general PR fallback and typed PR templates.             |
 | `composer ic:init --no-interaction-defaults`        | Copies default init files without prompting.                                                                   |
 | `composer ic:init --force`                          | Overwrites existing copied files.                                                                              |
 | `composer ic:int`                                   | Alias of `composer ic:init`.                                                                                   |
 | `composer ic:hooks`                                 | Installs enabled CaptainHook hooks.                                                                            |
-| `composer ic:doctor`                                | Shows detected configs, vendor-dir, plugin permissions, hook status, and workflow wrapper validation warnings. |
+| `composer ic:doctor`                                | Shows detected configs, vendor-dir, plugin permissions, hook status and workflow wrapper validation warnings. |
 | `composer ic:doctor --json`                         | Outputs doctor diagnostics as JSON, including workflow wrapper validation details.                             |
 | `composer ic:list-config`                           | Lists config files and their resolution source.                                                                |
 | `composer ic:list-config --json`                    | Outputs config resolution as JSON.                                                                             |
@@ -453,12 +457,12 @@ Use the `composer ic:*` commands in consuming packages. PHPForge does not requir
 | `composer ic:publish-config phpprobe.json --phpprobe-preset=strict` | Publishes `phpprobe.json` with a named PHPProbe preset (`default`, `standard`, `ci`, `strict`). |
 | `composer ic:publish-config --all`                  | Copies every bundled config file into the project.                                                             |
 | `composer ic:publish-config --all --force`          | Overwrites all project config files with bundled defaults.                                                     |
-| `composer ic:community`                             | Copies generic `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, issue forms/config, and PR template files into the project. |
+| `composer ic:community`                             | Copies community policy files, issue forms/config, the general PR fallback and typed PR templates into the project. |
 | `composer ic:community --force`                     | Overwrites existing community template files with bundled defaults.                                            |
 | `composer ic:publish-community-templates`           | Alias of `composer ic:community`.                                                                              |
 | `composer ic:publish-community-templates --force`   | Alias of `composer ic:community --force`.                                                                      |
 | `composer ic:clean`                                 | Removes known PHPForge output files and cache directories.                                                     |
-| `composer ic:version`                               | Shows PHPForge, PHP, PHP binary, and vendor-dir information.                                                   |
+| `composer ic:version`                               | Shows PHPForge, PHP, PHP binary and vendor-dir information.                                                   |
 | `composer ic:phpstan:sarif input.json output.sarif` | Converts PHPStan JSON output to SARIF 2.1.0.                                                                   |
 
 ## Configuration
@@ -487,8 +491,8 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 
 ### PHPProbe Checker Config
 
-`phpprobe.json` configures PHPProbe syntax, duplicate-code, and comment-policy checks.
-PHPProbe 0.7 is preset-first, and PHPForge follows that model.
+`phpprobe.json` configures PHPProbe syntax, duplicate-code and comment-policy checks.
+PHPProbe 0.7 is preset-first and PHPForge follows that model.
 
 Bundled default:
 
@@ -528,7 +532,7 @@ threshold.
 
 ### Deptrac Architecture Config
 
-`deptrac.yaml` configures architecture dependency boundaries. The bundled default scans from the project root, excludes the same noisy/generated paths as the other PHPForge configs, and collects project classes through a generic `Project` layer instead of hard-coding a package namespace. Publish it when a project is ready to split that baseline into real domain, package, or framework layers.
+`deptrac.yaml` configures architecture dependency boundaries. The bundled default scans from the project root, excludes the same noisy/generated paths as the other PHPForge configs and collects project classes through a generic `Project` layer instead of hard-coding a package namespace. Publish it when a project is ready to split that baseline into real domain, package or framework layers.
 
 ```bash
 composer ic:test:architecture
@@ -585,7 +589,7 @@ composer ic:publish-config psalm.xml --force
 | `IC_PEST_PROCESSES`         | `10`    | Controls Pest parallel processes for `ic:tests`.                                                         |
 | `IC_TEST_CONCURRENCY`       | `3`     | Controls the maximum concurrently running tools for `ic:tests:parallel`.                                 |
 | `PHPFORGE_PARALLEL`         | `3`     | Alias for `IC_TEST_CONCURRENCY`; useful in generic CI parallelism settings.                              |
-| `PHPFORGE_QUALITY_SUMMARY`  | none    | Writes an aggregate per-tool quality result JSON file for `ic:ci`, `ic:tests`, and `ic:tests:parallel`.  |
+| `PHPFORGE_QUALITY_SUMMARY`  | none    | Writes an aggregate per-tool quality result JSON file for `ic:ci`, `ic:tests` and `ic:tests:parallel`.  |
 | `IC_QUALITY_SUMMARY`        | none    | Alias for `PHPFORGE_QUALITY_SUMMARY`.                                                                    |
 | `IC_PHPSTAN_MEMORY_LIMIT`   | `1G`    | Controls PHPStan memory limit.                                                                           |
 | `IC_PSALM_THREADS`          | `1`     | Controls Psalm thread count.                                                                             |
@@ -708,7 +712,7 @@ Workflow inputs:
 | `phpstan_memory_limit`    | `1G`                                | PHPStan memory limit used by workflow analysis.                                                                                       |
 | `psalm_threads`           | `1`                                 | Psalm thread count used by workflow analysis.                                                                                         |
 | `run_analysis`            | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.                                                      |
-| `run_svg_report`          | `true`                              | Generates `security-report.svg` and `security-summary.json` with per-version matrix results, per-version benchmark timings/trends, and tool versions. |
+| `run_svg_report`          | `true`                              | Generates `security-report.svg` and `security-summary.json` with per-version matrix results, per-version benchmark timings/trends and tool versions. |
 | `fail_on_skipped_tests`   | `false`                             | Adds `--fail-on-skipped` to Pest execution so skipped tests fail the CI test job.                                                    |
 | `run_clean_install`       | `true`                              | Verifies a production-style `--no-dev` install and authoritative autoload on the final configured PHP version.                      |
 | `benchmark_composer_script` | `""`                              | Optional Composer script name that produces a representative result. Empty keeps the existing PHPBench discovery behavior.           |
@@ -743,7 +747,7 @@ silently removed from the matrix; when no supported entry remains, PHP-dependent
 jobs are skipped successfully. Exact patch releases within a supported cycle,
 such as `8.4.12`, are accepted.
 
-Use a smaller matrix for faster daily CI, or the full supported range for release confidence.
+Use a smaller matrix for faster daily CI or the full supported range for release confidence.
 
 `dependency_versions` controls Composer update mode:
 
@@ -836,7 +840,7 @@ When a service is enabled, the workflow exports these environment variables in t
 - `IC_ELASTICSEARCH_HOST`, `IC_ELASTICSEARCH_PORT`, `IC_ELASTICSEARCH_URL`
 - `IC_MONGODB_HOST`, `IC_MONGODB_PORT`, `IC_MONGODB_DSN`
 
-`run_analysis` controls the dedicated Composer audit, PHPStan, Psalm, and SARIF
+`run_analysis` controls the dedicated Composer audit, PHPStan, Psalm and SARIF
 analysis job:
 
 ```yaml
@@ -863,7 +867,7 @@ with:
   fail_on_skipped_tests: true
 ```
 
-`run_clean_install` adds a separate release-install check. It selects the last entry in `php_versions`, installs from a clean checkout with `--no-dev --optimize-autoloader`, checks platform requirements, and verifies an authoritative classmap:
+`run_clean_install` adds a separate release-install check. It selects the last entry in `php_versions`, installs from a clean checkout with `--no-dev --optimize-autoloader`, checks platform requirements and verifies an authoritative classmap:
 
 ```yaml
 with:
@@ -901,13 +905,13 @@ When enabled on `main` or `master`, the workflow uploads one artifact:
 - `tested_php_versions`
 - `matrix_results` (per PHP version: `code_analysis_prefer_lowest`, `code_analysis_prefer_stable`, `security_analysis`)
 - `check_results` (flat per-check rows with `test`, `dependency_mode`, `php_version`, `status`, `source_job`, `generated_by`)
-- `benchmark_results` (per PHP version benchmark rows with `duration_ms`, `delta_ms`, `trend`, `status`, source job metadata, and metric provenance via `benchmark_metric_ns` / `benchmark_metric_source`)
+- `benchmark_results` (per PHP version benchmark rows with `duration_ms`, `delta_ms`, `trend`, `status`, source job metadata and metric provenance via `benchmark_metric_ns` / `benchmark_metric_source`)
 - `rollup` (aggregated status for `code_analysis_prefer_lowest`, `code_analysis_prefer_stable`, `security_analysis`, `benchmark`)
 - `benchmark_command`
 - `benchmark_job_result`
 - `tools` (tool `name`, package, resolved version)
 
-`security-report.svg` renders the same high-level status, per-version matrix check results, rollup quality gates (`Code Lowest`, `Code Stable`, `Security`, `Benchmark`), a benchmark-by-version chart with upgrade/degrade trend labels, and resolved tool versions.
+`security-report.svg` renders the same high-level status, per-version matrix check results, rollup quality gates (`Code Lowest`, `Code Stable`, `Security`, `Benchmark`), a benchmark-by-version chart with upgrade/degrade trend labels and resolved tool versions.
 
 ### Workflow Examples
 
@@ -1025,24 +1029,71 @@ Each template installs dependencies and runs:
 composer ic:ci
 ```
 
-Generate community templates for contributing and issue triage:
+## Community Templates
+
+Generate the contribution policies, issue forms and pull request templates:
 
 ```bash
 composer ic:community
 ```
 
-Generated files:
+Use `--force` only when existing project files should be replaced with PHPForge defaults:
+
+```bash
+composer ic:community --force
+```
+
+Generated community policy files:
 
 - `CONTRIBUTING.md`
 - `CODE_OF_CONDUCT.md`
 - `SECURITY.md`
+
+Generated issue forms:
+
 - `.github/ISSUE_TEMPLATE/bug_report.yml`
 - `.github/ISSUE_TEMPLATE/ci_failure.yml`
+- `.github/ISSUE_TEMPLATE/docs_improvement.yml`
 - `.github/ISSUE_TEMPLATE/feature_request.yml`
 - `.github/ISSUE_TEMPLATE/question.yml`
-- `.github/ISSUE_TEMPLATE/docs_improvement.yml`
 - `.github/ISSUE_TEMPLATE/config.yml`
-- `.github/PULL_REQUEST_TEMPLATE.md`
+
+The bug form also captures regressions through its issue-type and version fields, so a separate regression form is unnecessary.
+
+Generated pull request templates:
+
+- `.github/PULL_REQUEST_TEMPLATE.md` — general fallback
+- `.github/PULL_REQUEST_TEMPLATE/bug_fix.md`
+- `.github/PULL_REQUEST_TEMPLATE/feature.md`
+- `.github/PULL_REQUEST_TEMPLATE/refactor.md`
+- `.github/PULL_REQUEST_TEMPLATE/performance.md`
+- `.github/PULL_REQUEST_TEMPLATE/security_reliability.md`
+- `.github/PULL_REQUEST_TEMPLATE/documentation.md`
+- `.github/PULL_REQUEST_TEMPLATE/maintenance.md`
+
+### Selecting a Pull Request Template
+
+GitHub automatically inserts `.github/PULL_REQUEST_TEMPLATE.md` when a pull request is opened normally.
+
+GitHub does not provide an issue-form-style chooser for multiple pull request templates. Select a typed template by adding the `template` query parameter to the repository compare URL:
+
+```text
+https://github.com/OWNER/REPOSITORY/compare/BASE...HEAD?quick_pull=1&template=bug_fix.md
+```
+
+Replace `bug_fix.md` with the required template filename:
+
+| Template | Use For |
+| --- | --- |
+| `bug_fix.md` | Defects, regressions and incorrect behavior |
+| `feature.md` | New capabilities, public APIs or documented behavior |
+| `refactor.md` | Structural changes intended to preserve behavior |
+| `performance.md` | Measured optimizations supported by benchmark evidence |
+| `security_reliability.md` | Security hardening and failure-resilience changes |
+| `documentation.md` | Documentation, examples and community guidance |
+| `maintenance.md` | Dependencies, CI, release tooling, configuration and repository maintenance |
+
+Use the general fallback for mixed changes or work that does not fit one specialized type. Do not place confidential, unpatched vulnerability details in a public pull request; follow `SECURITY.md` and use private vulnerability reporting.
 
 ## Migration Guide
 
