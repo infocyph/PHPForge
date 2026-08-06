@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\PHPForge\Composer\WorkerSoakCommand;
+use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 
@@ -13,11 +14,20 @@ use Symfony\Component\Console\Output\BufferedOutput;
 function runWorkerSoakCommand(array $input): array
 {
     $command = new WorkerSoakCommand();
-    $execute = new ReflectionMethod($command, 'execute');
+
+    // Give the command an Application instance so $this->getApplication() works inside it.
+    $application = new Symfony\Component\Console\Application();
+    $command->setApplication($application);
+
+    // IMPORTANT: do NOT add a 'command' key here — we will use the command's own definition.
+    // Build ArrayInput with the command's InputDefinition so the command's arguments/options are accepted.
+    $inputObj = new ArrayInput($input, $command->getDefinition());
+
     $output = new BufferedOutput();
+    $exitCode = $command->run($inputObj, $output);
 
     return [
-        'exit_code' => $execute->invoke($command, new ArrayInput($input, $command->getDefinition()), $output),
+        'exit_code' => $exitCode,
         'output' => $output->fetch(),
     ];
 }
