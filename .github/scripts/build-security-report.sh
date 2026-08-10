@@ -416,23 +416,29 @@ tools_json="$(jq -nc \
 
 echo "$tools_json" > .phpforge-report/out/tool-versions.json
 
-jq -n \
+printf '%s\n' \
+  "$php_versions_input" \
+  "$matrix_results_json" \
+  "$tools_json" \
+  "$check_results_json" \
+  "$benchmark_results_json" \
+| jq -n \
   --arg generated_at "$generated_at" \
   --arg overall_state "$overall_state" \
   --arg run_result "$run_result" \
   --arg analyze_result "$analyze_result" \
   --arg benchmark_job_result "$benchmark_job_result" \
-  --argjson tested_php_versions "$php_versions_input" \
-  --argjson matrix_results "$matrix_results_json" \
   --arg benchmark_command "$benchmark_command" \
   --arg code_lowest_rollup "$code_lowest_rollup" \
   --arg code_stable_rollup "$code_stable_rollup" \
   --arg security_rollup "$security_rollup" \
   --arg benchmark_rollup "$benchmark_rollup" \
-  --argjson tools "$tools_json" \
-  --argjson check_results "$check_results_json" \
-  --argjson benchmark_results "$benchmark_results_json" \
-  '{
+  'input as $tested_php_versions
+  | input as $matrix_results
+  | input as $tools
+  | input as $check_results
+  | input as $benchmark_results
+  | {
     schema: "phpforge-security-summary-v2",
     generated_at: $generated_at,
     overall_state: $overall_state,
