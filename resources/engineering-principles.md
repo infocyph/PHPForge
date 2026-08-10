@@ -22,6 +22,8 @@
 - Be skeptical of defaults, conventions and abstractions that introduce hidden runtime or operational costs.
 - When sustained throughput is practically equivalent, choose the implementation with lower complexity, lower operating cost and more predictable behavior.
 - When uncertain, choose the simpler design that is easier to benchmark, profile, operate and change.
+- Use deterministic local tooling for deterministic work; reserve agent context and reasoning for decisions that actually require judgment.
+- Optimize agent token usage by eliminating redundant context, repeated inspection, unnecessary output and avoidable tool work; never trade correctness, verification depth or solution quality for fewer tokens.
 - Interpret specific rules as refinements of general rules.
 - When rules appear to conflict, apply them in this order:
   - correctness, security, authorization, data integrity and operational stability,
@@ -2347,6 +2349,220 @@ composer install \
 - Use static analysis at the strongest practical level supported by the project.
 - Treat findings from tests, static analysis, formatters, linters, mutation testing, security scanners, compatibility checks, complexity checks, coverage gates, performance gates and other quality detectors as issues to resolve at their root cause.
 
+**Agent Execution, Tool And Token Efficiency**
+
+- Treat agent token consumption, context size, tool calls and execution time as engineering resources.
+- Reduce them without reducing:
+  - correctness,
+  - security,
+  - source understanding,
+  - verification depth,
+  - test coverage,
+  - compatibility coverage,
+  - performance evidence,
+  - or solution quality.
+- Prefer deterministic local tooling over token-heavy manual inspection or reasoning when it provides equivalent or better evidence.
+- Use the cheapest authoritative mechanism that can answer the question correctly.
+- Prefer, where applicable:
+  1. PHPForge built-in commands and detectors available in the installed project version,
+  2. existing project scripts and repository automation,
+  3. native PHP and Composer commands,
+  4. Git and established system commands,
+  5. targeted source inspection,
+  6. small task-specific scripts,
+  7. broad manual reconstruction or speculative reasoning.
+- This order is a workflow preference, not permission to skip required inspection or verification.
+- Use a lower-ranked mechanism when a higher-ranked tool:
+  - cannot answer the question,
+  - lacks required context,
+  - requires independent verification,
+  - or would make the task less correct or less efficient.
+- Search before reading broadly.
+- Inspect before designing.
+- Reuse before creating.
+- Edit before rewriting.
+- Verify before reporting.
+
+**PHPForge Command Preference**
+
+- Before performing repetitive or repository-wide PHP analysis manually, determine whether the installed PHPForge version already provides an equivalent command, detector or workflow.
+- Prefer PHPForge built-in capabilities for supported operations such as:
+  - structural inspection,
+  - class, file and abstraction review,
+  - cognitive-complexity analysis,
+  - dependency analysis,
+  - documentation and PHPDoc checks,
+  - comment-policy checks,
+  - code-quality checks,
+  - compatibility checks,
+  - validation,
+  - refactoring support,
+  - profiling or benchmark support,
+  - and other project-defined PHPForge operations.
+- Treat the installed project's PHPForge version and its command help or documentation as the source of truth.
+- Do not assume a PHPForge command, option, detector or behavior exists without checking the installed version when uncertain.
+- Prefer one PHPForge operation that provides the required evidence over several manual repository scans or custom parsing passes.
+- Do not duplicate PHPForge analysis with a custom implementation unless:
+  - PHPForge does not support the required operation,
+  - its result is insufficient for the active task,
+  - a narrowly scoped alternative is materially cheaper while remaining equally authoritative,
+  - or independent verification is required.
+- Do not replace or bypass a PHPForge detector merely because another implementation is easier for the agent to interpret.
+- Resolve PHPForge findings according to the quality-gate rules.
+- Use PHPForge's documented automation and [AGENTS.md](vendor/infocyph/phpforge/resources/AGENTS.md) workflow when applicable.
+
+**Repository And System Command Preference**
+
+- Prefer existing repository commands and native tools for deterministic repository and runtime questions.
+- Prefer Git for:
+  - changed files,
+  - diffs,
+  - history,
+  - blame,
+  - tracked-file discovery,
+  - and change scope.
+- Prefer fast repository search tools for:
+  - symbol lookup,
+  - text lookup,
+  - caller discovery,
+  - configuration references,
+  - and duplicate-pattern searches.
+- Prefer filesystem commands for:
+  - bounded file discovery,
+  - file counts,
+  - path inspection,
+  - and metadata.
+- Prefer PHP commands for:
+  - syntax validation,
+  - runtime capability checks,
+  - extension checks,
+  - INI inspection,
+  - and deterministic PHP-level calculations.
+- Prefer Composer commands for:
+  - dependency information,
+  - platform requirements,
+  - autoload information,
+  - package versions,
+  - and dependency relationships.
+- Prefer the configured formatter, static analyzer, test runner, mutation tool, security scanner, benchmark and profiler over manually approximating the same result.
+- Do not create a temporary custom script for an operation already performed correctly by PHPForge, repository tooling, PHP, Composer, Git or an established system command.
+- When a small custom script is still the most efficient correct option:
+  - keep it narrowly scoped,
+  - do not make it production architecture unless required,
+  - and remove temporary analysis artifacts when the task is complete.
+
+**Search And Inspection Efficiency**
+
+- Prefer the smallest sufficient context needed for a correct decision.
+- Identify likely files, symbols, callers, tests and configuration before reading broad portions of the repository.
+- Prefer targeted:
+  - symbol lookups,
+  - reference searches,
+  - file ranges,
+  - diffs,
+  - failing diagnostics,
+  - test files,
+  - configuration sections,
+  - and command summaries
+  over repeatedly loading complete files or directories.
+- Read a complete file when full context is necessary for ownership, lifecycle, side effects, security, public contracts, concurrency or architectural decisions.
+- Do not repeatedly reread unchanged content already inspected during the same task unless:
+  - the file changed,
+  - earlier context is insufficient,
+  - or verification requires the exact current content.
+- Reuse established facts and decisions from the current task instead of rediscovering them.
+- Revalidate a fact when the relevant source or runtime state changed or when relying on the earlier result creates correctness risk.
+- Avoid recursively exploring unrelated directories, dependencies or architectural alternatives without evidence that they affect the active task.
+- Stop investigating an already resolved branch when additional inspection cannot materially change the implementation or verification decision.
+- Do not use context minimization to skip relevant callers, implementations, contracts or side effects.
+
+**Command And Tool Output Discipline**
+
+- Keep command output proportional to the question being answered.
+- Prefer summaries, changed files, matching lines, failing checks, relevant diagnostics, machine-readable output and bounded result sets over unrestricted verbose output.
+- Filter large output only when omitted information cannot affect the engineering decision.
+- Do not truncate, filter or summarize output in a way that could hide:
+  - failures,
+  - security findings,
+  - compatibility issues,
+  - affected callers,
+  - test failures,
+  - performance regressions,
+  - or required context.
+- Do not repeatedly run an expensive unchanged command unless:
+  - relevant code changed,
+  - the previous result was inconclusive,
+  - state may have changed,
+  - or final verification requires another run.
+- Batch related independent searches or checks when doing so reduces repeated setup and context without hiding failures.
+- Prefer one well-scoped command over several speculative commands.
+
+**Implementation Efficiency**
+
+- Prefer the smallest correct diff.
+- Modify the existing cohesive owner instead of creating a new file or abstraction unless the structural rules justify one.
+- Prefer targeted edits over whole-file rewrites when surrounding content does not need to change.
+- Do not generate several complete competing implementations when repository constraints already determine the appropriate approach.
+- Narrow alternatives using existing contracts, project conventions, supported runtimes, measured constraints and current architecture before designing multiple solutions.
+- Check for an existing owner, utility, PHPForge capability, repository helper or contract before creating a new implementation.
+- Do not reproduce unchanged code merely to show context.
+- Keep intermediate plans proportional to task complexity.
+- Proceed directly after obtaining sufficient context for simple, low-risk changes.
+- Use more detailed planning when the task materially affects architecture, public contracts, security, data migration, concurrency, persistence, performance-sensitive paths or coordinated multi-file behavior.
+
+**Reasoning And Context Efficiency**
+
+- Use agent reasoning for trade-offs, architecture, ownership, semantics, security implications and decisions that require judgment.
+- Use tools for facts that tools can determine directly.
+- Do not spend reasoning tokens reconstructing information that can be obtained authoritatively from PHPForge, the repository, Git, PHP, Composer, configured analyzers, configured tests, runtime diagnostics or benchmark tooling.
+- Summarize large intermediate findings compactly and retain only details required for subsequent decisions.
+- Preserve exact source details when implementation correctness depends on them.
+- Do not replace necessary source inspection with an approximate summary.
+- Avoid repeatedly restating the user's requirements, the same implementation plan, unchanged code, complete file contents, complete command output or conclusions already established in the same task.
+
+**Verification Efficiency**
+
+- During implementation, run the narrowest relevant checks that provide useful feedback.
+- After implementation, run every required broader validation defined by:
+  - the repository,
+  - PHPForge,
+  - [AGENTS.md](vendor/infocyph/phpforge/resources/AGENTS.md),
+  - CI configuration,
+  - or the active task.
+- Prefer targeted tests and detectors while iterating, then run the required complete validation before completion.
+- Do not substitute targeted checks for mandatory final checks merely to save tokens, time, context or compute.
+- Do not skip a required detector because another detector appears to cover similar behavior.
+- Do not rerun an unchanged expensive validation after every trivial edit when a narrower deterministic check can safely guide iteration.
+- Rerun affected validation after relevant changes and perform required final validation before reporting completion.
+
+**Response Efficiency**
+
+- Keep final responses concise, complete and decision-oriented.
+- Report:
+  - what changed,
+  - important engineering decisions,
+  - verification performed,
+  - unresolved risks,
+  - and anything that could not be verified.
+- Do not reproduce unchanged files, large command outputs, repeated requirements, source already available to the user or unnecessary internal reasoning unless it materially helps review, use or maintenance.
+- Include code, commands, diagnostics and explanation when they are necessary to understand or verify the solution.
+
+**Efficiency Safety Rule**
+
+- Token, context, command and execution efficiency must never be achieved by:
+  - guessing instead of inspecting,
+  - assuming instead of verifying,
+  - skipping relevant files or callers,
+  - skipping required tests,
+  - weakening quality detectors,
+  - reducing security analysis,
+  - omitting required edge cases,
+  - ignoring public contracts,
+  - avoiding necessary benchmarks,
+  - hiding command failures,
+  - or returning an incomplete solution.
+- When two workflows provide equivalent correctness, verification and solution quality, prefer the one with fewer tokens, less repeated context, fewer redundant reads, fewer redundant tool calls, less unnecessary output, fewer repository scans, less custom processing and shorter execution time.
+
 **Quality-Gate Issue Resolution**
 
 - Fix the code, configuration, test or contract that causes a valid finding.
@@ -2394,7 +2610,7 @@ composer install \
 - Run compatibility and deprecation checks against every supported PHP version and the next intended upgrade target.
 - Add or update tests for affected behavior, boundaries, failures and contracts.
 - Add benchmarks only for meaningful, stable, performance-sensitive behavior.
-- After implementation or function/method documentation work, use the automation and workflow described in [AGENTS.md](vendor/infocyph/phpforge/resources/AGENTS.md) when that file exists.
+- Follow any additional mandatory post-implementation or documentation workflow in [AGENTS.md](vendor/infocyph/phpforge/resources/AGENTS.md) when that file exists.
 - Review automated changes for correctness.
 - Keep automated changes within scope.
 - Do not accept generated or automated refactoring without reviewing the resulting behavior.
