@@ -43,7 +43,7 @@ final readonly class ParallelRunner
         $concurrency ??= self::concurrencyFrom(null);
         $preflightResults = [];
 
-        $this->output->writeln(sprintf('<info>Parallel Tests</info>'));
+        $this->output->writeln('<info>Parallel Tests</info>');
         $this->output->writeln(sprintf('Concurrency: %d', $concurrency));
         $this->output->writeln('');
 
