@@ -71,6 +71,10 @@ it('produces a successful empty matrix when every PHP version is unsupported', f
 
 it('guards every PHP workflow job with the filtered matrix result', function (): void {
     $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $benchmarkSetupSteps = array_values(array_filter(
+        $workflow['jobs']['benchmark']['steps'] ?? [],
+        static fn(mixed $step): bool => is_array($step) && ($step['uses'] ?? null) === 'shivammathur/setup-php@v2',
+    ));
 
     expect($workflow['jobs']['prepare']['outputs']['has_supported_php_versions'] ?? null)
         ->toBe('${{ steps.matrix.outputs.has_supported_php_versions }}')
@@ -82,6 +86,10 @@ it('guards every PHP workflow job with the filtered matrix result', function ():
         ->toContain("needs.prepare.outputs.has_supported_php_versions == 'true'")
         ->and($workflow['jobs']['benchmark']['if'] ?? null)
         ->toContain("needs.prepare.outputs.has_supported_php_versions == 'true'")
+        ->and($workflow['jobs']['benchmark']['name'] ?? null)
+        ->toBe('Benchmark')
+        ->and($benchmarkSetupSteps[0]['name'] ?? null)
+        ->toBe('Setup benchmark - PHP ${{ matrix.php-version }}')
         ->and($workflow['jobs']['svg-report']['if'] ?? null)
         ->toContain("needs.prepare.outputs.has_supported_php_versions == 'true'");
 });
