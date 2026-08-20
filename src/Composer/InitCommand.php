@@ -156,8 +156,16 @@ final class InitCommand extends Command
 
         $flags['workflow'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install GitHub Actions workflow? [Y/n] ', true));
         $flags['captainhook'] = (bool) $helper->ask($input, $output, new ConfirmationQuestion('Install CaptainHook? [Y/n] ', true));
-        $question = new ChoiceQuestion('Select integration services (comma-separated indexes; empty for none)', ServiceCatalog::names());
+        $question = new ChoiceQuestion('Select integration services (comma-separated indexes; press Enter for none)', ServiceCatalog::names());
         $question->setMultiselect(true);
+        $validateChoice = $question->getValidator();
+
+        if ($validateChoice !== null) {
+            $question->setValidator(
+                static fn(mixed $answer): mixed => $answer === null || $answer === '' ? [] : $validateChoice($answer),
+            );
+        }
+
         $answer = $helper->ask($input, $output, $question);
         $services = $this->uniqueStrings($answer);
         $topologies = [];

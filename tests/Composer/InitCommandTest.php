@@ -5,6 +5,9 @@ declare(strict_types=1);
 use Infocyph\PHPForge\Composer\InitCommand;
 use Infocyph\PHPForge\Support\ServiceCatalog;
 use Infocyph\PHPForge\Support\WorkflowWrapper;
+use Symfony\Component\Console\Helper\HelperSet;
+use Symfony\Component\Console\Helper\QuestionHelper;
+use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 it('parses service selection as a unique JSON string list', function (): void {
@@ -65,4 +68,37 @@ YAML;
 
 it('publishes only the canonical init command name', function (): void {
     expect((new InitCommand())->getName())->toBe('ic:init');
+});
+
+it('accepts an empty interactive service selection', function (): void {
+    $command = new InitCommand();
+    $command->setHelperSet(new HelperSet(['question' => new QuestionHelper()]));
+    $input = new ArrayInput([]);
+    $input->setInteractive(true);
+    $stream = fopen('php://memory', 'r+');
+
+    if (!is_resource($stream)) {
+        throw new RuntimeException('Unable to create the interactive input stream.');
+    }
+
+    fwrite($stream, "\n\n\n");
+    rewind($stream);
+    $input->setStream($stream);
+    $output = new BufferedOutput();
+    $method = new ReflectionMethod(InitCommand::class, 'interactiveSelection');
+    $selection = $method->invoke($command, $input, $output, [
+        'workflow' => false,
+        'captainhook' => false,
+        'gitlab_ci' => false,
+        'bitbucket_ci' => false,
+        'forgejo_workflow' => false,
+        'community_templates' => false,
+    ], 'main');
+
+    fclose($stream);
+
+    expect($selection)->toBeArray()
+        ->and($selection['services'])->toBe([])
+        ->and($selection['topologies'])->toBe([])
+        ->and($output->fetch())->not->toContain('is invalid');
 });
