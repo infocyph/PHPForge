@@ -81,9 +81,9 @@
 - Source-mutating processors remain sequential.
 - `IC_TEST_CONCURRENCY` is the canonical bounded task concurrency setting (eligible task count by default, maximum 16); `PHPFORGE_PARALLEL` is a legacy fallback.
 - Optional focused-command tuning: `IC_PSALM_THREADS`, `IC_PHPSTAN_MEMORY_LIMIT`.
-- Reusable workflow services use `integration_services` (JSON list) and `service_topologies` (JSON object). The workflow resolves extensions automatically from Composer plus the canonical service catalog.
-- Supported services: MySQL, MariaDB, PostgreSQL, MSSQL, SQLite, MongoDB, Redis, Valkey, Memcached, RabbitMQ, NATS JetStream, Mailpit, Elasticsearch and ScyllaDB.
-- Replica modes are available for MySQL, MariaDB and PostgreSQL; MongoDB supports `replica-set`. Readiness proves replicated data visibility.
+- Reusable workflow services are opt-in and disabled by default: `integration_services: '[]'` and `service_topologies: '{}'`.
+- `integration_services` is a JSON list of canonical keys: `mysql`, `mariadb`, `postgres`, `mssql`, `sqlite`, `mongodb`, `redis`, `valkey`, `memcached`, `rabbitmq`, `nats`, `mailpit`, `elasticsearch` and `scylladb`. The workflow resolves required PHP extensions automatically.
+- `service_topologies` is a JSON object. Every topology key must also be selected in `integration_services`; omitted entries use `standalone`. MySQL, MariaDB and PostgreSQL support `replica`, while MongoDB supports `replica-set`. Readiness proves replicated data visibility.
 - SQLite is an additional compatibility target, not a substitute for production database engines.
 - Mailpit validates SMTP/email integration but does not replace provider-specific or real deliverability testing.
 - Reusable workflow strict skip gate: set `fail_on_skipped_tests: true` to pass `--fail-on-skipped` to Pest in CI.

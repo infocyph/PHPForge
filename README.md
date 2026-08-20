@@ -9,6 +9,10 @@ Reusable Composer-powered QA, refactoring, benchmark, release, hook and CI tooli
 
 PHPForge is installed as a dev dependency in PHP libraries and packages. It provides Composer commands under the `ic:*` namespace, ships default tool configuration, installs CaptainHook hooks, exposes a reusable GitHub Actions workflow and includes starter templates for GitLab CI, Bitbucket Pipelines and Forgejo Actions.
 
+**Start here:** [Install](#install) · [Quick Start](#quick-start) · [Set up GitHub Actions](#github-actions) · [Choose integration services](#integration-service-values)
+
+All GitHub Actions integration services are opt-in. The generated workflow starts with `integration_services: '[]'` and `service_topologies: '{}'`.
+
 ## What It Includes
 
 PHPForge brings these tools through one package:
