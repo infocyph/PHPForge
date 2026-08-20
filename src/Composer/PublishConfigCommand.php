@@ -105,7 +105,7 @@ final class PublishConfigCommand extends Command
         $source = Paths::bundledConfigFile($file);
         $target = Paths::projectRootPath() . DIRECTORY_SEPARATOR . $file;
 
-        return FilePublisher::publish(
+        $published = FilePublisher::publish(
             $source,
             $target,
             $file,
@@ -119,6 +119,27 @@ final class PublishConfigCommand extends Command
                 'published' => '<info>Published config: %s</info>',
             ],
             fn(string $contents): ?string => $this->transformConfigContents($file, $contents, $phpprobePreset, $output),
+        );
+
+        if (!$published || $file !== 'phpcs.xml.dist') {
+            return $published;
+        }
+
+        $sniff = 'PHPForge/Sniffs/PHP/ForbiddenFunctionsSniff.php';
+
+        return FilePublisher::publish(
+            Paths::packageFile('resources/' . $sniff),
+            Paths::projectRootPath() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $sniff),
+            $sniff,
+            $force,
+            $output,
+            [
+                'missing' => '<error>Missing bundled config support file: %s</error>',
+                'skipped' => '<comment>Skipped existing config support file: %s</comment>',
+                'unreadable' => '<error>Unable to read bundled config support file: %s</error>',
+                'unwritable' => '<error>Unable to write config support file: %s</error>',
+                'published' => '<info>Published config support file: %s</info>',
+            ],
         );
     }
 

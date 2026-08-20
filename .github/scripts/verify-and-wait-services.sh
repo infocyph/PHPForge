@@ -1,16 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-is_enabled() {
-  [ "${1:-false}" = "true" ]
-}
+services_json="${INTEGRATION_SERVICES:-[]}"
+topologies_json="${SERVICE_TOPOLOGIES-}"
+[ -n "$topologies_json" ] || topologies_json='{}'
+catalog_file="${PHPFORGE_SERVICE_CATALOG:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/resources/services/catalog.php}"
+
+if ! jq -e 'type == "array" and all(.[]; type == "string")' >/dev/null <<< "$services_json"; then
+  echo "::error::INTEGRATION_SERVICES must be a JSON string array."
+  exit 1
+fi
+
+if ! jq -e 'type == "object" and all(.[]; type == "string")' >/dev/null <<< "$topologies_json"; then
+  echo "::error::SERVICE_TOPOLOGIES must be a JSON object."
+  exit 1
+fi
 
 wait_for() {
   local name="$1"
   local probe="$2"
+  shift 2
 
-  for i in {1..30}; do
-    if php -r "$probe"; then
+  for ((_attempt = 1; _attempt <= retry_attempts; _attempt++)); do
+    if php -r "$probe" "$@" >/dev/null 2>&1; then
       echo "${name} ready"
       return 0
     fi
@@ -22,61 +34,97 @@ wait_for() {
   return 1
 }
 
+required_extensions="$(INTEGRATION_SERVICES="$services_json" php -r '
+$catalog = require $argv[1];
+$services = json_decode((string) getenv("INTEGRATION_SERVICES"), true, 512, JSON_THROW_ON_ERROR);
+$required = [];
+foreach ($services as $service) {
+    if (!isset($catalog[$service])) {
+        fwrite(STDERR, "Unknown integration service: {$service}\n");
+        exit(2);
+    }
+    foreach ($catalog[$service]["extensions"] as $extension) {
+        $required[$extension] = true;
+    }
+}
+echo implode("\n", array_keys($required));
+' "$catalog_file")"
+
 missing=()
 
-if { is_enabled "${INPUT_ENABLE_REDIS_SERVICE:-false}" || is_enabled "${INPUT_ENABLE_VALKEY_SERVICE:-false}"; } && ! php -m | grep -qi '^redis$'; then
-  missing+=("redis")
-fi
+while IFS= read -r extension; do
+  [ -z "$extension" ] && continue
 
-if is_enabled "${INPUT_ENABLE_MEMCACHED_SERVICE:-false}" && ! php -m | grep -qi '^memcached$'; then
-  missing+=("memcached")
-fi
-
-if is_enabled "${INPUT_ENABLE_POSTGRES_SERVICE:-false}" && ! php -m | grep -qi '^pdo_pgsql$'; then
-  missing+=("pdo_pgsql")
-fi
-
-if is_enabled "${INPUT_ENABLE_MYSQL_SERVICE:-false}" && ! php -m | grep -qi '^pdo_mysql$'; then
-  missing+=("pdo_mysql")
-fi
-
-if is_enabled "${INPUT_ENABLE_MONGODB_SERVICE:-false}" && ! php -m | grep -qi '^mongodb$'; then
-  missing+=("mongodb")
-fi
+  if ! php -m | grep -Fxiq "$extension"; then
+    missing+=("$extension")
+  fi
+done <<< "$required_extensions"
 
 if [ "${#missing[@]}" -gt 0 ]; then
-  echo "::error::Missing required PHP extensions for enabled services: ${missing[*]}"
+  echo "::error::Missing required PHP extensions for selected services: ${missing[*]}"
   exit 1
 fi
 
-if is_enabled "${INPUT_ENABLE_REDIS_SERVICE:-false}"; then
-  wait_for redis '$r = new Redis(); try { if ($r->connect(getenv("IC_REDIS_HOST"), (int) getenv("IC_REDIS_PORT"), 0.5)) { $pass = getenv("IC_REDIS_PASSWORD"); if (is_string($pass) && $pass !== "") { if (!$r->auth($pass)) { exit(1); } } $pong = $r->ping(); if ($pong === true || stripos((string) $pong, "pong") !== false) { exit(0); } } } catch (Throwable) {} exit(1);'
-fi
+while IFS= read -r service; do
+  topology="$(jq -r --arg service "$service" '.[$service] // "standalone"' <<< "$topologies_json")"
+  probe="$(php -r '$catalog = require $argv[1]; echo $catalog[$argv[2]]["probe"] ?? "";' "$catalog_file" "$service")"
+  retry_attempts="$(php -r '$catalog = require $argv[1]; echo $catalog[$argv[2]]["retry_attempts"] ?? 60;' "$catalog_file" "$service")"
 
-if is_enabled "${INPUT_ENABLE_MEMCACHED_SERVICE:-false}"; then
-  wait_for memcached '$m = new Memcached(); $m->addServer(getenv("IC_MEMCACHED_HOST"), (int) getenv("IC_MEMCACHED_PORT")); $m->set("phpforge_ci_probe", "ok", 5); exit($m->getResultCode() === Memcached::RES_SUCCESS ? 0 : 1);'
-fi
+  case "$probe" in
+    redis)
+      wait_for redis '$r = new Redis(); try { $r->connect(getenv("IC_REDIS_HOST"), (int) getenv("IC_REDIS_PORT"), 0.5); $pass = getenv("IC_REDIS_PASSWORD"); if (is_string($pass) && $pass !== "" && !$r->auth($pass)) { exit(1); } $pong = $r->ping(); exit($pong === true || stripos((string) $pong, "pong") !== false ? 0 : 1); } catch (Throwable) { exit(1); }'
+      ;;
+    valkey)
+      wait_for valkey '$r = new Redis(); try { $r->connect(getenv("IC_VALKEY_HOST"), (int) getenv("IC_VALKEY_PORT"), 0.5); $pass = getenv("IC_VALKEY_PASSWORD"); if (is_string($pass) && $pass !== "" && !$r->auth($pass)) { exit(1); } $pong = $r->ping(); exit($pong === true || stripos((string) $pong, "pong") !== false ? 0 : 1); } catch (Throwable) { exit(1); }'
+      ;;
+    memcached)
+      wait_for memcached '$m = new Memcached(); $m->addServer(getenv("IC_MEMCACHED_HOST"), (int) getenv("IC_MEMCACHED_PORT")); $key = "phpforge_probe_" . bin2hex(random_bytes(4)); if (!$m->set($key, "ok", 5) || $m->get($key) !== "ok") { exit(1); } $m->delete($key);'
+      ;;
+    mysql|mariadb|postgres|mssql)
+      upper="${service^^}"
+      dsn_name="IC_${upper}_DSN"
+      user_name="IC_${upper}_USER"
+      password_name="IC_${upper}_PASSWORD"
+      wait_for "$service" '$dsn = getenv($argv[1]); $user = getenv($argv[2]); $pass = getenv($argv[3]); try { $pdo = new PDO((string) $dsn, (string) $user, (string) $pass); exit($pdo->query("SELECT 1") === false ? 1 : 0); } catch (Throwable) { exit(1); }' "$dsn_name" "$user_name" "$password_name"
+      ;;
+    sqlite)
+      wait_for sqlite '$memory = new PDO((string) getenv("IC_SQLITE_MEMORY_DSN")); $file = new PDO((string) getenv("IC_SQLITE_FILE_DSN")); exit($memory->query("SELECT 1") !== false && $file->query("SELECT 1") !== false ? 0 : 1);'
+      ;;
+    mongodb)
+      wait_for mongodb '$manager = new MongoDB\Driver\Manager((string) getenv("IC_MONGODB_DSN")); try { $result = $manager->executeCommand("admin", new MongoDB\Driver\Command(["ping" => 1]))->toArray()[0] ?? null; exit(is_object($result) && ($result->ok ?? 0) == 1 ? 0 : 1); } catch (Throwable) { exit(1); }'
+      if [ "$topology" = "replica-set" ]; then
+        wait_for mongodb-replica-set '$manager = new MongoDB\Driver\Manager((string) getenv("IC_MONGODB_DSN")); try { $row = $manager->executeCommand("admin", new MongoDB\Driver\Command(["replSetGetStatus" => 1]))->toArray()[0] ?? null; $value = is_object($row) ? ($row->members ?? null) : null; $members = is_iterable($value) ? iterator_to_array($value) : []; $primary = array_filter($members, static fn($member): bool => is_object($member) && ($member->stateStr ?? "") === "PRIMARY"); exit(count($members) >= 2 && count($primary) === 1 ? 0 : 1); } catch (Throwable) { exit(1); }'
+      fi
+      ;;
+    rabbitmq)
+      wait_for rabbitmq '$url = rtrim((string) getenv("IC_RABBITMQ_MANAGEMENT_URL"), "/") . "/api/health/checks/alarms"; $auth = base64_encode((string) getenv("IC_SERVICE_USERNAME") . ":" . (string) getenv("IC_SERVICE_PASSWORD")); $context = stream_context_create(["http" => ["timeout" => 1, "header" => "Authorization: Basic {$auth}\r\n"]]); $payload = @file_get_contents($url, false, $context); $data = is_string($payload) ? json_decode($payload, true) : null; exit(is_array($data) && ($data["status"] ?? null) === "ok" ? 0 : 1);'
+      ;;
+    nats)
+      wait_for nats '$health = @file_get_contents(rtrim((string) getenv("IC_NATS_MONITOR_URL"), "/") . "/healthz"); $jsz = @file_get_contents(rtrim((string) getenv("IC_NATS_MONITOR_URL"), "/") . "/jsz"); exit(is_string($health) && str_contains(strtolower($health), "ok") && is_string($jsz) && $jsz !== "" ? 0 : 1);'
+      ;;
+    mailpit)
+      wait_for mailpit '$api = @file_get_contents(rtrim((string) getenv("IC_MAILPIT_API_URL"), "/") . "/v1/info"); $socket = @fsockopen((string) getenv("IC_SMTP_HOST"), (int) getenv("IC_SMTP_PORT"), $errno, $error, 1); if (!is_resource($socket)) { exit(1); } $greeting = fgets($socket); fclose($socket); exit(is_string($api) && $api !== "" && is_string($greeting) && str_starts_with($greeting, "220") ? 0 : 1);'
+      ;;
+    elasticsearch)
+      wait_for elasticsearch '$payload = @file_get_contents(rtrim((string) getenv("IC_ELASTICSEARCH_URL"), "/") . "/_cluster/health?wait_for_status=yellow&timeout=1s"); $data = is_string($payload) ? json_decode($payload, true) : null; exit(is_array($data) && in_array($data["status"] ?? null, ["yellow", "green"], true) ? 0 : 1);'
+      ;;
+    scylladb)
+      wait_for scylladb '$context = stream_context_create(["http" => ["timeout" => 1, "ignore_errors" => true]]); $payload = @file_get_contents((string) getenv("IC_SCYLLADB_ENDPOINT"), false, $context); exit(is_string($payload) ? 0 : 1);'
+      ;;
+    *)
+      echo "::error::Unknown integration service: ${service}"
+      exit 1
+      ;;
+  esac
 
-if is_enabled "${INPUT_ENABLE_POSTGRES_SERVICE:-false}"; then
-  wait_for postgres '$dsn = getenv("IC_POSTGRES_DSN"); $user = getenv("IC_SERVICE_USERNAME"); $pass = getenv("IC_SERVICE_PASSWORD"); try { $pdo = new PDO($dsn, $user, $pass); $pdo->query("SELECT 1"); exit(0); } catch (Throwable) { exit(1); }'
-fi
-
-if is_enabled "${INPUT_ENABLE_MYSQL_SERVICE:-false}"; then
-  wait_for mysql '$dsn = getenv("IC_MYSQL_DSN"); $user = getenv("IC_SERVICE_USERNAME"); $pass = getenv("IC_SERVICE_PASSWORD"); try { $pdo = new PDO($dsn, $user, $pass); $pdo->query("SELECT 1"); exit(0); } catch (Throwable) { exit(1); }'
-fi
-
-if is_enabled "${INPUT_ENABLE_VALKEY_SERVICE:-false}"; then
-  wait_for valkey '$r = new Redis(); try { if ($r->connect(getenv("IC_VALKEY_HOST"), (int) getenv("IC_VALKEY_PORT"), 0.5)) { $pass = getenv("IC_VALKEY_PASSWORD"); if (is_string($pass) && $pass !== "") { if (!$r->auth($pass)) { exit(1); } } $pong = $r->ping(); if ($pong === true || stripos((string) $pong, "pong") !== false) { exit(0); } } } catch (Throwable) {} exit(1);'
-fi
-
-if is_enabled "${INPUT_ENABLE_SCYLLADB_SERVICE:-false}"; then
-  wait_for scylladb '$host = getenv("IC_SCYLLADB_HOST"); $port = (int) getenv("IC_SCYLLADB_PORT"); $socket = @stream_socket_client("tcp://{$host}:{$port}", $errno, $errstr, 0.5); if (is_resource($socket)) { fclose($socket); exit(0); } exit(1);'
-fi
-
-if is_enabled "${INPUT_ENABLE_ELASTICSEARCH_SERVICE:-false}"; then
-  wait_for elasticsearch '$url = getenv("IC_ELASTICSEARCH_URL") . "/_cluster/health?wait_for_status=yellow&timeout=1s"; $context = stream_context_create(["http" => ["timeout" => 1.0, "ignore_errors" => true]]); $payload = @file_get_contents($url, false, $context); if (is_string($payload) && $payload !== "") { exit(0); } exit(1);'
-fi
-
-if is_enabled "${INPUT_ENABLE_MONGODB_SERVICE:-false}"; then
-  wait_for mongodb '$host = getenv("IC_MONGODB_HOST"); $port = (int) getenv("IC_MONGODB_PORT"); $socket = @stream_socket_client("tcp://{$host}:{$port}", $errno, $errstr, 0.5); if (is_resource($socket)) { fclose($socket); exit(0); } exit(1);'
-fi
+  if [ "$topology" = "replica" ]; then
+    upper="${service^^}"
+    primary_dsn="IC_${upper}_PRIMARY_DSN"
+    replica_dsn="IC_${upper}_REPLICA_DSN"
+    user_name="IC_${upper}_USER"
+    password_name="IC_${upper}_PASSWORD"
+    replication_token="$(php -r 'echo bin2hex(random_bytes(8));')"
+    php -r '$primary = new PDO((string) getenv($argv[1]), (string) getenv($argv[3]), (string) getenv($argv[4])); $primary->exec("CREATE TABLE IF NOT EXISTS phpforge_replication_probe (token VARCHAR(64) PRIMARY KEY)"); $statement = $primary->prepare("INSERT INTO phpforge_replication_probe (token) VALUES (?)"); $statement->execute([$argv[5]]);' "$primary_dsn" "$replica_dsn" "$user_name" "$password_name" "$replication_token"
+    wait_for "${service}-replication" '$replica = new PDO((string) getenv($argv[2]), (string) getenv($argv[3]), (string) getenv($argv[4])); $query = $replica->prepare("SELECT token FROM phpforge_replication_probe WHERE token = ?"); $query->execute([$argv[5]]); exit($query->fetchColumn() === $argv[5] ? 0 : 1);' "$primary_dsn" "$replica_dsn" "$user_name" "$password_name" "$replication_token"
+  fi
+done < <(jq -r '.[]' <<< "$services_json")

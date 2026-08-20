@@ -7,40 +7,29 @@ namespace Infocyph\PHPForge\Composer;
 use Composer\Command\BaseCommand as Command;
 use Infocyph\PHPForge\Support\ConfigInventory;
 use Infocyph\PHPForge\Support\Paths;
+use Infocyph\PHPForge\Support\ServiceCatalog;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @phpstan-type WorkflowDiagnostics array{path:string,exists:bool,ref:string,inputs:array<string,string>,warnings:list<string>}
+ * @phpstan-type Diagnostics array{
+ *     project_root:string,
+ *     vendor_dir:string,
+ *     configs:list<array{file:string,source:string,path:string}>,
+ *     plugins:array<string,bool>,
+ *     pre_commit_hook:bool,
+ *     workflow:WorkflowDiagnostics,
+ *     runtime:array{valid:bool,php_versions:list<string>},
+ *     service_catalog_warnings:list<string>
+ * }
+ */
 final class DoctorCommand extends Command
 {
     private const array EXPECTED_WORKFLOW_INPUTS = [
-        'php_versions',
-        'dependency_versions',
-        'php_extensions',
-        'composer_flags',
-        'phpstan_memory_limit',
-        'psalm_threads',
-        'run_analysis',
-        'run_svg_report',
-        'fail_on_skipped_tests',
-        'run_clean_install',
-        'benchmark_composer_script',
-        'benchmark_result_file',
-        'benchmark_baseline_file',
-        'benchmark_max_regression_percent',
-        'benchmark_stable_environment',
-        'enable_redis_service',
-        'enable_valkey_service',
-        'enable_memcached_service',
-        'enable_postgres_service',
-        'enable_mysql_service',
-        'enable_scylladb_service',
-        'enable_elasticsearch_service',
-        'enable_mongodb_service',
-        'service_db_name',
-        'service_db_user',
-        'service_db_password',
-        'artifact_retention_days',
+        'integration_services',
+        'service_topologies',
     ];
 
     private const array PLUGINS = [
@@ -97,22 +86,7 @@ final class DoctorCommand extends Command
         return is_array($config) ? ($config['allow-plugins'] ?? []) : [];
     }
 
-    /**
-     * @return array{
-     *     project_root: string,
-     *     vendor_dir: string,
-     *     configs: list<array{file: string, source: string, path: string}>,
-     *     plugins: array<string, bool>,
-     *     pre_commit_hook: bool,
-     *     workflow: array{
-     *         path: string,
-     *         exists: bool,
-     *         ref: string,
-     *         inputs: array<string, string>,
-     *         warnings: list<string>
-     *     }
-     * }
-     */
+    /** @return Diagnostics */
     private function diagnostics(): array
     {
         $configs = [];
@@ -139,18 +113,28 @@ final class DoctorCommand extends Command
             'plugins' => $plugins,
             'pre_commit_hook' => is_file(Paths::projectRootPath() . DIRECTORY_SEPARATOR . '.git' . DIRECTORY_SEPARATOR . 'hooks' . DIRECTORY_SEPARATOR . 'pre-commit'),
             'workflow' => $this->workflowDiagnostics(),
+            'runtime' => $this->runtimeDiagnostics(),
+            'service_catalog_warnings' => ServiceCatalog::validateDefinitions(),
         ];
     }
 
-    private function isValidJsonStringArray(string $value): bool
+    private function dockerComposeAvailable(): bool
     {
-        $decoded = json_decode($value, true);
+        $path = getenv('PATH');
 
-        if (!is_array($decoded) || !array_is_list($decoded)) {
+        if (!is_string($path)) {
             return false;
         }
 
-        return array_all($decoded, fn($item) => is_string($item));
+        return array_any(explode(PATH_SEPARATOR, $path), fn($directory) => is_executable($directory . DIRECTORY_SEPARATOR . 'docker'));
+    }
+
+    /** @param list<string> $services */
+    private function needsCompose(array $services): bool
+    {
+        $catalog = ServiceCatalog::all();
+
+        return array_any($services, fn($service) => ($catalog[$service]['external'] ?? false) === true);
     }
 
     private function normalizeYamlScalar(string $value): string
@@ -215,22 +199,7 @@ final class DoctorCommand extends Command
         return ['ref' => $ref, 'inputs' => $inputs];
     }
 
-    /**
-     * @param array{
-     *     project_root: string,
-     *     vendor_dir: string,
-     *     configs: list<array{file: string, source: string, path: string}>,
-     *     plugins: array<string, bool>,
-     *     pre_commit_hook: bool,
-     *     workflow: array{
-     *         path: string,
-     *         exists: bool,
-     *         ref: string,
-     *         inputs: array<string, string>,
-     *         warnings: list<string>
-     *     }
-     * } $diagnostics
-     */
+    /** @param Diagnostics $diagnostics */
     private function renderDiagnostics(OutputInterface $output, array $diagnostics): void
     {
         $output->writeln('<info>PHPForge Doctor</info>');
@@ -263,31 +232,21 @@ final class DoctorCommand extends Command
         }
 
         $this->renderWorkflowDiagnostics($output, $diagnostics);
+        $output->writeln(sprintf(
+            'Runtime matrix: %s',
+            $diagnostics['runtime']['valid'] ? implode(', ', $diagnostics['runtime']['php_versions']) : '<comment>[WARN] invalid</comment>',
+        ));
+
+        foreach ($diagnostics['service_catalog_warnings'] as $warning) {
+            $output->writeln('  <comment>[WARN]</comment> ' . $warning);
+        }
         $this->renderHealthSummary($output, $diagnostics);
     }
 
-    /**
-     * @param array{
-     *     configs: list<array{file: string, source: string, path: string}>,
-     *     plugins: array<string, bool>,
-     *     workflow: array{warnings: list<string>}
-     * } $diagnostics
-     */
+    /** @param Diagnostics $diagnostics */
     private function renderHealthSummary(OutputInterface $output, array $diagnostics): void
     {
-        $warningCount = count($diagnostics['workflow']['warnings']);
-        $hasMissingConfig = false;
-
-        foreach ($diagnostics['configs'] as $config) {
-            if ($config['source'] === 'missing') {
-                $warningCount++;
-                $hasMissingConfig = true;
-            }
-        }
-
-        foreach ($diagnostics['plugins'] as $enabled) {
-            $warningCount += $enabled ? 0 : 1;
-        }
+        [$warningCount, $hasMissingConfig] = $this->warningSummary($diagnostics);
 
         $output->writeln('');
 
@@ -315,18 +274,7 @@ final class DoctorCommand extends Command
         }
     }
 
-    /**
-     * @param array{
-     *     pre_commit_hook: bool,
-     *     workflow: array{
-     *         path: string,
-     *         exists: bool,
-     *         ref: string,
-     *         inputs: array<string, string>,
-     *         warnings: list<string>
-     *     }
-     * } $diagnostics
-     */
+    /** @param Diagnostics $diagnostics */
     private function renderWorkflowDiagnostics(OutputInterface $output, array $diagnostics): void
     {
         $workflow = $diagnostics['workflow'];
@@ -364,45 +312,92 @@ final class DoctorCommand extends Command
         }
     }
 
-    private function validateComposerFlags(string $value): ?string
+    /** @return array{valid:bool,php_versions:list<string>} */
+    private function runtimeDiagnostics(): array
     {
-        $flags = trim($value);
+        $manifest = require Paths::packageFile('resources/runtime.php');
+        $versions = is_array($manifest) ? ($manifest['php_versions'] ?? null) : null;
 
-        if ($flags === '') {
-            return null;
+        if (!is_array($versions) || !array_is_list($versions)) {
+            return ['valid' => false, 'php_versions' => []];
         }
 
-        $tokens = preg_split('/\s+/', $flags);
+        $resolved = [];
 
-        if (!is_array($tokens)) {
-            return null;
-        }
-
-        foreach ($tokens as $token) {
-            if ($token === '') {
-                continue;
+        foreach ($versions as $version) {
+            if (!is_string($version) || preg_match('/^\d+\.\d+$/', $version) !== 1 || in_array($version, $resolved, true)) {
+                return ['valid' => false, 'php_versions' => []];
             }
 
-            if (!str_starts_with($token, '--')) {
-                return sprintf(
-                    'composer_flags should be empty or a space-separated list of --flags, got: %s',
-                    $value,
-                );
+            $resolved[] = $version;
+        }
+
+        return ['valid' => $resolved !== [], 'php_versions' => $resolved];
+    }
+
+    /** @param WorkflowDiagnostics $result */
+    private function validateWorkflowServices(array &$result): void
+    {
+        $servicesValue = $result['inputs']['integration_services'] ?? null;
+        $topologiesValue = $result['inputs']['service_topologies'] ?? null;
+
+        $services = is_string($servicesValue) ? ServiceCatalog::servicesFromJson($servicesValue) : null;
+
+        if ($services === null) {
+            $result['warnings'][] = 'integration_services must be a JSON string array.';
+
+            return;
+        }
+
+        $topologies = is_string($topologiesValue) ? ServiceCatalog::topologiesFromJson($topologiesValue) : null;
+
+        if ($topologies === null) {
+            $result['warnings'][] = 'service_topologies must be a JSON object with string values.';
+
+            return;
+        }
+
+        foreach (ServiceCatalog::validate($services, $topologies) as $warning) {
+            $result['warnings'][] = $warning;
+        }
+
+        foreach (ServiceCatalog::extensions($services) as $extension) {
+            if (!extension_loaded($extension)) {
+                $result['warnings'][] = sprintf('Required PHP extension is not loaded: %s', $extension);
             }
         }
 
-        return null;
+        if ($this->needsCompose($services) && !$this->dockerComposeAvailable()) {
+            $result['warnings'][] = 'Docker Compose is required by the selected external services but is unavailable.';
+        }
     }
 
     /**
-     * @return array{
-     *     path: string,
-     *     exists: bool,
-     *     ref: string,
-     *     inputs: array<string, string>,
-     *     warnings: list<string>
-     * }
+     * @param Diagnostics $diagnostics
+     * @return array{int,bool}
      */
+    private function warningSummary(array $diagnostics): array
+    {
+        $warningCount = count($diagnostics['workflow']['warnings'])
+            + ($diagnostics['runtime']['valid'] ? 0 : 1)
+            + count($diagnostics['service_catalog_warnings']);
+        $hasMissingConfig = false;
+
+        foreach ($diagnostics['configs'] as $config) {
+            if ($config['source'] === 'missing') {
+                $warningCount++;
+                $hasMissingConfig = true;
+            }
+        }
+
+        foreach ($diagnostics['plugins'] as $enabled) {
+            $warningCount += $enabled ? 0 : 1;
+        }
+
+        return [$warningCount, $hasMissingConfig];
+    }
+
+    /** @return WorkflowDiagnostics */
     private function workflowDiagnostics(): array
     {
         $workflowPath = Paths::projectRootPath() . DIRECTORY_SEPARATOR . self::WORKFLOW_PATH;
@@ -448,27 +443,7 @@ final class DoctorCommand extends Command
             $result['warnings'][] = 'Missing workflow inputs: ' . implode(', ', $missingInputs);
         }
 
-        foreach (['php_versions', 'dependency_versions'] as $matrixInput) {
-            if (!array_key_exists($matrixInput, $result['inputs'])) {
-                continue;
-            }
-
-            if (!$this->isValidJsonStringArray($result['inputs'][$matrixInput])) {
-                $result['warnings'][] = sprintf(
-                    '%s must be a JSON array string, got: %s',
-                    $matrixInput,
-                    $result['inputs'][$matrixInput],
-                );
-            }
-        }
-
-        if (array_key_exists('composer_flags', $result['inputs'])) {
-            $flagsWarning = $this->validateComposerFlags($result['inputs']['composer_flags']);
-
-            if ($flagsWarning !== null) {
-                $result['warnings'][] = $flagsWarning;
-            }
-        }
+        $this->validateWorkflowServices($result);
 
         return $result;
     }

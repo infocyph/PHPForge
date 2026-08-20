@@ -119,6 +119,14 @@ it('runs CI comment policy checks with error-focused output', function (): void 
         ->and($command)->toContain(Paths::packageFile('resources/phpprobe.json'));
 });
 
+it('uses the supported CI preset for aggregate PHPProbe checks', function (): void {
+    $command = TaskCatalog::probeCheckCi()[0];
+
+    expect($command)->toContain('check')
+        ->and($command)->toContain('--preset=ci')
+        ->and($command)->not->toContain('--ci');
+});
+
 it('runs Psalm through the dependency-isolated PHAR binary', function (): void {
     $security = TaskCatalog::security()[0];
     $suitePsalm = array_values(array_filter(
@@ -158,53 +166,40 @@ it('runs architecture checks with the bundled deptrac config', function (): void
         ->and($command)->toContain('--no-progress');
 });
 
-it('keeps syntax as preflight for parallel tests', function (): void {
-    expect(TaskCatalog::testParallel())->not()->toContain(TaskCatalog::syntax()[0])
-        ->and(TaskDisplay::heading(TaskCatalog::testParallel()[0]))->toStartWith('Pest');
+it('uses the complete aggregate suite for the parallel tests alias', function (): void {
+    expect(TaskCatalog::testParallel())->toBe(TaskCatalog::testAll());
 });
 
-it('keeps syntax as preflight for CI parallel tests', function (): void {
-    expect(TaskCatalog::testParallelCi())->not()->toContain(TaskCatalog::syntax()[0])
-        ->and(TaskDisplay::heading(TaskCatalog::testParallelCi()[0]))->toStartWith('Pest');
+it('uses the complete aggregate CI suite for the parallel CI alias', function (): void {
+    expect(TaskCatalog::testParallelCi())->toBe(TaskCatalog::testAllCi());
 });
 
-it('runs pest in parallel by default for full test suites', function (): void {
-    withTaskCatalogEnv('IC_PEST_PARALLEL', null, function (): void {
-        withTaskCatalogEnv('IC_PEST_PROCESSES', null, function (): void {
-            $command = TaskCatalog::testAll()[1];
+it('runs one non-nested pest process in aggregate suites', function (): void {
+    $pestCommands = array_values(array_filter(
+        TaskCatalog::testAll(),
+        static fn(array $command): bool => str_contains(str_replace('\\', '/', $command[1] ?? ''), '/pest'),
+    ));
 
-            expect($command)->toContain('--parallel')
-                ->and($command)->toContain('--processes=10');
-        });
-    });
+    expect($pestCommands)->toHaveCount(1)
+        ->and($pestCommands[0])->not->toContain('--parallel')
+        ->and(implode(' ', $pestCommands[0]))->not->toContain('--processes=');
 });
 
 it('includes comment policy checks in full and detailed quality suites', function (): void {
     $commentsTask = TaskCatalog::comments()[0];
 
-    expect(TaskCatalog::testAll())->toContain($commentsTask)
+    expect(TaskCatalog::testAll())->toContain(TaskCatalog::probeCheck()[0])
         ->and(TaskCatalog::testDetails())->toContain($commentsTask);
 });
 
-it('allows disabling pest parallel in full test suites', function (): void {
-    withTaskCatalogEnv('IC_PEST_PARALLEL', '0', function (): void {
-        withTaskCatalogEnv('IC_PEST_PROCESSES', '7', function (): void {
-            $command = TaskCatalog::testAll()[1];
+it('pins aggregate psalm to one thread', function (): void {
+    $psalm = array_values(array_filter(
+        TaskCatalog::testAll(),
+        static fn(array $command): bool => str_contains(str_replace('\\', '/', $command[1] ?? ''), '/psalm'),
+    ));
 
-            $hasProcesses = false;
-
-            foreach ($command as $argument) {
-                if (str_starts_with($argument, '--processes=')) {
-                    $hasProcesses = true;
-
-                    break;
-                }
-            }
-
-            expect($command)->not()->toContain('--parallel')
-                ->and($hasProcesses)->toBeFalse();
-        });
-    });
+    expect($psalm)->toHaveCount(1)
+        ->and($psalm[0])->toContain('--threads=1');
 });
 
 it('uses the bundled phpbench config directly for consuming projects', function (): void {

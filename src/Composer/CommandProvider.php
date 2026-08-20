@@ -9,8 +9,6 @@ use Composer\Plugin\Capability\CommandProvider as CommandProviderCapability;
 final class CommandProvider implements CommandProviderCapability
 {
     private const string COMMAND_ROWS = <<<'COMMANDS'
-quality|ic:tests|Run the full project quality suite.|testAll
-quality|ic:tests:all|Run the full project quality suite.|testAll
 quality|ic:tests:details|Run the detailed project quality suite.|testDetails
 quality|ic:test:syntax|Check PHP syntax in project paths.|syntax
 quality|ic:test:code|Run Pest tests.|testCode
@@ -42,11 +40,12 @@ COMMANDS;
     public function getCommands(): array
     {
         return [
+            new InfocyphCommand('ic:tests', 'Run the full project quality suite concurrently.', TaskCatalog::testAll(), true),
+            new InfocyphCommand('ic:tests:all', 'Run the full project quality suite concurrently.', TaskCatalog::testAll(), true),
+            new InfocyphCommand('ic:tests:parallel', 'Alias of ic:tests.', TaskCatalog::testAll(), true),
             ...$this->infocyphCommands('quality'),
-            new InfocyphCommand('ic:tests:parallel', 'Run the full project quality suite with bounded parallel checks.', TaskCatalog::testParallel(), true, TaskCatalog::syntax()),
             new CiCommand(),
             new InitCommand(),
-            new InitCommand('ic:int'),
             new DoctorCommand(),
             new ListConfigCommand(),
             new ActiveConfigCommand(),
@@ -58,6 +57,9 @@ COMMANDS;
             new BenchmarkCommand('validate', 'ic:benchmark:validate'),
             new BenchmarkCommand('compare', 'ic:benchmark:compare'),
             new WorkerSoakCommand(),
+            new ServiceCommand('up'),
+            new ServiceCommand('down'),
+            new ServiceCommand('status'),
             ...$this->infocyphCommands('process'),
             new PhpstanSarifCommand(),
             new ReleaseConstraintsCommand(),

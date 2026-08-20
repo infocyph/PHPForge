@@ -2343,6 +2343,10 @@ composer install \
 ## Tooling And Workflow
 
 - Respect repository tooling and quality checks such as formatting, static analysis, refactoring, tests, mutation testing, profiling and benchmarks.
+- Parallelize independent read-only tools at the orchestration layer; do not launch duplicate or nested copies of the same checker merely to increase concurrency.
+- Keep source-mutating processors sequential unless disjoint ownership and atomic publication are proven.
+- Bound task concurrency and diagnostic output, let every started peer finish, and render results in deterministic declaration order.
+- Reuse one successful analyzer execution for both gating and machine-readable reporting when the tool can produce both results.
 - Use the project’s existing automation instead of manually enforcing style.
 - Configure automated formatting for the declared PER Coding Style or established repository standard.
 - Keep formatting checks separate from semantic and performance validation.

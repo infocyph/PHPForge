@@ -9,21 +9,21 @@ use Symfony\Component\Process\Process;
 
 final readonly class ParallelRunner
 {
-    private const int DEFAULT_CONCURRENCY = 3;
-
     private const int MAX_CONCURRENCY = 16;
+
+    private const int MAX_OUTPUT_BYTES = 4_194_304;
 
     public function __construct(
         private OutputInterface $output,
     ) {}
 
-    public static function concurrencyFrom(mixed $value): int
+    public static function concurrencyFrom(mixed $value, int $eligibleTasks = 1): int
     {
         if (is_string($value) && $value !== '' && filter_var($value, FILTER_VALIDATE_INT) !== false) {
             return self::boundedConcurrency((int) $value);
         }
 
-        foreach (['PHPFORGE_PARALLEL', 'IC_TEST_CONCURRENCY'] as $name) {
+        foreach (['IC_TEST_CONCURRENCY', 'PHPFORGE_PARALLEL'] as $name) {
             $envValue = getenv($name);
 
             if (is_string($envValue) && $envValue !== '' && filter_var($envValue, FILTER_VALIDATE_INT) !== false) {
@@ -31,7 +31,7 @@ final readonly class ParallelRunner
             }
         }
 
-        return self::DEFAULT_CONCURRENCY;
+        return self::boundedConcurrency($eligibleTasks);
     }
 
     /**
@@ -40,7 +40,7 @@ final readonly class ParallelRunner
      */
     public function run(array $preflightTasks, array $parallelTasks, ?int $concurrency = null): int
     {
-        $concurrency ??= self::concurrencyFrom(null);
+        $concurrency = self::boundedConcurrency($concurrency ?? self::concurrencyFrom(null, count($parallelTasks)));
         $preflightResults = [];
 
         $this->output->writeln('<info>Parallel Tests</info>');
@@ -69,49 +69,27 @@ final readonly class ParallelRunner
     }
 
     /**
-     * @param array<string, array{process:Process,task:list<string>,heading:string,stdout:string,stderr:string,started_at:float}> $active
-     * @return list<array{heading:string,exit_code:int,status:string}>
+     * @param array<int, array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int}> $active
+     * @return list<array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int}>
      */
     private function collectFinished(array &$active): array
     {
         $finished = [];
 
-        foreach ($active as $id => &$entry) {
-            $entry['stdout'] .= $entry['process']->getIncrementalOutput();
-            $entry['stderr'] .= $entry['process']->getIncrementalErrorOutput();
-
+        foreach ($active as $id => $entry) {
             if ($entry['process']->isRunning()) {
                 continue;
             }
 
-            $entry['stdout'] .= $entry['process']->getIncrementalOutput();
-            $entry['stderr'] .= $entry['process']->getIncrementalErrorOutput();
-
-            $finished[] = $this->renderFinished($entry);
+            $finished[] = $entry;
             unset($active[$id]);
         }
-
-        unset($entry);
 
         return $finished;
     }
 
     /**
-     * @param list<string> $task
-     */
-    private function isPestParallelTask(array $task): bool
-    {
-        if ($task === []) {
-            return false;
-        }
-
-        $tool = strtolower(basename(str_replace('\\', '/', $task[1] ?? $task[0])));
-
-        return $tool === 'pest' && in_array('--parallel', $task, true);
-    }
-
-    /**
-     * @param array{process:Process,task:list<string>,heading:string,stdout:string,stderr:string,started_at:float} $entry
+     * @param array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int} $entry
      * @return array{heading:string,exit_code:int,status:string}
      */
     private function renderFinished(array $entry): array
@@ -119,28 +97,25 @@ final readonly class ParallelRunner
         $process = $entry['process'];
         $exitCode = $process->getExitCode() ?? 1;
         $status = $process->isSuccessful() ? 'PASS' : 'FAIL';
+        $stdout = $this->streamContents($entry['stdout'], $entry['stdout_truncated']);
+        $stderr = $this->streamContents($entry['stderr'], $entry['stderr_truncated']);
 
-        if (!$process->isSuccessful() && TaskSkipPolicy::shouldSkipUnavailablePerPreset($entry['task'], $entry['stdout'], $entry['stderr'])) {
+        if (!$process->isSuccessful() && TaskSkipPolicy::shouldSkipUnavailablePerPreset($entry['task'], $stdout, $stderr)) {
             $exitCode = 0;
             $status = 'SKIP';
         }
 
-        if ($status === 'FAIL' && $this->shouldRetryPestWithoutParallel($entry['task'], $entry['stdout'], $entry['stderr'])) {
-            return $this->retryPestWithoutParallel($entry);
+        if ($status === 'FAIL') {
+            $this->output->writeln(sprintf('<info>%s</info>', $entry['heading']));
+            $this->writeBuffered($stdout, false);
+            $this->writeBuffered($stderr, true);
+            $this->output->writeln(sprintf(
+                '<error>FAIL</error> %s (%0.2fs)',
+                $entry['heading'],
+                microtime(true) - $entry['started_at'],
+            ));
+            $this->output->writeln('');
         }
-
-        $this->output->writeln(sprintf('<info>%s</info>', $entry['heading']));
-        $this->writeBuffered($entry['stdout'], false);
-        $this->writeBuffered($entry['stderr'], true);
-        $this->output->writeln(sprintf(
-            '<%s>%s</%s> %s (%0.2fs)',
-            $status === 'FAIL' ? 'error' : 'info',
-            $status,
-            $status === 'FAIL' ? 'error' : 'info',
-            $entry['heading'],
-            microtime(true) - $entry['started_at'],
-        ));
-        $this->output->writeln('');
 
         return [
             'heading' => $entry['heading'],
@@ -192,36 +167,6 @@ final readonly class ParallelRunner
     }
 
     /**
-     * @param array{process:Process,task:list<string>,heading:string,stdout:string,stderr:string,started_at:float} $entry
-     * @return array{heading:string,exit_code:int,status:string}
-     */
-    private function retryPestWithoutParallel(array $entry): array
-    {
-        $this->output->writeln(sprintf('<info>%s</info>', $entry['heading']));
-        $this->writeBuffered($entry['stdout'], false);
-        $this->writeBuffered($entry['stderr'], true);
-        $this->output->writeln('<comment>Pest parallel worker crashed; retrying this task without Pest internal parallelization.</comment>');
-
-        $fallbackTask = $this->withoutPestParallelArgs($entry['task']);
-        $startedAt = microtime(true);
-        $heading = $entry['heading'] . ' [retry: no-pest-parallel]';
-        $result = $this->runSynchronousCheck($fallbackTask, $heading);
-        $status = $result['status'];
-
-        $this->output->writeln(sprintf(
-            '<%s>%s</%s> %s (%0.2fs)',
-            $status === 'FAIL' ? 'error' : 'info',
-            $status,
-            $status === 'FAIL' ? 'error' : 'info',
-            $result['heading'],
-            microtime(true) - $startedAt,
-        ));
-        $this->output->writeln('');
-
-        return $result;
-    }
-
-    /**
      * @param list<list<string>> $tasks
      * @param list<array{heading:string,status:string,exit_code:int}> $preflightResults
      */
@@ -230,22 +175,29 @@ final readonly class ParallelRunner
         $pending = $tasks;
         $active = [];
         $results = [];
-        $nextId = 0;
+        $finished = [];
+        $nextIndex = 0;
 
         while ($pending !== [] || $active !== []) {
             while ($pending !== [] && count($active) < $concurrency) {
                 $task = array_shift($pending);
-                $id = 'task-' . ++$nextId;
-                $active[$id] = $this->startTask($task);
+                $active[$nextIndex] = $this->startTask($task, $nextIndex);
+                $nextIndex++;
             }
 
-            foreach ($this->collectFinished($active) as $result) {
-                $results[] = $result;
+            foreach ($this->collectFinished($active) as $entry) {
+                $finished[$entry['index']] = $entry;
             }
 
             if ($active !== []) {
                 usleep(100_000);
             }
+        }
+
+        ksort($finished);
+
+        foreach ($finished as $entry) {
+            $results[] = $this->renderFinished($entry);
         }
 
         $results = [...$preflightResults, ...$results];
@@ -308,38 +260,65 @@ final readonly class ParallelRunner
 
     /**
      * @param list<string> $task
+     * @return array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int}
      */
-    private function shouldRetryPestWithoutParallel(array $task, string $stdout, string $stderr): bool
+    private function startTask(array $task, int $index): array
     {
-        if (!$this->isPestParallelTask($task)) {
-            return false;
+        $stdout = tmpfile();
+        $stderr = tmpfile();
+
+        if (!is_resource($stdout) || !is_resource($stderr)) {
+            throw new \RuntimeException('Unable to create bounded task output streams.');
         }
 
-        $combined = $stdout . "\n" . $stderr;
-
-        return str_contains($combined, 'WorkerCrashedException')
-            || str_contains($combined, 'The test "PARATEST=')
-            || str_contains($combined, 'paratest [');
-    }
-
-    /**
-     * @param list<string> $task
-     * @return array{process:Process,task:list<string>,heading:string,stdout:string,stderr:string,started_at:float}
-     */
-    private function startTask(array $task): array
-    {
+        $stdoutBytes = 0;
+        $stderrBytes = 0;
+        $stdoutTruncated = false;
+        $stderrTruncated = false;
         $process = new Process($task, getcwd() ?: null, $this->taskEnvironment());
         $process->setTimeout(null);
-        $process->start();
+        $process->disableOutput();
+        $process->start(function (string $type, string $buffer) use (
+            $stdout,
+            $stderr,
+            &$stdoutBytes,
+            &$stderrBytes,
+            &$stdoutTruncated,
+            &$stderrTruncated,
+        ): void {
+            if ($type === Process::ERR) {
+                $this->writeChunk($stderr, $buffer, $stderrBytes, $stderrTruncated);
+
+                return;
+            }
+
+            $this->writeChunk($stdout, $buffer, $stdoutBytes, $stdoutTruncated);
+        });
 
         return [
             'process' => $process,
             'task' => $task,
             'heading' => TaskDisplay::heading($task),
-            'stdout' => '',
-            'stderr' => '',
+            'stdout' => $stdout,
+            'stderr' => $stderr,
+            'stdout_truncated' => &$stdoutTruncated,
+            'stderr_truncated' => &$stderrTruncated,
             'started_at' => microtime(true),
+            'index' => $index,
         ];
+    }
+
+    /** @param resource $stream */
+    private function streamContents($stream, bool $truncated): string
+    {
+        rewind($stream);
+        $contents = stream_get_contents($stream);
+        fclose($stream);
+        $contents = is_string($contents) ? $contents : '';
+
+        return $truncated
+            ? $contents . PHP_EOL . sprintf('[output truncated after %d bytes]', self::MAX_OUTPUT_BYTES) . PHP_EOL
+            : $contents;
     }
 
     /**
@@ -356,38 +335,6 @@ final readonly class ParallelRunner
         return ['XDEBUG_MODE' => 'off'];
     }
 
-    /**
-     * @param list<string> $task
-     * @return list<string>
-     */
-    private function withoutPestParallelArgs(array $task): array
-    {
-        $filtered = [];
-        $count = count($task);
-
-        for ($index = 0; $index < $count; $index++) {
-            $argument = $task[$index];
-
-            if ($argument === '--parallel') {
-                continue;
-            }
-
-            if ($argument === '--processes') {
-                $index++;
-
-                continue;
-            }
-
-            if (str_starts_with($argument, '--processes=')) {
-                continue;
-            }
-
-            $filtered[] = $argument;
-        }
-
-        return $filtered;
-    }
-
     private function writeBuffered(string $buffer, bool $error): void
     {
         if ($buffer === '') {
@@ -399,5 +346,22 @@ final readonly class ParallelRunner
         if (!str_ends_with($buffer, PHP_EOL)) {
             $this->output->writeln('');
         }
+    }
+
+    /** @param resource $stream */
+    private function writeChunk($stream, string $buffer, int &$bytes, bool &$truncated): void
+    {
+        $remaining = self::MAX_OUTPUT_BYTES - $bytes;
+
+        if ($remaining <= 0) {
+            $truncated = true;
+
+            return;
+        }
+
+        $chunk = strlen($buffer) > $remaining ? substr($buffer, 0, $remaining) : $buffer;
+        fwrite($stream, $chunk);
+        $bytes += strlen($chunk);
+        $truncated = $truncated || strlen($chunk) < strlen($buffer);
     }
 }

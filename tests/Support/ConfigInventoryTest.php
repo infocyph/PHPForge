@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Infocyph\PHPForge\Support\ConfigInventory;
+use Symfony\Component\Process\Process;
 
 function removeConfigInventoryTree(string $path): void
 {
@@ -56,6 +57,47 @@ it('keeps the bundled deptrac config project agnostic', function (): void {
     expect($contents)->toBeString()
         ->and($contents)->not->toContain('Infocyph\\\\PHPForge')
         ->and($contents)->toContain('type: directory');
+});
+
+it('keeps forbidden-function checks active in executable PHP entrypoints', function (): void {
+    $contents = file_get_contents(ConfigInventory::resolvedPath('phpcs.xml.dist'));
+    $sniff = file_get_contents(dirname(__DIR__, 2).'/resources/PHPForge/Sniffs/PHP/ForbiddenFunctionsSniff.php');
+
+    expect($contents)->toBeString()
+        ->not->toContain('<exclude-pattern type="relative">bin/*.php</exclude-pattern>')
+        ->not->toContain('<exclude-pattern type="relative">.github/scripts/*.php</exclude-pattern>')
+        ->toContain('./PHPForge/Sniffs/PHP/ForbiddenFunctionsSniff.php')
+        ->and($sniff)->toBeString()
+        ->toContain("tokens[\$stackPtr]['code'] === T_EXIT")
+        ->toContain("#!/usr/bin/env php");
+});
+
+it('allows exit only for executable PHP entrypoints', function (): void {
+    $projectRoot = dirname(__DIR__, 2);
+    $directory = $projectRoot.DIRECTORY_SEPARATOR.'.phpcs-fixture-'.uniqid('', true);
+    mkdir($directory, 0755, true);
+
+    $check = static function (string $contents, string $name) use ($directory, $projectRoot): int {
+        $path = $directory.DIRECTORY_SEPARATOR.$name;
+        file_put_contents($path, $contents);
+        $process = new Process([
+            PHP_BINARY,
+            $projectRoot.'/vendor/bin/phpcs',
+            '--standard='.$projectRoot.'/resources/phpcs.xml.dist',
+            $path,
+        ]);
+        $process->run();
+
+        return $process->getExitCode() ?? 1;
+    };
+
+    try {
+        expect($check("#!/usr/bin/env php\n<?php\nexit(1);\n", 'entrypoint.php'))->toBe(0)
+            ->and($check("<?php\nexit(1);\n", 'library.php'))->not->toBe(0)
+            ->and($check("#!/usr/bin/env php\n<?php\neval('return 1;');\n", 'unsafe-entrypoint.php'))->not->toBe(0);
+    } finally {
+        removeConfigInventoryTree($directory);
+    }
 });
 
 it('captures every PHP error level in bundled test configurations', function (): void {

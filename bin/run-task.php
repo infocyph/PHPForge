@@ -13,26 +13,20 @@ require dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR 
 $task = $argv[1] ?? '';
 $output = new ConsoleOutput();
 
-if ($task === 'tests:parallel') {
+if (in_array($task, ['tests', 'tests:parallel'], true)) {
     $exitCode = (new ParallelRunner($output))->run(
-        TaskCatalog::syntax(),
-        TaskCatalog::testParallel(),
-        ParallelRunner::concurrencyFrom($argv[2] ?? null),
+        [],
+        TaskCatalog::testAll(),
+        ParallelRunner::concurrencyFrom($argv[2] ?? null, count(TaskCatalog::testAll())),
     );
 
-    if ($exitCode !== 0) {
-        throw new RuntimeException(sprintf('Parallel tests failed with exit code %d.', $exitCode));
-    }
-
-    return;
+    exit($exitCode);
 }
 
-$failFast = !in_array($task, ['tests', 'tests:details'], true);
+$failFast = $task !== 'tests:details';
 $exitCode = (new Runner($output, $failFast))->run(taskCommands($task));
 
-if ($exitCode !== 0) {
-    throw new RuntimeException(sprintf('Task "%s" failed with exit code %d.', $task, $exitCode));
-}
+exit($exitCode);
 
 /**
  * @return list<list<string>>

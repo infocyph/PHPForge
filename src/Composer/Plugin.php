@@ -65,7 +65,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         }
 
         try {
-            $configPath = $this->ensureProjectCaptainHookConfig();
+            $configPath = $this->projectCaptainHookConfig();
 
             if (!is_string($configPath)) {
                 return;
@@ -94,31 +94,6 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
 
     public function uninstall(Composer $composer, IOInterface $io): void {}
 
-    private function ensureProjectCaptainHookConfig(): ?string
-    {
-        $projectConfig = Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'captainhook.json';
-
-        if (is_file($projectConfig)) {
-            return $projectConfig;
-        }
-
-        $bundledConfig = Paths::bundledConfigFileOrNull('captainhook.json');
-
-        if (!is_string($bundledConfig) || !is_file($bundledConfig)) {
-            return null;
-        }
-
-        if (!copy($bundledConfig, $projectConfig)) {
-            throw new \RuntimeException(sprintf(
-                'Failed to copy bundled CaptainHook config from "%s" to "%s".',
-                $bundledConfig,
-                $projectConfig,
-            ));
-        }
-
-        return $projectConfig;
-    }
-
     private function isGitCheckout(): bool
     {
         $gitPath = Paths::projectRootPath() . DIRECTORY_SEPARATOR . '.git';
@@ -141,6 +116,13 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         }
 
         return $missing;
+    }
+
+    private function projectCaptainHookConfig(): ?string
+    {
+        $projectConfig = Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'captainhook.json';
+
+        return is_file($projectConfig) ? $projectConfig : null;
     }
 
     /**

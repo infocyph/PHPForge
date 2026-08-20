@@ -4,22 +4,22 @@ on:
   workflow_call:
     inputs:
       php_versions:
-        description: "JSON array of PHP versions; versions unsupported by PHPForge are skipped."
+        description: "Optional JSON PHP version subset; defaults to PHPForge's runtime manifest."
         required: false
         type: string
-        default: '["8.4","8.5"]'
+        default: ""
       dependency_versions:
         description: "JSON array of Composer dependency modes."
         required: false
         type: string
         default: '["prefer-lowest","prefer-stable"]'
       php_extensions:
-        description: "Comma-separated PHP extensions for shivammathur/setup-php."
+        description: "Additional comma-separated setup-php extensions."
         required: false
         type: string
         default: ""
       composer_flags:
-        description: "Extra flags appended to composer install/update."
+        description: "Extra flags appended to Composer install/update."
         required: false
         type: string
         default: ""
@@ -28,13 +28,8 @@ on:
         required: false
         type: string
         default: "1G"
-      psalm_threads:
-        description: "Psalm thread count."
-        required: false
-        type: string
-        default: "1"
       run_analysis:
-        description: "Run SARIF security/code-scanning analysis job."
+        description: "Run the dedicated analyzer/SARIF job."
         required: false
         type: boolean
         default: true
@@ -44,775 +39,413 @@ on:
         type: boolean
         default: true
       fail_on_skipped_tests:
-        description: "Treat skipped Pest tests as failures in the CI test job."
+        description: "Treat skipped Pest tests as failures."
         required: false
         type: boolean
         default: false
       run_clean_install:
-        description: "Verify a clean production-style Composer install on the final configured PHP version."
+        description: "Verify a production-style Composer install."
         required: false
         type: boolean
         default: true
+      integration_services:
+        description: "JSON string array of integration service names."
+        required: false
+        type: string
+        default: '[]'
+      service_topologies:
+        description: "JSON service-to-topology object."
+        required: false
+        type: string
+        default: '{}'
       benchmark_composer_script:
-        description: "Optional Composer script that produces the representative benchmark result."
         required: false
         type: string
         default: ""
       benchmark_result_file:
-        description: "Optional representative benchmark JSON result to validate."
         required: false
         type: string
         default: ""
       benchmark_baseline_file:
-        description: "Optional committed benchmark JSON baseline for regression comparison."
         required: false
         type: string
         default: ""
       benchmark_max_regression_percent:
-        description: "Maximum successful-RPM regression allowed in a stable environment."
         required: false
         type: number
         default: 2
       benchmark_stable_environment:
-        description: "Assert stable, like-for-like benchmark infrastructure before enforcing the regression budget."
         required: false
         type: boolean
         default: false
-      enable_redis_service:
-        description: "Enable Redis service container for integration tests."
-        required: false
-        type: boolean
-        default: false
-      enable_valkey_service:
-        description: "Enable Valkey service container for integration tests."
-        required: false
-        type: boolean
-        default: false
-      enable_memcached_service:
-        description: "Enable Memcached service container for integration tests."
-        required: false
-        type: boolean
-        default: false
-      enable_postgres_service:
-        description: "Enable PostgreSQL service container for integration tests."
-        required: false
-        type: boolean
-        default: false
-      enable_mysql_service:
-        description: "Enable MySQL service container for integration tests."
-        required: false
-        type: boolean
-        default: false
-      enable_scylladb_service:
-        description: "Enable ScyllaDB Alternator service container for integration tests."
-        required: false
-        type: boolean
-        default: false
-      enable_elasticsearch_service:
-        description: "Enable Elasticsearch service container for integration tests."
-        required: false
-        type: boolean
-        default: false
-      enable_mongodb_service:
-        description: "Enable MongoDB service container for integration tests."
-        required: false
-        type: boolean
-        default: false
-      service_db_name:
-        description: "Shared database name used by service containers."
-        required: false
-        type: string
-        default: "phpforge"
-      service_db_user:
-        description: "Shared username used by service containers."
-        required: false
-        type: string
-        default: "phpforge"
-      service_db_password:
-        description: "Shared password used by service containers."
-        required: false
-        type: string
-        default: "phpforge"
       artifact_retention_days:
-        description: "Retention days for uploaded report artifacts."
         required: false
         type: number
         default: 61
 
 jobs:
   prepare:
-    name: Prepare CI matrix
+    name: Prepare CI matrix and services
     runs-on: ubuntu-latest
     outputs:
       php_versions: ${{ steps.matrix.outputs.php_versions }}
       dependency_versions: ${{ steps.matrix.outputs.dependency_versions }}
       clean_install_php_version: ${{ steps.matrix.outputs.clean_install_php_version }}
       has_supported_php_versions: ${{ steps.matrix.outputs.has_supported_php_versions }}
+      integration_services: ${{ steps.services.outputs.integration_services }}
+      service_topologies: ${{ steps.services.outputs.service_topologies }}
+      compose_profiles: ${{ steps.services.outputs.compose_profiles }}
+      php_extensions: ${{ steps.services.outputs.php_extensions }}
+      has_external_services: ${{ steps.services.outputs.has_external_services }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
       - name: Checkout workflow source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}
           path: .phpforge-workflow
           sparse-checkout: |
             .github/scripts/resolve-php-matrix.sh
+            .github/scripts/resolve-services.php
+            resources/runtime.php
+            resources/services/catalog.php
           sparse-checkout-cone-mode: false
 
-      - name: Define shared matrix values
+      - name: Resolve supported PHP matrix
         id: matrix
         shell: bash
         env:
           PHP_VERSIONS_INPUT: ${{ inputs.php_versions }}
-          SUPPORTED_PHP_VERSIONS: '["8.4","8.5"]'
         run: |
+          supported="$(php -r '$runtime = require ".phpforge-workflow/resources/runtime.php"; echo json_encode($runtime["php_versions"], JSON_THROW_ON_ERROR);')"
+          requested="$PHP_VERSIONS_INPUT"
+          if [ -z "$requested" ]; then requested="$supported"; fi
           echo 'dependency_versions=${{ inputs.dependency_versions }}' >> "$GITHUB_OUTPUT"
-          INPUT_PHP_VERSIONS="$PHP_VERSIONS_INPUT" \
+          INPUT_PHP_VERSIONS="$requested" SUPPORTED_PHP_VERSIONS="$supported" \
             bash .phpforge-workflow/.github/scripts/resolve-php-matrix.sh
+
+      - name: Resolve service profiles and PHP extensions
+        id: services
+        shell: bash
+        env:
+          INTEGRATION_SERVICES_INPUT: ${{ inputs.integration_services }}
+          SERVICE_TOPOLOGIES_INPUT: ${{ inputs.service_topologies }}
+          EXTRA_EXTENSIONS: ${{ inputs.php_extensions }}
+        run: |
+          composer_extensions="$(php -r '
+          $composer = json_decode((string) file_get_contents("composer.json"), true, 512, JSON_THROW_ON_ERROR);
+          $extensions = [];
+          foreach (["require", "require-dev", "suggest"] as $section) {
+              foreach (array_keys($composer[$section] ?? []) as $package) {
+                  if (str_starts_with($package, "ext-")) $extensions[] = substr($package, 4);
+              }
+          }
+          echo implode(",", array_values(array_unique($extensions)));
+          ')"
+          PHP_EXTENSIONS_INPUT="${composer_extensions},${EXTRA_EXTENSIONS}" \
+            php .phpforge-workflow/.github/scripts/resolve-services.php
 
   run:
     needs: prepare
     if: needs.prepare.outputs.has_supported_php_versions == 'true'
-    runs-on: ${{ matrix.operating-system }}
-    services:
-      redis:
-        image: ${{ inputs.enable_redis_service && 'redis:7-alpine' || '' }}
-        command: --requirepass ${{ inputs.service_db_password }}
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli -a ${{ inputs.service_db_password }} ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-      valkey:
-        image: ${{ inputs.enable_valkey_service && 'valkey/valkey:8-alpine' || '' }}
-        command: --requirepass ${{ inputs.service_db_password }}
-        ports:
-          - 6380:6379
-        options: >-
-          --health-cmd "valkey-cli -a ${{ inputs.service_db_password }} -p 6379 ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-      memcached:
-        image: ${{ inputs.enable_memcached_service && 'memcached:1.6-alpine' || '' }}
-        ports:
-          - 11211:11211
-      postgres:
-        image: ${{ inputs.enable_postgres_service && 'postgres:16-alpine' || '' }}
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_DB: ${{ inputs.service_db_name }}
-          POSTGRES_USER: ${{ inputs.service_db_user }}
-          POSTGRES_PASSWORD: ${{ inputs.service_db_password }}
-        options: >-
-          --health-cmd "pg_isready -U ${{ inputs.service_db_user }} -d ${{ inputs.service_db_name }}"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-      mysql:
-        image: ${{ inputs.enable_mysql_service && 'mysql:8.4' || '' }}
-        ports:
-          - 3306:3306
-        env:
-          MYSQL_DATABASE: ${{ inputs.service_db_name }}
-          MYSQL_USER: ${{ inputs.service_db_user }}
-          MYSQL_PASSWORD: ${{ inputs.service_db_password }}
-          MYSQL_ROOT_PASSWORD: ${{ inputs.service_db_password }}
-        options: >-
-          --health-cmd "mysqladmin ping -h 127.0.0.1 -u${{ inputs.service_db_user }} -p${{ inputs.service_db_password }} --silent"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-      scylladb:
-        image: ${{ inputs.enable_scylladb_service && 'scylladb/scylla:6.2' || '' }}
-        command: --smp 1 --memory 1G --overprovisioned 1 --alternator-port 8000 --alternator-write-isolation only_rmw_uses_lwt
-        ports:
-          - 8000:8000
-      elasticsearch:
-        image: ${{ inputs.enable_elasticsearch_service && 'docker.elastic.co/elasticsearch/elasticsearch:8.17.3' || '' }}
-        ports:
-          - 9200:9200
-        env:
-          discovery.type: single-node
-          xpack.security.enabled: "false"
-          ES_JAVA_OPTS: -Xms512m -Xmx512m
-      mongodb:
-        image: ${{ inputs.enable_mongodb_service && 'mongo:7' || '' }}
-        ports:
-          - 27017:27017
-        env:
-          MONGO_INITDB_DATABASE: ${{ inputs.service_db_name }}
-          MONGO_INITDB_ROOT_USERNAME: ${{ inputs.service_db_user }}
-          MONGO_INITDB_ROOT_PASSWORD: ${{ inputs.service_db_password }}
+    name: QA - PHP ${{ matrix.php-version }} - ${{ matrix.dependency-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ${{ fromJson(needs.prepare.outputs.php_versions) }}
+        dependency-version: ${{ fromJson(needs.prepare.outputs.dependency_versions) }}
     env:
       XDEBUG_MODE: off
-      IC_SERVICE_DATABASE: ${{ inputs.service_db_name }}
-      IC_SERVICE_USERNAME: ${{ inputs.service_db_user }}
-      IC_SERVICE_PASSWORD: ${{ inputs.service_db_password }}
+      IC_SERVICE_DATABASE: phpforge
+      IC_SERVICE_USERNAME: phpforge
+      IC_SERVICE_PASSWORD: phpforge
+      IC_MSSQL_PASSWORD: Phpforge_123!
+      IC_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=phpforge;charset=utf8mb4
+      IC_MYSQL_PRIMARY_DSN: mysql:host=127.0.0.1;port=3306;dbname=phpforge;charset=utf8mb4
+      IC_MYSQL_REPLICA_DSN: mysql:host=127.0.0.1;port=3307;dbname=phpforge;charset=utf8mb4
+      IC_MYSQL_USER: phpforge
+      IC_MYSQL_PASSWORD: phpforge
+      IC_MARIADB_DSN: mysql:host=127.0.0.1;port=3308;dbname=phpforge;charset=utf8mb4
+      IC_MARIADB_PRIMARY_DSN: mysql:host=127.0.0.1;port=3308;dbname=phpforge;charset=utf8mb4
+      IC_MARIADB_REPLICA_DSN: mysql:host=127.0.0.1;port=3309;dbname=phpforge;charset=utf8mb4
+      IC_MARIADB_USER: phpforge
+      IC_MARIADB_PASSWORD: phpforge
+      IC_POSTGRES_DSN: pgsql:host=127.0.0.1;port=5432;dbname=phpforge
+      IC_POSTGRES_PRIMARY_DSN: pgsql:host=127.0.0.1;port=5432;dbname=phpforge
+      IC_POSTGRES_REPLICA_DSN: pgsql:host=127.0.0.1;port=5433;dbname=phpforge
+      IC_POSTGRES_USER: phpforge
+      IC_POSTGRES_PASSWORD: phpforge
+      IC_MSSQL_DSN: sqlsrv:Server=127.0.0.1,1433;TrustServerCertificate=1
+      IC_MSSQL_USER: sa
+      IC_SQLITE_MEMORY_DSN: "sqlite::memory:"
+      IC_SQLITE_FILE_DSN: sqlite:/tmp/phpforge.sqlite
+      IC_MONGODB_DSN: ${{ fromJson(needs.prepare.outputs.service_topologies).mongodb == 'replica-set' && 'mongodb://127.0.0.1:27017/?replicaSet=phpforge-rs&directConnection=true' || 'mongodb://phpforge:phpforge@127.0.0.1:27017/phpforge?authSource=admin' }}
+      IC_MONGODB_REPLICA_SET: ${{ fromJson(needs.prepare.outputs.service_topologies).mongodb == 'replica-set' && 'phpforge-rs' || '' }}
       IC_REDIS_HOST: 127.0.0.1
-      IC_REDIS_PORT: ${{ inputs.enable_valkey_service && !inputs.enable_redis_service && '6380' || '6379' }}
-      IC_REDIS_PASSWORD: ${{ inputs.service_db_password }}
+      IC_REDIS_PORT: 6379
+      IC_REDIS_PASSWORD: phpforge
       IC_VALKEY_HOST: 127.0.0.1
-      IC_VALKEY_PORT: "6380"
-      IC_VALKEY_PASSWORD: ${{ inputs.service_db_password }}
+      IC_VALKEY_PORT: 6380
+      IC_VALKEY_PASSWORD: phpforge
       IC_MEMCACHED_HOST: 127.0.0.1
-      IC_MEMCACHED_PORT: "11211"
-      IC_POSTGRES_DSN: pgsql:host=127.0.0.1;port=5432;dbname=${{ inputs.service_db_name }}
-      IC_POSTGRES_USER: ${{ inputs.service_db_user }}
-      IC_POSTGRES_PASSWORD: ${{ inputs.service_db_password }}
-      IC_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=${{ inputs.service_db_name }};charset=utf8mb4
-      IC_MYSQL_USER: ${{ inputs.service_db_user }}
-      IC_MYSQL_PASSWORD: ${{ inputs.service_db_password }}
-      IC_SCYLLADB_HOST: 127.0.0.1
-      IC_SCYLLADB_PORT: "8000"
+      IC_MEMCACHED_PORT: 11211
+      IC_RABBITMQ_DSN: amqp://phpforge:phpforge@127.0.0.1:5672
+      IC_RABBITMQ_MANAGEMENT_URL: http://127.0.0.1:15672
+      IC_NATS_URL: nats://127.0.0.1:4222
+      IC_NATS_MONITOR_URL: http://127.0.0.1:8222
+      IC_SMTP_DSN: smtp://127.0.0.1:1025
+      IC_MAILPIT_URL: http://127.0.0.1:8025
+      IC_MAILPIT_API_URL: http://127.0.0.1:8025/api
+      IC_ELASTICSEARCH_URL: http://127.0.0.1:9200
       IC_SCYLLADB_ENDPOINT: http://127.0.0.1:8000
       IC_SCYLLADB_REGION: us-east-1
-      IC_SCYLLADB_ACCESS_KEY_ID: ${{ inputs.service_db_user }}
-      IC_SCYLLADB_SECRET_ACCESS_KEY: ${{ inputs.service_db_password }}
-      IC_ELASTICSEARCH_HOST: 127.0.0.1
-      IC_ELASTICSEARCH_PORT: "9200"
-      IC_ELASTICSEARCH_URL: http://127.0.0.1:9200
-      IC_MONGODB_HOST: 127.0.0.1
-      IC_MONGODB_PORT: "27017"
-      IC_MONGODB_DSN: mongodb://${{ inputs.service_db_user }}:${{ inputs.service_db_password }}@127.0.0.1:27017/${{ inputs.service_db_name }}?authSource=admin
-    strategy:
-      matrix:
-        operating-system: [ "ubuntu-latest" ]
-        php-versions: ${{ fromJson(needs.prepare.outputs.php_versions) }}
-        dependency-version: ${{ fromJson(needs.prepare.outputs.dependency_versions) }}
-
-    name: Code Analysis - PHP ${{ matrix.php-versions }} - ${{ matrix.dependency-version }}
+      IC_SCYLLADB_ACCESS_KEY_ID: phpforge
+      IC_SCYLLADB_SECRET_ACCESS_KEY: phpforge
+      INTEGRATION_SERVICES: ${{ needs.prepare.outputs.integration_services }}
+      SERVICE_TOPOLOGIES: ${{ needs.prepare.outputs.service_topologies }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php-versions }}
-          tools: composer:v2
-          extensions: ${{ inputs.php_extensions }}
-          ini-values: ${{ contains(inputs.php_extensions, 'apcu') && 'apc.enable_cli=1, apcu.enable_cli=1' || '' }}
-          coverage: none
-
-      - name: Sanitize Composer GitHub OAuth token format
-        shell: bash
-        run: |
-          php -r '
-          $paths = [];
-          $composerHome = getenv("COMPOSER_HOME");
-          $home = getenv("HOME");
-          if (is_string($composerHome) && $composerHome !== "") {
-              $paths[] = $composerHome . "/auth.json";
-          }
-          if (is_string($home) && $home !== "") {
-              $paths[] = $home . "/.composer/auth.json";
-              $paths[] = $home . "/.config/composer/auth.json";
-          }
-          $paths = array_values(array_unique($paths));
-          foreach ($paths as $path) {
-              if (!is_file($path)) {
-                  continue;
-              }
-              $raw = file_get_contents($path);
-              if (!is_string($raw) || $raw === "") {
-                  continue;
-              }
-              $data = json_decode($raw, true);
-              if (!is_array($data)) {
-                  continue;
-              }
-              $token = $data["github-oauth"]["github.com"] ?? null;
-              if (!is_string($token) || $token === "") {
-                  continue;
-              }
-              if (preg_match("{^[.A-Za-z0-9_]+$}", $token) === 1) {
-                  continue;
-              }
-              unset($data["github-oauth"]["github.com"]);
-              if (($data["github-oauth"] ?? null) === []) {
-                  unset($data["github-oauth"]);
-              }
-              $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-              if (is_string($encoded)) {
-                  file_put_contents($path, $encoded . PHP_EOL);
-                  fwrite(STDOUT, "Removed unsupported github-oauth token format from {$path}" . PHP_EOL);
-              }
-          }
-          '
-
-      - name: Check PHP Version
-        run: php -v
-
-      - name: Checkout workflow source
-        if: inputs.enable_redis_service || inputs.enable_valkey_service || inputs.enable_memcached_service || inputs.enable_postgres_service || inputs.enable_mysql_service || inputs.enable_scylladb_service || inputs.enable_elasticsearch_service || inputs.enable_mongodb_service
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+      - name: Checkout workflow service layer
+        if: needs.prepare.outputs.has_external_services == 'true'
+        uses: actions/checkout@v7
         with:
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}
           path: .phpforge-workflow
           sparse-checkout: |
             .github/scripts/verify-and-wait-services.sh
+            resources/services
           sparse-checkout-cone-mode: false
-
-      - name: Verify and wait optional services
-        if: inputs.enable_redis_service || inputs.enable_valkey_service || inputs.enable_memcached_service || inputs.enable_postgres_service || inputs.enable_mysql_service || inputs.enable_scylladb_service || inputs.enable_elasticsearch_service || inputs.enable_mongodb_service
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          tools: composer:v2
+          extensions: ${{ needs.prepare.outputs.php_extensions }}
+          coverage: none
+      - name: Start selected services
+        if: needs.prepare.outputs.has_external_services == 'true'
         shell: bash
         env:
-          INPUT_ENABLE_REDIS_SERVICE: ${{ inputs.enable_redis_service }}
-          INPUT_ENABLE_VALKEY_SERVICE: ${{ inputs.enable_valkey_service }}
-          INPUT_ENABLE_MEMCACHED_SERVICE: ${{ inputs.enable_memcached_service }}
-          INPUT_ENABLE_POSTGRES_SERVICE: ${{ inputs.enable_postgres_service }}
-          INPUT_ENABLE_MYSQL_SERVICE: ${{ inputs.enable_mysql_service }}
-          INPUT_ENABLE_SCYLLADB_SERVICE: ${{ inputs.enable_scylladb_service }}
-          INPUT_ENABLE_ELASTICSEARCH_SERVICE: ${{ inputs.enable_elasticsearch_service }}
-          INPUT_ENABLE_MONGODB_SERVICE: ${{ inputs.enable_mongodb_service }}
-        run: bash .phpforge-workflow/.github/scripts/verify-and-wait-services.sh
-
-      - name: Validate Composer
+          COMPOSE_PROFILES_JSON: ${{ needs.prepare.outputs.compose_profiles }}
         run: |
-          PACKAGE_NAME="$(composer config name --no-plugins --no-scripts 2>/dev/null || true)"
-
-          if [ "${PACKAGE_NAME}" = "infocyph/phpforge" ]; then
-            composer validate
-          else
-            composer validate --strict
-          fi
-
-      - name: Resolve dependencies (${{ matrix.dependency-version }})
-        run: composer update --no-interaction --prefer-dist --no-progress --${{ matrix.dependency-version }} ${{ inputs.composer_flags }}
-
-      - name: Verify stable runtime dependency constraints
-        run: composer ic:release:constraints
-
-      - name: Test
+          compose=(docker compose -f .phpforge-workflow/resources/services/compose.yml)
+          while IFS= read -r profile; do compose+=(--profile "$profile"); done < <(jq -r '.[]' <<< "$COMPOSE_PROFILES_JSON")
+          "${compose[@]}" up -d
+          bash .phpforge-workflow/.github/scripts/verify-and-wait-services.sh
+      - name: Validate and resolve dependencies
+        shell: bash
+        run: |
+          package="$(composer config name --no-plugins --no-scripts 2>/dev/null || true)"
+          if [ "$package" = "infocyph/phpforge" ]; then composer validate; else composer validate --strict; fi
+          composer update --no-interaction --prefer-dist --no-progress --${{ matrix.dependency-version }} ${{ inputs.composer_flags }}
+          composer ic:release:constraints
+      - name: Run quality suite once
+        shell: bash
         env:
           IC_PHPSTAN_MEMORY_LIMIT: ${{ inputs.phpstan_memory_limit }}
-          IC_PSALM_THREADS: ${{ inputs.psalm_threads }}
           IC_PEST_FAIL_ON_SKIPPED: ${{ inputs.fail_on_skipped_tests }}
         run: |
-          if [ "${{ matrix.dependency-version }}" != "prefer-lowest" ]; then
-            composer ic:ci
-          else
-            if composer run-script --list 2>/dev/null | grep -qE '^[[:space:]]*ic:ci[[:space:]]'; then
-              composer ic:ci -- --prefer-lowest
-            else
-              composer ic:ci --prefer-lowest
-            fi
-          fi
+          args=()
+          if [ "${{ matrix.dependency-version }}" = "prefer-lowest" ]; then args+=(--prefer-lowest); fi
+          if [ "${{ inputs.run_analysis }}" = "true" ]; then args+=(--without-analysis); fi
+          if [ "${#args[@]}" -eq 0 ]; then composer ic:ci; else composer ic:ci -- "${args[@]}"; fi
+      - name: Stop selected services
+        if: always() && needs.prepare.outputs.has_external_services == 'true'
+        shell: bash
+        env:
+          COMPOSE_PROFILES_JSON: ${{ needs.prepare.outputs.compose_profiles }}
+        run: |
+          compose=(docker compose -f .phpforge-workflow/resources/services/compose.yml)
+          while IFS= read -r profile; do compose+=(--profile "$profile"); done < <(jq -r '.[]' <<< "$COMPOSE_PROFILES_JSON")
+          "${compose[@]}" down --volumes --remove-orphans
 
   clean-install:
     needs: prepare
     if: inputs.run_clean_install && needs.prepare.outputs.has_supported_php_versions == 'true'
-    name: Clean Composer Install - PHP ${{ needs.prepare.outputs.clean_install_php_version }}
+    name: Clean install
     runs-on: ubuntu-latest
     env:
       XDEBUG_MODE: off
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ needs.prepare.outputs.clean_install_php_version }}
           tools: composer:v2
-          extensions: ${{ inputs.php_extensions }}
+          extensions: ${{ needs.prepare.outputs.php_extensions }}
           coverage: none
-
-      - name: Validate Composer
-        shell: bash
-        run: |
-          PACKAGE_NAME="$(composer config name --no-plugins --no-scripts 2>/dev/null || true)"
-
-          if [ "${PACKAGE_NAME}" = "infocyph/phpforge" ]; then
-            composer validate
-          else
-            composer validate --strict
-          fi
-
-      - name: Install production dependencies from a clean checkout
-        run: composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader ${{ inputs.composer_flags }}
-
-      - name: Verify production platform requirements
-        run: composer check-platform-reqs --no-dev
-
-      - name: Verify authoritative production autoload
-        run: |
-          composer dump-autoload --no-dev --classmap-authoritative --no-interaction
-          php -r 'require "vendor/autoload.php";'
+      - run: composer install --no-dev --no-interaction --prefer-dist --no-progress --classmap-authoritative ${{ inputs.composer_flags }}
+      - run: composer check-platform-reqs --no-dev
+      - run: php -r 'require "vendor/autoload.php";'
 
   analyze:
     needs: prepare
     if: inputs.run_analysis && needs.prepare.outputs.has_supported_php_versions == 'true'
-    name: Security Analysis - PHP ${{ matrix.php-versions }}
+    name: Analysis - PHP ${{ matrix.php-version }}
     runs-on: ubuntu-latest
-    env:
-      XDEBUG_MODE: off
     strategy:
+      fail-fast: false
       matrix:
-        php-versions: ${{ fromJson(needs.prepare.outputs.php_versions) }}
+        php-version: ${{ fromJson(needs.prepare.outputs.php_versions) }}
     permissions:
       security-events: write
       actions: read
       contents: read
-
+    env:
+      XDEBUG_MODE: off
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-versions }}
+          php-version: ${{ matrix.php-version }}
           tools: composer:v2
-          extensions: ${{ inputs.php_extensions }}
+          extensions: ${{ needs.prepare.outputs.php_extensions }}
           coverage: none
-
-      - name: Sanitize Composer GitHub OAuth token format
-        shell: bash
-        run: |
-          php -r '
-          $paths = [];
-          $composerHome = getenv("COMPOSER_HOME");
-          $home = getenv("HOME");
-          if (is_string($composerHome) && $composerHome !== "") {
-              $paths[] = $composerHome . "/auth.json";
-          }
-          if (is_string($home) && $home !== "") {
-              $paths[] = $home . "/.composer/auth.json";
-              $paths[] = $home . "/.config/composer/auth.json";
-          }
-          $paths = array_values(array_unique($paths));
-          foreach ($paths as $path) {
-              if (!is_file($path)) {
-                  continue;
-              }
-              $raw = file_get_contents($path);
-              if (!is_string($raw) || $raw === "") {
-                  continue;
-              }
-              $data = json_decode($raw, true);
-              if (!is_array($data)) {
-                  continue;
-              }
-              $token = $data["github-oauth"]["github.com"] ?? null;
-              if (!is_string($token) || $token === "") {
-                  continue;
-              }
-              if (preg_match("{^[.A-Za-z0-9_]+$}", $token) === 1) {
-                  continue;
-              }
-              unset($data["github-oauth"]["github.com"]);
-              if (($data["github-oauth"] ?? null) === []) {
-                  unset($data["github-oauth"]);
-              }
-              $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-              if (is_string($encoded)) {
-                  file_put_contents($path, $encoded . PHP_EOL);
-                  fwrite(STDOUT, "Removed unsupported github-oauth token format from {$path}" . PHP_EOL);
-              }
-          }
-          '
-
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress ${{ inputs.composer_flags }}
-
-      - name: Composer Audit
-        id: composer_audit
-        run: composer ic:release:audit
-        continue-on-error: true
-
-      - name: Quality Gate (PHPStan)
-        id: quality_gate
+      - name: Run audit and analyzers once
+        id: analyzers
+        shell: bash
         env:
-          IC_PHPSTAN_MEMORY_LIMIT: ${{ inputs.phpstan_memory_limit }}
-        run: composer ic:test:static
-        continue-on-error: true
-
-      - name: Security Gate (Psalm)
-        id: security_gate
-        env:
-          IC_PSALM_THREADS: ${{ inputs.psalm_threads }}
-        run: composer ic:test:security
-        continue-on-error: true
-
-      - name: Run PHPStan (Code Scanning)
-        id: phpstan_scan
+          PHPSTAN_MEMORY_LIMIT: ${{ inputs.phpstan_memory_limit }}
         run: |
-          VENDOR_DIR="$(composer config vendor-dir)"
-          PACKAGE_NAME="$(composer config name --no-plugins --no-scripts 2>/dev/null || true)"
-
-          if [ -f "phpstan.neon" ]; then
-            PHPSTAN_CONFIG="phpstan.neon"
-          elif [ -f "phpstan.neon.dist" ]; then
-            PHPSTAN_CONFIG="phpstan.neon.dist"
-          elif [ "$PACKAGE_NAME" = "infocyph/phpforge" ]; then
-            PHPSTAN_CONFIG="resources/phpstan.neon.dist"
-          else
-            PHPSTAN_CONFIG="$VENDOR_DIR/infocyph/phpforge/resources/phpstan.neon.dist"
-          fi
-
-          if [ ! -f "$PHPSTAN_CONFIG" ]; then
-            echo "::error::PHPStan config not found: $PHPSTAN_CONFIG"
-            exit 1
-          fi
-
-          PHPSTAN_ARGS=(analyse --configuration="$PHPSTAN_CONFIG" --memory-limit="${{ inputs.phpstan_memory_limit }}" --no-progress --error-format=json)
-
-          php "$VENDOR_DIR/bin/phpstan" "${PHPSTAN_ARGS[@]}" > phpstan-results.json || true
+          set +e
+          composer ic:release:audit
+          audit_status=$?
+          vendor_dir="$(composer config vendor-dir)"
+          package="$(composer config name --no-plugins --no-scripts 2>/dev/null || true)"
+          if [ -f phpstan.neon ]; then phpstan_config=phpstan.neon
+          elif [ -f phpstan.neon.dist ]; then phpstan_config=phpstan.neon.dist
+          elif [ "$package" = infocyph/phpforge ]; then phpstan_config=resources/phpstan.neon.dist
+          else phpstan_config="$vendor_dir/infocyph/phpforge/resources/phpstan.neon.dist"; fi
+          php "$vendor_dir/bin/phpstan" analyse --configuration="$phpstan_config" --memory-limit="$PHPSTAN_MEMORY_LIMIT" --no-progress --error-format=json > phpstan-results.json
+          phpstan_status=$?
           composer ic:phpstan:sarif -- phpstan-results.json phpstan-results.sarif
-        continue-on-error: true
-
-      - name: Upload PHPStan Results
-        id: upload_phpstan
+          sarif_status=$?
+          if [ -f psalm.xml ]; then psalm_config=psalm.xml
+          elif [ -f psalm.xml.dist ]; then psalm_config=psalm.xml.dist
+          elif [ "$package" = infocyph/phpforge ]; then psalm_config=resources/psalm.xml
+          else psalm_config="$vendor_dir/infocyph/phpforge/resources/psalm.xml"; fi
+          php "$vendor_dir/bin/psalm" --config="$psalm_config" --security-analysis --threads=1 --no-progress --no-cache --report=psalm-results.sarif
+          psalm_status=$?
+          set -e
+          printf 'audit_status=%d\nphpstan_status=%d\nsarif_status=%d\npsalm_status=%d\n' "$audit_status" "$phpstan_status" "$sarif_status" "$psalm_status" >> "$GITHUB_OUTPUT"
+      - name: Upload PHPStan SARIF
+        if: always() && hashFiles('phpstan-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
-        continue-on-error: true
         with:
           sarif_file: phpstan-results.sarif
-          category: "phpstan-${{ matrix.php-versions }}"
-        if: always() && hashFiles('phpstan-results.sarif') != ''
-
-      - name: Run Psalm Security Scan
-        id: psalm_scan
-        run: |
-          VENDOR_DIR="$(composer config vendor-dir)"
-          PACKAGE_NAME="$(composer config name --no-plugins --no-scripts 2>/dev/null || true)"
-
-          if [ -f "psalm.xml" ]; then
-            PSALM_CONFIG="psalm.xml"
-          elif [ -f "psalm.xml.dist" ]; then
-            PSALM_CONFIG="psalm.xml.dist"
-          elif [ "$PACKAGE_NAME" = "infocyph/phpforge" ]; then
-            PSALM_CONFIG="resources/psalm.xml"
-          else
-            PSALM_CONFIG="$VENDOR_DIR/infocyph/phpforge/resources/psalm.xml"
-          fi
-
-          if [ ! -f "$PSALM_CONFIG" ]; then
-            echo "::error::Psalm config not found: $PSALM_CONFIG"
-            exit 1
-          fi
-
-          php "$VENDOR_DIR/bin/psalm" --config="$PSALM_CONFIG" --security-analysis --threads="${{ inputs.psalm_threads }}" --report=psalm-results.sarif || true
-        continue-on-error: true
-
-      - name: Upload Psalm Results
-        id: upload_psalm
+          category: phpstan-${{ matrix.php-version }}
+      - name: Upload Psalm SARIF
+        if: always() && hashFiles('psalm-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
-        continue-on-error: true
         with:
           sarif_file: psalm-results.sarif
-          category: "psalm-${{ matrix.php-versions }}"
-        if: always() && hashFiles('psalm-results.sarif') != ''
-
-      - name: Enforce analysis gates
+          category: psalm-${{ matrix.php-version }}
+      - name: Enforce analyzer results
         if: always()
         shell: bash
         run: |
           failures=()
-
-          if [ "${{ steps.composer_audit.outcome }}" != "success" ]; then
-            failures+=("composer audit")
-          fi
-
-          if [ "${{ steps.quality_gate.outcome }}" != "success" ]; then
-            failures+=("phpstan quality gate")
-          fi
-
-          if [ "${{ steps.security_gate.outcome }}" != "success" ]; then
-            failures+=("psalm security gate")
-          fi
-
-          if [ "${#failures[@]}" -gt 0 ]; then
-            echo "::error::Security analysis checks failed: ${failures[*]}"
-            exit 1
-          fi
+          [ "${{ steps.analyzers.outputs.audit_status }}" = 0 ] || failures+=(audit)
+          [ "${{ steps.analyzers.outputs.phpstan_status }}" = 0 ] || failures+=(phpstan)
+          [ "${{ steps.analyzers.outputs.sarif_status }}" = 0 ] || failures+=(phpstan-sarif)
+          [ "${{ steps.analyzers.outputs.psalm_status }}" = 0 ] || failures+=(psalm)
+          if [ "${#failures[@]}" -gt 0 ]; then echo "::error::Analysis failed: ${failures[*]}"; exit 1; fi
 
   benchmark:
     needs: prepare
-    if: needs.prepare.outputs.has_supported_php_versions == 'true' && ((inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || inputs.benchmark_composer_script != '' || inputs.benchmark_result_file != '')
-    name: Benchmark
+    if: needs.prepare.outputs.has_supported_php_versions == 'true' && (inputs.benchmark_composer_script != '' || inputs.benchmark_result_file != '' || (inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')))
+    name: Benchmark - PHP ${{ matrix.php-version }}
     runs-on: ubuntu-latest
-    env:
-      XDEBUG_MODE: off
     strategy:
       matrix:
-        php-versions: ${{ fromJson(needs.prepare.outputs.php_versions) }}
-
+        php-version: ${{ fromJson(needs.prepare.outputs.php_versions) }}
+    env:
+      XDEBUG_MODE: off
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Benchmark context - PHP ${{ matrix.php-versions }}
-        uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-versions }}
+          php-version: ${{ matrix.php-version }}
           tools: composer:v2
-          extensions: ${{ inputs.php_extensions }}
+          extensions: ${{ needs.prepare.outputs.php_extensions }}
           coverage: none
-
-      - name: Resolve dependencies (prefer-stable)
-        run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable ${{ inputs.composer_flags }}
-
-      - name: Checkout workflow source
-        uses: actions/checkout@v6
+      - run: composer update --no-interaction --prefer-dist --no-progress --prefer-stable ${{ inputs.composer_flags }}
+      - uses: actions/checkout@v7
         with:
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}
           path: .phpforge-workflow
-          sparse-checkout: |
-            .github/scripts/run-benchmark.sh
+          sparse-checkout: .github/scripts/run-benchmark.sh
           sparse-checkout-cone-mode: false
-
-      - name: Run benchmark command
-        id: run_benchmark
+      - name: Run benchmark
         shell: bash
         env:
           INPUT_BENCHMARK_COMPOSER_SCRIPT: ${{ inputs.benchmark_composer_script }}
         run: bash .phpforge-workflow/.github/scripts/run-benchmark.sh
-
-      - name: Benchmark timing marker (command=${{ steps.run_benchmark.outputs.benchmark_command }}, duration=${{ steps.run_benchmark.outputs.duration_ms }} ms, metric_ns=${{ steps.run_benchmark.outputs.benchmark_metric_ns }}, metric_source=${{ steps.run_benchmark.outputs.benchmark_metric_source }})
-        if: always()
-        run: echo "Benchmark timing marker"
-
-      - name: Prepare benchmark JSON artifact
+      - name: Store benchmark JSON
         if: always()
         shell: bash
         run: |
           mkdir -p .phpforge-report
-
-          if [ -f ".phpforge-report/benchmark-output.log" ]; then
-            if jq -e . < ".phpforge-report/benchmark-output.log" >/dev/null 2>&1; then
-              jq -c 'if type == "array" then . else [] end' < ".phpforge-report/benchmark-output.log" > ".phpforge-report/benchmark-results-php-${{ matrix.php-versions }}.json"
-            else
-              jq -R -s -c '
-                (gsub("\r"; "") | gsub("\u001b\\[[0-9;]*[A-Za-z]"; "")) as $clean
-                | [
-                    $clean
-                    | match("\\[\\{.*?\\}\\]"; "gm")
-                    | .string
-                  ]
-                | map(fromjson? | select(type == "array"))
-                | if length == 0 then [] else .[-1] end
-              ' < ".phpforge-report/benchmark-output.log" > ".phpforge-report/benchmark-results-php-${{ matrix.php-versions }}.json"
-            fi
+          if [ -s .phpforge-report/benchmark-output.log ] && jq -e . .phpforge-report/benchmark-output.log >/dev/null 2>&1; then
+            jq -c 'if type == "array" then . else [] end' .phpforge-report/benchmark-output.log > .phpforge-report/benchmark-results-php-${{ matrix.php-version }}.json
           else
-            echo '[]' > ".phpforge-report/benchmark-results-php-${{ matrix.php-versions }}.json"
+            echo '[]' > .phpforge-report/benchmark-results-php-${{ matrix.php-version }}.json
           fi
-
-      - name: Validate representative benchmark result
-        if: inputs.benchmark_result_file != ''
+      - if: inputs.benchmark_result_file != ''
+        run: composer ic:benchmark:validate "${{ inputs.benchmark_result_file }}"
+      - if: inputs.benchmark_result_file != '' && inputs.benchmark_baseline_file != '' && matrix.php-version == needs.prepare.outputs.clean_install_php_version
         shell: bash
-        env:
-          BENCHMARK_RESULT_FILE: ${{ inputs.benchmark_result_file }}
-        run: composer ic:benchmark:validate "$BENCHMARK_RESULT_FILE"
-
-      - name: Enforce representative benchmark regression budget
-        if: inputs.benchmark_result_file != '' && inputs.benchmark_baseline_file != '' && matrix.php-versions == needs.prepare.outputs.clean_install_php_version
-        shell: bash
-        env:
-          BENCHMARK_RESULT_FILE: ${{ inputs.benchmark_result_file }}
-          BENCHMARK_BASELINE_FILE: ${{ inputs.benchmark_baseline_file }}
-          BENCHMARK_MAX_REGRESSION_PERCENT: ${{ inputs.benchmark_max_regression_percent }}
-          BENCHMARK_STABLE_ENVIRONMENT: ${{ inputs.benchmark_stable_environment }}
         run: |
-          benchmark_args=(
-            ic:benchmark:compare
-            "$BENCHMARK_BASELINE_FILE"
-            "$BENCHMARK_RESULT_FILE"
-            "--max-regression=$BENCHMARK_MAX_REGRESSION_PERCENT"
-          )
-
-          if [ "$BENCHMARK_STABLE_ENVIRONMENT" = "true" ]; then
-            benchmark_args+=(--stable-environment)
-          fi
-
-          composer "${benchmark_args[@]}"
-
-      - name: Upload benchmark JSON artifact
-        if: always()
+          args=(ic:benchmark:compare "${{ inputs.benchmark_baseline_file }}" "${{ inputs.benchmark_result_file }}" "--max-regression=${{ inputs.benchmark_max_regression_percent }}")
+          if [ "${{ inputs.benchmark_stable_environment }}" = true ]; then args+=(--stable-environment); fi
+          composer "${args[@]}"
+      - if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: benchmark-raw-php-${{ matrix.php-versions }}
-          path: .phpforge-report/benchmark-results-php-${{ matrix.php-versions }}.json
+          name: benchmark-raw-php-${{ matrix.php-version }}
+          path: .phpforge-report/benchmark-results-php-${{ matrix.php-version }}.json
           retention-days: ${{ inputs.artifact_retention_days }}
-          if-no-files-found: error
-
-      - name: Upload representative benchmark contract
-        if: always() && inputs.benchmark_result_file != ''
-        uses: actions/upload-artifact@v7
-        with:
-          name: benchmark-contract-php-${{ matrix.php-versions }}
-          path: ${{ inputs.benchmark_result_file }}
-          retention-days: ${{ inputs.artifact_retention_days }}
-          if-no-files-found: error
 
   svg-report:
-    needs:
-      - prepare
-      - run
-      - analyze
-      - benchmark
+    needs: [prepare, run, analyze, benchmark]
     if: always() && needs.prepare.outputs.has_supported_php_versions == 'true' && inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    name: Security SVG Report
+    name: Security SVG report
     runs-on: ubuntu-latest
     env:
       XDEBUG_MODE: off
     permissions:
       actions: read
       contents: read
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Resolve report PHP version
-        id: report_php
-        shell: bash
-        run: |
-          php_version="$(jq -r 'if type == "array" and length > 0 then .[-1] else empty end' <<< '${{ needs.prepare.outputs.php_versions }}')"
-
-          if [ -z "$php_version" ] || [ "$php_version" = "null" ]; then
-            php_version="8.5"
-          fi
-
-          echo "php_version=${php_version}" >> "$GITHUB_OUTPUT"
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ steps.report_php.outputs.php_version }}
+          php-version: ${{ needs.prepare.outputs.clean_install_php_version }}
           tools: composer:v2
-          extensions: ${{ inputs.php_extensions }}
+          extensions: ${{ needs.prepare.outputs.php_extensions }}
           coverage: none
-
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress ${{ inputs.composer_flags }}
-
-      - name: Checkout workflow source
-        uses: actions/checkout@v6
+      - run: composer install --no-interaction --prefer-dist --no-progress ${{ inputs.composer_flags }}
+      - uses: actions/checkout@v7
         with:
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}
           path: .phpforge-workflow
-          sparse-checkout: |
-            .github/scripts/build-security-report.sh
+          sparse-checkout: .github/scripts/build-security-report.sh
           sparse-checkout-cone-mode: false
-
-      - name: Download benchmark JSON artifacts
-        if: always()
-        uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: benchmark-raw-php-*
           path: .phpforge-report/in/benchmark
           merge-multiple: true
-
-      - name: Build SVG report artifacts
+      - name: Build report
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -821,8 +454,7 @@ jobs:
           BENCHMARK_JOB_RESULT: ${{ needs.benchmark.result }}
           PHP_VERSIONS_INPUT: ${{ needs.prepare.outputs.php_versions }}
         run: bash .phpforge-workflow/.github/scripts/build-security-report.sh
-      - name: Upload security report artifacts
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7
         with:
           name: security-report
           path: |

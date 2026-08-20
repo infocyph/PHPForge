@@ -58,14 +58,13 @@ final class TaskCatalog
         }
 
         return [
-            ...self::syntax(),
             ...self::testCode(),
             ...self::lintCheck(),
             ...self::sniff(),
-            ...self::duplicates(),
-            ...self::commentsCi(),
+            ...self::probeCheckCi(),
             ...self::architecture(),
             ...self::refactorCheck(),
+            ...self::normalizeCheck(),
         ];
     }
 
@@ -127,6 +126,14 @@ final class TaskCatalog
     /**
      * @return list<list<string>>
      */
+    public static function normalizeCheck(): array
+    {
+        return [['composer', 'normalize', '--dry-run']];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
     public static function normalizeComposer(): array
     {
         return [['composer', 'normalize']];
@@ -138,6 +145,14 @@ final class TaskCatalog
     public static function probeCheck(): array
     {
         return [self::probeCommand('check')];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    public static function probeCheckCi(): array
+    {
+        return [self::probeCommand('check', ['--preset=ci'])];
     }
 
     /**
@@ -280,6 +295,7 @@ final class TaskCatalog
             ...self::staticAnalysis(),
             ...self::security(),
             ...self::refactorCheck(),
+            ...self::normalizeCheck(),
         ];
     }
 
@@ -288,7 +304,7 @@ final class TaskCatalog
      */
     public static function testParallel(): array
     {
-        return array_slice(self::testAll(), count(self::syntax()));
+        return self::testAll();
     }
 
     /**
@@ -296,7 +312,7 @@ final class TaskCatalog
      */
     public static function testParallelCi(): array
     {
-        return array_slice(self::testAllCi(), count(self::syntax()));
+        return self::testAllCi();
     }
 
     private static function absoluteProjectPath(string $projectRoot, string $path): string
@@ -444,16 +460,15 @@ final class TaskCatalog
     private static function fullTestSuite(bool $ciComments): array
     {
         return [
-            ...self::syntax(),
-            ...self::pestTasks(true),
+            ...($ciComments ? self::probeCheckCi() : self::probeCheck()),
+            ...self::pestTasks(),
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
-            ...self::duplicates(),
-            ...($ciComments ? self::commentsCi() : self::comments()),
             ...self::architecture(),
             ...self::staticAnalysis(),
-            [Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--show-info=false', '--security-analysis', '--threads=' . self::psalmThreads(), '--no-progress', '--no-cache'],
+            [Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--show-info=false', '--security-analysis', '--threads=1', '--no-progress', '--no-cache'],
             ...self::refactorCheck(),
+            ...self::normalizeCheck(),
         ];
     }
 
@@ -490,13 +505,12 @@ final class TaskCatalog
     /**
      * @return list<string>
      */
-    private static function pestCommand(bool $parallel = false): array
+    private static function pestCommand(): array
     {
         return [
             Paths::php(),
             Paths::bin('pest'),
             ...self::pestConfigArgs(),
-            ...($parallel ? self::pestParallelArgs() : []),
             ...self::pestFailOnSkippedArgs(),
         ];
     }
@@ -533,40 +547,12 @@ final class TaskCatalog
     }
 
     /**
-     * @return list<string>
-     */
-    private static function pestParallelArgs(): array
-    {
-        if (!self::pestParallelEnabled()) {
-            return [];
-        }
-
-        return ['--parallel', '--processes=' . self::pestProcesses()];
-    }
-
-    private static function pestParallelEnabled(): bool
-    {
-        $value = getenv('IC_PEST_PARALLEL');
-
-        if (!is_string($value) || $value === '') {
-            return true;
-        }
-
-        return !in_array(strtolower(trim($value)), ['0', 'false', 'off', 'no'], true);
-    }
-
-    private static function pestProcesses(): string
-    {
-        return self::envInt('IC_PEST_PROCESSES', 10, 1, 64);
-    }
-
-    /**
      * @return list<list<string>>
      */
-    private static function pestTasks(bool $parallel = false): array
+    private static function pestTasks(): array
     {
         return self::hasProjectDirectory('tests')
-            ? [self::pestCommand($parallel)]
+            ? [self::pestCommand()]
             : [];
     }
 
