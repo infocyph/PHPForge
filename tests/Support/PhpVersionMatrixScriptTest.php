@@ -116,6 +116,18 @@ it('exposes the compact service controls in the project workflow', function (): 
         ->and($template['jobs']['phpforge']['with'] ?? null)->toBe($expected);
 });
 
+it('passes CI flags as options to the registered Composer command', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $steps = $workflow['jobs']['run']['steps'] ?? [];
+    $stepsByName = array_column($steps, null, 'name');
+    $script = $stepsByName['Run quality suite once']['run'] ?? '';
+
+    expect($script)->toContain('args+=(--prefer-lowest)')
+        ->toContain('args+=(--without-analysis)')
+        ->toContain('composer ic:ci "${args[@]}"')
+        ->not->toContain('composer ic:ci -- "${args[@]}"');
+});
+
 it('installs dependencies before one analyzer execution produces gates and sarif', function (): void {
     $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
     $steps = $workflow['jobs']['analyze']['steps'] ?? [];

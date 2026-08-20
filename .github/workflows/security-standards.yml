@@ -279,7 +279,7 @@ jobs:
           args=()
           if [ "${{ matrix.dependency-version }}" = "prefer-lowest" ]; then args+=(--prefer-lowest); fi
           if [ "${{ inputs.run_analysis }}" = "true" ]; then args+=(--without-analysis); fi
-          if [ "${#args[@]}" -eq 0 ]; then composer ic:ci; else composer ic:ci -- "${args[@]}"; fi
+          if [ "${#args[@]}" -eq 0 ]; then composer ic:ci; else composer ic:ci "${args[@]}"; fi
       - name: Stop selected services
         if: always() && needs.prepare.outputs.has_external_services == 'true'
         shell: bash
