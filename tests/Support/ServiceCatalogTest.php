@@ -59,6 +59,7 @@ it('resolves canonical workflow service outputs including empty objects', functi
         'INTEGRATION_SERVICES_INPUT' => '["mysql","mongodb","sqlite"]',
         'SERVICE_TOPOLOGIES_INPUT' => '{"mysql":"replica","mongodb":"replica-set"}',
         'PHP_EXTENSIONS_INPUT' => 'ext-json, curl',
+        'GITHUB_OUTPUT' => false,
     ]);
     $process->mustRun();
     $result = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
@@ -68,7 +69,11 @@ it('resolves canonical workflow service outputs including empty objects', functi
         ->and($result['has_external_services'])->toBe('true');
 
     $empty = new Process([PHP_BINARY, dirname(__DIR__, 2).'/.github/scripts/resolve-services.php']);
-    $empty->setEnv(['INTEGRATION_SERVICES_INPUT' => '[]', 'SERVICE_TOPOLOGIES_INPUT' => '{}']);
+    $empty->setEnv([
+        'INTEGRATION_SERVICES_INPUT' => '[]',
+        'SERVICE_TOPOLOGIES_INPUT' => '{}',
+        'GITHUB_OUTPUT' => false,
+    ]);
     $empty->mustRun();
 
     expect(json_decode($empty->getOutput(), true, 512, JSON_THROW_ON_ERROR)['service_topologies'])->toBe('{}');
