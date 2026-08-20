@@ -152,7 +152,7 @@ final class TaskCatalog
      */
     public static function probeCheckCi(): array
     {
-        return [self::probeCommand('check', ['--preset=ci'])];
+        return self::probeCheck();
     }
 
     /**

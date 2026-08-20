@@ -387,7 +387,7 @@ jobs:
   benchmark:
     needs: prepare
     if: needs.prepare.outputs.has_supported_php_versions == 'true' && (inputs.benchmark_composer_script != '' || inputs.benchmark_result_file != '' || (inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')))
-    name: Benchmark - PHP ${{ matrix.php-version }}
+    name: Benchmark
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -396,7 +396,8 @@ jobs:
       XDEBUG_MODE: off
     steps:
       - uses: actions/checkout@v7
-      - uses: shivammathur/setup-php@v2
+      - name: Setup benchmark - PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
           tools: composer:v2

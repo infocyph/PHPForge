@@ -119,12 +119,14 @@ it('runs CI comment policy checks with error-focused output', function (): void 
         ->and($command)->toContain(Paths::packageFile('resources/phpprobe.json'));
 });
 
-it('uses the supported CI preset for aggregate PHPProbe checks', function (): void {
+it('keeps aggregate PHPProbe CI checks aligned with the configured thresholds', function (): void {
     $command = TaskCatalog::probeCheckCi()[0];
 
     expect($command)->toContain('check')
-        ->and($command)->toContain('--preset=ci')
-        ->and($command)->not->toContain('--ci');
+        ->and($command)->toContain('--config')
+        ->and($command)->toContain(Paths::packageFile('resources/phpprobe.json'))
+        ->and($command)->not->toContain('--preset=ci')
+        ->and(TaskCatalog::probeCheckCi())->toBe(TaskCatalog::probeCheck());
 });
 
 it('runs Psalm through the dependency-isolated PHAR binary', function (): void {
