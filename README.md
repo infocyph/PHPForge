@@ -9,13 +9,45 @@ Reusable Composer-powered QA, refactoring, benchmark, release, hook and CI tooli
 
 PHPForge is installed as a dev dependency in PHP libraries and packages. It provides Composer commands under the `ic:*` namespace, ships default tool configuration, installs CaptainHook hooks, exposes a reusable GitHub Actions workflow and includes starter templates for GitLab CI, Bitbucket Pipelines and Forgejo Actions.
 
-**Start here:** [Install](#install) · [Quick Start](#quick-start) · [Set up GitHub Actions](#github-actions) · [Choose integration services](#integration-service-values)
+## Table of contents
 
-All GitHub Actions integration services are opt-in. The generated workflow starts with `integration_services: '[]'` and `service_topologies: '{}'`.
+- [Features](#features)
+- [Requirements](#requirements)
+- [Setup](#setup)
+  - [Install PHPForge](#install-phpforge)
+  - [Initialize project files](#initialize-project-files)
+  - [Enable GitHub Actions](#enable-github-actions)
+  - [Select integration services](#select-integration-services)
+  - [Verify the setup](#verify-the-setup)
+- [Daily workflow](#daily-workflow)
+- [Command reference](#command-reference)
+- [Benchmarking](#benchmarking)
+- [Utility commands](#utility-commands)
+- [Configuration](#configuration)
+- [Integrations](#integrations)
+  - [Git hooks](#git-hooks)
+  - [GitHub Actions](#github-actions)
+  - [Other CI platforms](#other-ci-platforms)
+- [Contributing](#contributing)
+- [Community templates](#community-templates)
+- [Migration guide](#migration-guide)
+- [Troubleshooting](#troubleshooting)
 
-## What It Includes
+## Features
 
-PHPForge brings these tools through one package:
+| Capability | What PHPForge provides |
+| --- | --- |
+| Quality checks | One bounded-parallel command for tests, syntax, style, architecture, static analysis, security analysis and refactor checks. |
+| Automated fixes | A deterministic sequential processor for Composer Normalize, Rector, Pint and PHPCBF. |
+| CI | A reusable GitHub Actions workflow plus starter pipelines for GitLab, Bitbucket and Forgejo. |
+| Integration services | Opt-in databases, caches, messaging, search and email services with automatic PHP extension resolution and readiness checks. |
+| Benchmarks | PHPBench commands, a workload-neutral result contract, regression comparison and worker soak testing. |
+| Release safety | Composer validation, dependency constraint checks, advisory auditing and a production-style clean-install gate. |
+| Project automation | CaptainHook integration, diagnostics, configuration publishing and community templates. |
+
+<details>
+<summary>Included tooling</summary>
+
 
 | Tool                        | Used For                                            |
 | --------------------------- | --------------------------------------------------- |
@@ -32,15 +64,24 @@ PHPForge brings these tools through one package:
 | Composer Normalize          | `composer.json` normalization                     |
 | Composer audit              | Release/security audit guard                        |
 
-## Engineering Baseline
+</details>
 
-PHPForge's current `dev-main` line targets PHP 8.4 and later, uses PSR-4 autoloading and formats first-party PHP against
-[PER Coding Style 3.0](https://www.php-fig.org/per/coding-style/) through the configured Pint toolchain.
-PHPProbe provides the syntax, duplicate-code and comment-policy checks used by PHPForge.
-Bundled Pest and PHPUnit configurations run with every PHP error level enabled so deprecations remain
-visible during compatibility testing.
+## Requirements
 
-## Install
+| Requirement | Needed for |
+| --- | --- |
+| PHP 8.4 or later | PHPForge's current `dev-main` line. |
+| Composer 2 | Installation and all `composer ic:*` commands. |
+| Git | Git-aware checks, hooks and normal contributor workflows. |
+| Docker with Compose | Only local external integration services; SQLite does not require it. |
+
+PHPForge uses PSR-4 autoloading and formats first-party PHP against
+[PER Coding Style 3.0](https://www.php-fig.org/per/coding-style/) through Pint.
+Bundled Pest and PHPUnit configurations enable every PHP error level so compatibility deprecations remain visible.
+
+## Setup
+
+### Install PHPForge
 
 Check the consuming project's PHP version before selecting the PHPForge line:
 
@@ -52,7 +93,7 @@ php -r 'echo PHP_VERSION, PHP_EOL;'
 | ------------- |---------|---------------------------------------------|
 | `dev-main@dev` | PHP 8.4 | Current development line and newest tooling |
 
-Install the current development line on PHP 8.4 or later:
+Install the current development line:
 
 ```bash
 composer require --dev infocyph/phpforge:dev-main@dev
@@ -61,7 +102,7 @@ composer require --dev infocyph/phpforge:dev-main@dev
 Composer enforces the selected line's PHP constraint and rejects an
 incompatible runtime.
 
-If approval is needed (if not allowed in primary run or missed somehow), run:
+Composer normally asks for plugin approval. If approval was skipped or disabled, run:
 
 ```bash
 composer config allow-plugins.infocyph/phpforge true
@@ -70,38 +111,15 @@ composer config allow-plugins.pestphp/pest-plugin true
 composer install
 ```
 
-Inspect the detected setup:
+### Initialize project files
 
-```bash
-composer ic:doctor
-```
-
-JSON diagnostics are available for automation:
-
-```bash
-composer ic:doctor --json
-```
-
-## Quick Start
-
-Common contributor commands:
-
-```bash
-composer ic:ci
-composer ic:process
-composer ic:benchmark
-composer ic:release:guard
-```
-
-Use `composer ic:ci` as the normal complete validation command before opening a pull request. Run focused `ic:test:*` commands while developing or when the complete suite cannot run.
-
-Initialize optional project files:
+Run the guided initializer:
 
 ```bash
 composer ic:init
 ```
 
-`ic:init` is interactive by default and keeps the normal setup capability-oriented:
+It asks only which project capabilities to install:
 
 ```text
 Install GitHub Actions workflow?
@@ -110,49 +128,9 @@ Select integration services
 Select a non-standalone topology for services that support one
 ```
 
-Runtime versions come from `resources/runtime.php`. Selected services automatically contribute their PHP extensions through the canonical service catalog. Analyzer tuning, credentials and low-level CI settings are intentionally absent from the normal init flow; advanced reusable-workflow inputs remain available for direct edits when needed.
+Runtime versions come from `resources/runtime.php`. Selected services automatically contribute their PHP extensions. Advanced analyzer, credential and reporting inputs remain available in the generated workflow for projects that need them.
 
-Depending on your selections, `ic:init` can generate:
-
-```text
-captainhook.json
-.github/workflows/security-standards.yml
-.gitlab-ci.yml
-bitbucket-pipelines.yml
-.forgejo/workflows/security-standards.yml
-CONTRIBUTING.md
-CODE_OF_CONDUCT.md
-SECURITY.md
-.github/ISSUE_TEMPLATE/bug_report.yml
-.github/ISSUE_TEMPLATE/ci_failure.yml
-.github/ISSUE_TEMPLATE/docs_improvement.yml
-.github/ISSUE_TEMPLATE/feature_request.yml
-.github/ISSUE_TEMPLATE/question.yml
-.github/ISSUE_TEMPLATE/config.yml
-.github/PULL_REQUEST_TEMPLATE.md
-.github/PULL_REQUEST_TEMPLATE/bug_fix.md
-.github/PULL_REQUEST_TEMPLATE/feature.md
-.github/PULL_REQUEST_TEMPLATE/refactor.md
-.github/PULL_REQUEST_TEMPLATE/performance.md
-.github/PULL_REQUEST_TEMPLATE/security_reliability.md
-.github/PULL_REQUEST_TEMPLATE/documentation.md
-.github/PULL_REQUEST_TEMPLATE/maintenance.md
-```
-
-`ic:init` sets up hook/workflow wrappers and optional community files, issue forms and general/typed pull request templates. Publish checker or architecture config separately with `composer ic:publish-config phpprobe.json deptrac.yaml` when customization is needed.
-
-After `ic:init`, run:
-
-```bash
-composer ic:ci
-```
-
-`composer ic:ci` is the same path used by the generated workflow and bundled pre-commit hook; it runs syntax first, then the remaining normal quality checks with bounded parallelism.
-
-If `captainhook.json` was installed, hooks auto-install on the next `composer install` or `composer update`.
-Use `composer ic:hooks` only when you want to install/update hooks immediately.
-
-Use targeted or non-interactive init commands when needed:
+For focused or automated setup, use an explicit target:
 
 ```bash
 composer ic:init --captainhook
@@ -162,22 +140,67 @@ composer ic:init --bitbucket-ci
 composer ic:init --forgejo-workflow
 composer ic:init --community-templates
 composer ic:init --no-interaction-defaults
-composer ic:init --force
 ```
 
-## Command Reference
+Existing generated files are preserved unless `--force` is supplied.
 
-### Engineering Guidance
+### Enable GitHub Actions
 
-Before implementing or reviewing changes, human contributors and automated coding agents should read:
+The quickest route is:
 
-```text
-vendor/infocyph/phpforge/resources/engineering-principles.md
+```bash
+composer ic:init --workflow --workflow-ref=main
 ```
 
-This is the primary engineering instruction for scope control, implementation decisions, architecture, performance, security, compatibility, testing and maintainability. It applies equally to human and automated contributions and directs agents to any additional execution guidance they require.
+This creates `.github/workflows/security-standards.yml`, a small wrapper around PHPForge's reusable workflow. Commit and push that file to enable pull-request, branch and scheduled checks. See [GitHub Actions](#github-actions) for the generated YAML, all inputs, permissions and examples.
 
-### Test Commands
+### Select integration services
+
+External services are disabled by default. Choose only what the project's tests use:
+
+```bash
+composer ic:init \
+  --workflow \
+  --workflow-ref=main \
+  --services='["mysql","redis","mailpit"]' \
+  --service-topologies='{"mysql":"replica"}'
+```
+
+The same selection is written to the GitHub Actions wrapper and used by local Compose commands. See [Integration services](#integration-services) for every service and topology value.
+
+### Verify the setup
+
+Inspect the resolved configuration, then run the same quality path used by CI:
+
+```bash
+composer ic:doctor
+composer ic:ci
+```
+
+For machine-readable diagnostics:
+
+```bash
+composer ic:doctor --json
+```
+
+If CaptainHook was selected, hooks install automatically on the next `composer install` or `composer update`. Run `composer ic:hooks` only when hooks must be installed immediately.
+
+## Daily workflow
+
+| Goal | Command |
+| --- | --- |
+| Validate before a pull request | `composer ic:ci` |
+| Show full sequential diagnostics | `composer ic:tests:details` |
+| Apply safe automated fixes | `composer ic:process` |
+| Run benchmarks | `composer ic:benchmark` |
+| Run the release gate | `composer ic:release:guard` |
+| Inspect configuration problems | `composer ic:doctor` |
+
+Use focused `composer ic:test:*` commands while developing. Use `composer ic:ci` before opening a pull request; it is the same validation path used by the generated workflow and bundled pre-commit hook.
+
+## Command reference
+
+### Test commands
 
 PHPForge parallelizes independent tools, not duplicate copies of the same checker. Source-mutating processors remain sequential. Started parallel peers are allowed to finish, successful output stays concise, failures retain bounded diagnostics, and summaries follow declaration order.
 
@@ -203,6 +226,10 @@ PHPForge parallelizes independent tools, not duplicate copies of the same checke
 Syntax, duplicate and comment settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
 PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge comments` and `phpforge check` commands are thin gateways that pass the same config to PHPProbe.
 By default the bundled config uses PHPProbe's standard syntax and duplicate profiles with the strict comment policy. Duplicate findings remain visible, but become blocking only when duplicated lines reach 10% of the scanned code. Projects can still override individual sections in a published `phpprobe.json`.
+
+<details>
+<summary>Advanced PHPProbe CLI examples and options</summary>
+
 Use the lower-level binary for custom scans; CLI paths override configured paths, while CLI excludes are added to configured excludes:
 
 ```bash
@@ -237,7 +264,9 @@ Useful checker options:
 | `--ci`                    | Comments           | Emits only error-level findings (clean CI logs).                        |
 | `--json`                  | Duplicates         | Emits machine-readable JSON.                                            |
 
-### CI Commands
+</details>
+
+### CI commands
 
 | Command                            | Purpose                                                                                     |
 | ---------------------------------- | ------------------------------------------------------------------------------------------- |
@@ -245,7 +274,7 @@ Useful checker options:
 | `composer ic:ci --prefer-lowest` | Runs the CI set without PHPStan and Psalm for prefer-lowest dependency jobs.                |
 | `composer ic:ci --without-analysis` | Runs the CI set without PHPStan and Psalm when a dedicated analysis job owns them.       |
 
-### Process Commands
+### Process commands
 
 | Command                           | Purpose                                                  |
 | --------------------------------- | -------------------------------------------------------- |
@@ -256,7 +285,7 @@ Useful checker options:
 | `composer ic:process:sniff`     | Runs PHPCBF fixes.                                       |
 | `composer ic:process:sniff:fix` | Alias of `ic:process:sniff`.                           |
 
-### Benchmark Commands
+### Benchmark commands
 
 | Command                     | Purpose                             |
 | --------------------------- | ----------------------------------- |
@@ -268,7 +297,7 @@ Useful checker options:
 | `composer ic:benchmark:compare baseline.json candidate.json --stable-environment` | Enforces a like-for-like successful-RPM regression budget; defaults to 2%. |
 | `composer ic:soak:worker --duration=300 -- command [args...]` | Soak-tests any long-running web or queue worker for early exit and RSS growth. |
 
-### Release Commands
+### Release commands
 
 | Command                       | Purpose                                                                 |
 | ----------------------------- | ----------------------------------------------------------------------- |
@@ -276,9 +305,12 @@ Useful checker options:
 | `composer ic:release:constraints` | Rejects development branches, aliases, commit references, pre-stable flags and non-stable minimum stability in runtime requirements. |
 | `composer ic:release:guard` | Runs Composer validation, stable runtime constraints, audit and the full test suite. |
 
-### Representative Benchmark Contract
+## Benchmarking
 
 PHPForge can be used by any PHP library or application. Its representative result contract is therefore workload-neutral: producers map component operations, HTTP requests, persistent-worker work, queue jobs or custom operations into the same fields. PHPForge validates and compares the result; it does not own a framework-specific load generator.
+
+<details>
+<summary>Benchmark result schema and field reference</summary>
 
 The schema is installed at `vendor/infocyph/phpforge/resources/benchmark-result.schema.json`. A minimal complete document has this shape:
 
@@ -364,6 +396,8 @@ The contract uses these workload-neutral meanings:
 | `error_rate` | Failed operations divided by attempted operations, expressed from `0` to `1`. |
 | `stability` | The producer's repeated-sample assessment and spread; regression enforcement requires `stable`. |
 
+</details>
+
 Validation always checks counters, failure/timeout bounds, percentile order, resource values, unique workload names and required environment metadata:
 
 ```bash
@@ -399,7 +433,7 @@ The command applies equally to persistent application servers and queue consumer
 
 Use the `composer ic:*` commands in consuming packages. PHPForge does not require those packages to add `composer/composer` as a runtime dependency; Composer supplies the plugin command runtime.
 
-### Config And Utility Commands
+## Utility commands
 
 | Command                                               | Purpose                                                                                                        |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -456,7 +490,7 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 | Rector                 | `rector.php`, then bundled `rector.php`                                                                      |
 | CaptainHook            | `captainhook.json`, then bundled `captainhook.json`                                                          |
 
-### PHPProbe Checker Config
+### PHPProbe checker config
 
 `phpprobe.json` configures PHPProbe syntax, duplicate-code and comment-policy checks.
 PHPProbe 0.7 is preset-first and PHPForge follows that model.
@@ -497,7 +531,7 @@ to comment policy: duplicate analysis remains fully enabled and reported, while
 its gate fails only when duplicated lines reach the configured 10% error
 threshold.
 
-### Deptrac Architecture Config
+### Deptrac architecture config
 
 `deptrac.yaml` configures architecture dependency boundaries. The bundled default scans from the project root, excludes the same noisy/generated paths as the other PHPForge configs and collects project classes through a generic `Project` layer instead of hard-coding a package namespace. Publish it when a project is ready to split that baseline into real domain, package or framework layers.
 
@@ -549,7 +583,7 @@ Use `--force` to overwrite existing files:
 composer ic:publish-config psalm.xml --force
 ```
 
-## Environment Variables
+### Environment variables
 
 | Variable                    | Default | Purpose                                                                                                  |
 | --------------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
@@ -570,7 +604,9 @@ IC_PHPSTAN_MEMORY_LIMIT=2G composer ic:test:static
 IC_HOOKS_STRICT=0 composer install
 ```
 
-## Git Hooks
+## Integrations
+
+### Git hooks
 
 Install the bundled CaptainHook configuration:
 
@@ -596,7 +632,7 @@ This package also has a root `post-autoload-dump` script:
 
 That helper keeps hooks installed for this repository. For consuming projects, `ic:init --captainhook` owns creation of `captainhook.json`. The Composer plugin refreshes hooks only when that project-owned file already exists; projects that did not opt in are left unchanged.
 
-## GitHub Actions
+### GitHub Actions
 
 PHPForge publishes a reusable workflow:
 
@@ -641,32 +677,45 @@ jobs:
       service_topologies: '{}'
 ```
 
-Workflow inputs:
+Common workflow inputs:
 
-| Input                       | Default                               | Purpose                                                                                                                               |
-| --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `php_versions`            | runtime manifest                        | Optional PHP matrix JSON string. The versioned `resources/runtime.php` manifest is authoritative.                                   |
-| `dependency_versions`     | `["prefer-lowest","prefer-stable"]` | Composer dependency modes as a JSON array string.                                                                                     |
-| `php_extensions`          | `""`                                | Comma-separated PHP extensions passed to `shivammathur/setup-php`.                                                                  |
-| `composer_flags`          | `""`                                | Extra flags appended to Composer install/update commands.                                                                             |
-| `phpstan_memory_limit`    | `1G`                                | PHPStan memory limit used by workflow analysis.                                                                                       |
-| `run_analysis`            | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.                                                      |
-| `run_svg_report`          | `true`                              | Generates `security-report.svg` and `security-summary.json` with per-version matrix results, per-version benchmark timings/trends and tool versions. |
-| `fail_on_skipped_tests`   | `false`                             | Adds `--fail-on-skipped` to Pest execution so skipped tests fail the CI test job.                                                    |
-| `run_clean_install`       | `true`                              | Verifies a production-style `--no-dev` install and authoritative autoload on the final configured PHP version.                      |
-| `benchmark_composer_script` | `""`                              | Optional Composer script name that produces a representative result. Empty keeps the existing PHPBench discovery behavior.           |
-| `benchmark_result_file`   | `""`                                | Optional workload-neutral result JSON file validated after the benchmark script.                                                     |
-| `benchmark_baseline_file` | `""`                                | Optional repository baseline compared with `benchmark_result_file`.                                                                  |
-| `benchmark_max_regression_percent` | `2`                       | Maximum successful-RPM regression for the stable-environment gate.                                                                   |
-| `benchmark_stable_environment` | `false`                         | Enables regression failure only when result metadata also proves the same stable environment.                                        |
-| `integration_services`    | `[]`                                | JSON list of catalog service names; selected service extensions are installed automatically.                                         |
-| `service_topologies`      | `{}`                                | JSON object selecting non-default topologies, such as `{"mysql":"replica"}`.                                                        |
-| `service_db_name`         | `phpforge`                          | Advanced override for the shared integration-service database name.                                                                  |
-| `service_db_user`         | `phpforge`                          | Advanced override for the shared integration-service username.                                                                       |
-| `service_password`        | `Phpforge_123!`                     | Advanced override for the shared integration-service test password; the default satisfies SQL Server's password policy.              |
-| `artifact_retention_days` | `61`                                | Artifact retention days for uploaded `security-report` artifacts.                                                                   |
+| Input | Default | Use it when |
+| --- | --- | --- |
+| `php_versions` | runtime manifest | The project needs a smaller supported PHP matrix. |
+| `dependency_versions` | `["prefer-lowest","prefer-stable"]` | The project needs only one Composer dependency mode. |
+| `integration_services` | `[]` | Tests require one or more catalog services. |
+| `service_topologies` | `{}` | A selected service needs replica or replica-set mode. |
+| `run_analysis` | `true` | Set to `false` only when the dedicated PHPStan/Psalm and SARIF job should be disabled. |
 
-#### Integration service values
+<details>
+<summary>All workflow inputs and defaults</summary>
+
+| Input | Default | Purpose |
+| --- | --- | --- |
+| `php_versions` | runtime manifest | Optional PHP matrix JSON string. The versioned `resources/runtime.php` manifest is authoritative. |
+| `dependency_versions` | `["prefer-lowest","prefer-stable"]` | Composer dependency modes as a JSON array string. |
+| `php_extensions` | `""` | Comma-separated PHP extensions passed to `shivammathur/setup-php`. |
+| `composer_flags` | `""` | Extra flags appended to Composer install/update commands. |
+| `phpstan_memory_limit` | `1G` | PHPStan memory limit used by workflow analysis. |
+| `run_analysis` | `true` | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs. |
+| `run_svg_report` | `true` | Generates `security-report.svg` and `security-summary.json`. |
+| `fail_on_skipped_tests` | `false` | Adds `--fail-on-skipped` to Pest execution. |
+| `run_clean_install` | `true` | Verifies a production-style `--no-dev` install and authoritative autoload. |
+| `benchmark_composer_script` | `""` | Optional Composer script that produces a representative benchmark result. |
+| `benchmark_result_file` | `""` | Workload-neutral result JSON file validated after the benchmark script. |
+| `benchmark_baseline_file` | `""` | Repository baseline compared with `benchmark_result_file`. |
+| `benchmark_max_regression_percent` | `2` | Maximum successful-RPM regression for the stable-environment gate. |
+| `benchmark_stable_environment` | `false` | Enables regression failure only when matching stable environment metadata is present. |
+| `integration_services` | `[]` | JSON list of catalog service names; selected service extensions are installed automatically. |
+| `service_topologies` | `{}` | JSON object selecting non-default topologies, such as `{"mysql":"replica"}`. |
+| `service_db_name` | `phpforge` | Shared integration-service database name. |
+| `service_db_user` | `phpforge` | Shared integration-service username. |
+| `service_password` | `Phpforge_123!` | Shared test password; the default satisfies SQL Server's password policy. |
+| `artifact_retention_days` | `61` | Retention period for uploaded `security-report` artifacts. |
+
+</details>
+
+#### Integration services
 
 Both inputs are YAML strings containing JSON. `integration_services` accepts any unique combination of these exact catalog keys:
 
@@ -713,7 +762,10 @@ with:
 
 Explicit `"standalone"` mappings are accepted but unnecessary because standalone is the default. Unknown services, unsupported topology values and topology entries for unselected services fail workflow preparation with a validation error.
 
-### Workflow Input Details
+#### Workflow input details
+
+<details>
+<summary>Runtime, dependency, extension, Composer, and PHPStan inputs</summary>
 
 `php_versions` must be a JSON array string because reusable workflow inputs are strings:
 
@@ -784,6 +836,11 @@ with:
   phpstan_memory_limit: "2G"
 ```
 
+</details>
+
+<details>
+<summary>Local services, credentials, and exported environment variables</summary>
+
 Optional integration services are disabled by default:
 
 ```yaml
@@ -820,6 +877,11 @@ Selected services export environment variables including:
 - `IC_ELASTICSEARCH_HOST`, `IC_ELASTICSEARCH_PORT`, `IC_ELASTICSEARCH_URL`
 
 Replica mode verifies real replicated data visibility before tests start. SQLite is an additional compatibility target, not a substitute for production database engines. Mailpit validates SMTP/email integration but does not replace provider-specific or real deliverability testing.
+
+</details>
+
+<details>
+<summary>Analysis, clean install, benchmark, and report inputs</summary>
 
 `run_analysis` controls the dedicated Composer audit, PHPStan, Psalm and SARIF
 analysis job:
@@ -894,7 +956,12 @@ When enabled on `main` or `master`, the workflow uploads one artifact:
 
 `security-report.svg` renders the same high-level status, per-version matrix check results, rollup quality gates (`Code Lowest`, `Code Stable`, `Security`, `Benchmark`), a benchmark-by-version chart with upgrade/degrade trend labels and resolved tool versions.
 
-### Workflow Examples
+</details>
+
+#### Workflow examples
+
+<details>
+<summary>Reusable workflow examples</summary>
 
 Fast CI for active development:
 
@@ -975,7 +1042,9 @@ used when present. The PHPForge repository itself falls back to its root
 `resources/` configs; every consuming project falls back to the installed
 `vendor/infocyph/phpforge/resources/` configs after Composer installation.
 
-## Other CI Platforms
+</details>
+
+### Other CI platforms
 
 Generate starter CI files with `ic:init`:
 
@@ -997,7 +1066,17 @@ Each template installs dependencies and runs:
 composer ic:ci
 ```
 
-## Community Templates
+## Contributing
+
+Before implementing or reviewing changes, human contributors and automated coding agents should read:
+
+```text
+vendor/infocyph/phpforge/resources/engineering-principles.md
+```
+
+It defines the project's scope, architecture, performance, security, compatibility, testing and maintainability rules. Repository-specific agent instructions may add execution guidance without replacing those principles.
+
+## Community templates
 
 Generate the contribution policies, issue forms and pull request templates:
 
@@ -1010,6 +1089,9 @@ Use `--force` only when existing project files should be replaced with PHPForge 
 ```bash
 composer ic:community --force
 ```
+
+<details>
+<summary>Generated community and GitHub files</summary>
 
 Generated community policy files:
 
@@ -1039,7 +1121,10 @@ Generated pull request templates:
 - `.github/PULL_REQUEST_TEMPLATE/documentation.md`
 - `.github/PULL_REQUEST_TEMPLATE/maintenance.md`
 
-### Selecting a Pull Request Template
+</details>
+
+<details>
+<summary>Selecting a pull request template</summary>
 
 GitHub automatically inserts `.github/PULL_REQUEST_TEMPLATE.md` when a pull request is opened normally.
 
@@ -1063,9 +1148,14 @@ Replace `bug_fix.md` with the required template filename:
 
 Use the general fallback for mixed changes or work that does not fit one specialized type. Do not place confidential, unpatched vulnerability details in a public pull request; follow `SECURITY.md` and use private vulnerability reporting.
 
-## Migration Guide
+</details>
+
+## Migration guide
 
 Replace individual QA dependencies with PHPForge.
+
+<details>
+<summary>Example dependency replacement</summary>
 
 Before:
 
@@ -1097,6 +1187,8 @@ PHPForge installs the stable `psalm/phar` distribution. Its isolated
 dependency graph prevents Psalm's internal component constraints from colliding
 with the PHPUnit version selected by Pest, while preserving the normal Psalm
 configuration and security-analysis workflow.
+
+</details>
 
 Remove old local QA scripts such as:
 
