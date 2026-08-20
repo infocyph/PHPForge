@@ -172,15 +172,13 @@ final class ServiceCommand extends Command
     {
         $database = getenv('IC_SERVICE_DATABASE') ?: 'phpforge';
         $username = getenv('IC_SERVICE_USERNAME') ?: 'phpforge';
-        $password = getenv('IC_SERVICE_PASSWORD') ?: 'phpforge';
-        $mssqlPassword = getenv('IC_MSSQL_PASSWORD') ?: 'Phpforge_123!';
+        $password = getenv('IC_SERVICE_PASSWORD') ?: 'Phpforge_123!';
         $mongodbReplica = ($topologies['mongodb'] ?? 'standalone') === 'replica-set';
 
         return [
             'PHPFORGE_SERVICE_DATABASE' => $database,
             'PHPFORGE_SERVICE_USERNAME' => $username,
             'PHPFORGE_SERVICE_PASSWORD' => $password,
-            'PHPFORGE_MSSQL_PASSWORD' => $mssqlPassword,
             'INTEGRATION_SERVICES' => json_encode($services, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
             'SERVICE_TOPOLOGIES' => json_encode($topologies, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT),
             'IC_SERVICE_DATABASE' => $database,
@@ -203,7 +201,7 @@ final class ServiceCommand extends Command
             'IC_POSTGRES_PASSWORD' => $password,
             'IC_MSSQL_DSN' => 'sqlsrv:Server=127.0.0.1,1433;TrustServerCertificate=1',
             'IC_MSSQL_USER' => 'sa',
-            'IC_MSSQL_PASSWORD' => $mssqlPassword,
+            'IC_MSSQL_PASSWORD' => $password,
             'IC_SQLITE_MEMORY_DSN' => 'sqlite::memory:',
             'IC_SQLITE_FILE_DSN' => 'sqlite:' . sys_get_temp_dir() . '/phpforge.sqlite',
             'IC_MONGODB_DSN' => $mongodbReplica

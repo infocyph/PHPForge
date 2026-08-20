@@ -58,6 +58,21 @@ on:
         required: false
         type: string
         default: '{}'
+      service_db_name:
+        description: "Shared database name used by integration services."
+        required: false
+        type: string
+        default: "phpforge"
+      service_db_user:
+        description: "Shared username used by integration services."
+        required: false
+        type: string
+        default: "phpforge"
+      service_password:
+        description: "Shared test password used by integration services."
+        required: false
+        type: string
+        default: "Phpforge_123!"
       benchmark_composer_script:
         required: false
         type: string
@@ -160,51 +175,62 @@ jobs:
         dependency-version: ${{ fromJson(needs.prepare.outputs.dependency_versions) }}
     env:
       XDEBUG_MODE: off
-      IC_SERVICE_DATABASE: phpforge
-      IC_SERVICE_USERNAME: phpforge
-      IC_SERVICE_PASSWORD: phpforge
-      IC_MSSQL_PASSWORD: Phpforge_123!
-      IC_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=phpforge;charset=utf8mb4
-      IC_MYSQL_PRIMARY_DSN: mysql:host=127.0.0.1;port=3306;dbname=phpforge;charset=utf8mb4
-      IC_MYSQL_REPLICA_DSN: mysql:host=127.0.0.1;port=3307;dbname=phpforge;charset=utf8mb4
-      IC_MYSQL_USER: phpforge
-      IC_MYSQL_PASSWORD: phpforge
-      IC_MARIADB_DSN: mysql:host=127.0.0.1;port=3308;dbname=phpforge;charset=utf8mb4
-      IC_MARIADB_PRIMARY_DSN: mysql:host=127.0.0.1;port=3308;dbname=phpforge;charset=utf8mb4
-      IC_MARIADB_REPLICA_DSN: mysql:host=127.0.0.1;port=3309;dbname=phpforge;charset=utf8mb4
-      IC_MARIADB_USER: phpforge
-      IC_MARIADB_PASSWORD: phpforge
-      IC_POSTGRES_DSN: pgsql:host=127.0.0.1;port=5432;dbname=phpforge
-      IC_POSTGRES_PRIMARY_DSN: pgsql:host=127.0.0.1;port=5432;dbname=phpforge
-      IC_POSTGRES_REPLICA_DSN: pgsql:host=127.0.0.1;port=5433;dbname=phpforge
-      IC_POSTGRES_USER: phpforge
-      IC_POSTGRES_PASSWORD: phpforge
+      PHPFORGE_SERVICE_DATABASE: ${{ inputs.service_db_name }}
+      PHPFORGE_SERVICE_USERNAME: ${{ inputs.service_db_user }}
+      PHPFORGE_SERVICE_PASSWORD: ${{ inputs.service_password }}
+      IC_SERVICE_DATABASE: ${{ inputs.service_db_name }}
+      IC_SERVICE_USERNAME: ${{ inputs.service_db_user }}
+      IC_SERVICE_PASSWORD: ${{ inputs.service_password }}
+      IC_MSSQL_PASSWORD: ${{ inputs.service_password }}
+      IC_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=${{ inputs.service_db_name }};charset=utf8mb4
+      IC_MYSQL_PRIMARY_DSN: mysql:host=127.0.0.1;port=3306;dbname=${{ inputs.service_db_name }};charset=utf8mb4
+      IC_MYSQL_REPLICA_DSN: mysql:host=127.0.0.1;port=3307;dbname=${{ inputs.service_db_name }};charset=utf8mb4
+      IC_MYSQL_USER: ${{ inputs.service_db_user }}
+      IC_MYSQL_PASSWORD: ${{ inputs.service_password }}
+      IC_MARIADB_DSN: mysql:host=127.0.0.1;port=3308;dbname=${{ inputs.service_db_name }};charset=utf8mb4
+      IC_MARIADB_PRIMARY_DSN: mysql:host=127.0.0.1;port=3308;dbname=${{ inputs.service_db_name }};charset=utf8mb4
+      IC_MARIADB_REPLICA_DSN: mysql:host=127.0.0.1;port=3309;dbname=${{ inputs.service_db_name }};charset=utf8mb4
+      IC_MARIADB_USER: ${{ inputs.service_db_user }}
+      IC_MARIADB_PASSWORD: ${{ inputs.service_password }}
+      IC_POSTGRES_DSN: pgsql:host=127.0.0.1;port=5432;dbname=${{ inputs.service_db_name }}
+      IC_POSTGRES_PRIMARY_DSN: pgsql:host=127.0.0.1;port=5432;dbname=${{ inputs.service_db_name }}
+      IC_POSTGRES_REPLICA_DSN: pgsql:host=127.0.0.1;port=5433;dbname=${{ inputs.service_db_name }}
+      IC_POSTGRES_USER: ${{ inputs.service_db_user }}
+      IC_POSTGRES_PASSWORD: ${{ inputs.service_password }}
       IC_MSSQL_DSN: sqlsrv:Server=127.0.0.1,1433;TrustServerCertificate=1
       IC_MSSQL_USER: sa
       IC_SQLITE_MEMORY_DSN: "sqlite::memory:"
       IC_SQLITE_FILE_DSN: sqlite:/tmp/phpforge.sqlite
-      IC_MONGODB_DSN: ${{ fromJson(needs.prepare.outputs.service_topologies).mongodb == 'replica-set' && 'mongodb://127.0.0.1:27017/?replicaSet=phpforge-rs&directConnection=true' || 'mongodb://phpforge:phpforge@127.0.0.1:27017/phpforge?authSource=admin' }}
+      IC_MONGODB_DSN: ${{ fromJson(needs.prepare.outputs.service_topologies).mongodb == 'replica-set' && 'mongodb://127.0.0.1:27017/?replicaSet=phpforge-rs&directConnection=true' || format('mongodb://{0}:{1}@127.0.0.1:27017/{2}?authSource=admin', inputs.service_db_user, inputs.service_password, inputs.service_db_name) }}
       IC_MONGODB_REPLICA_SET: ${{ fromJson(needs.prepare.outputs.service_topologies).mongodb == 'replica-set' && 'phpforge-rs' || '' }}
       IC_REDIS_HOST: 127.0.0.1
       IC_REDIS_PORT: 6379
-      IC_REDIS_PASSWORD: phpforge
+      IC_REDIS_PASSWORD: ${{ inputs.service_password }}
       IC_VALKEY_HOST: 127.0.0.1
       IC_VALKEY_PORT: 6380
-      IC_VALKEY_PASSWORD: phpforge
+      IC_VALKEY_PASSWORD: ${{ inputs.service_password }}
       IC_MEMCACHED_HOST: 127.0.0.1
       IC_MEMCACHED_PORT: 11211
-      IC_RABBITMQ_DSN: amqp://phpforge:phpforge@127.0.0.1:5672
+      IC_RABBITMQ_HOST: 127.0.0.1
+      IC_RABBITMQ_PORT: 5672
+      IC_RABBITMQ_DSN: ${{ format('amqp://{0}:{1}@127.0.0.1:5672', inputs.service_db_user, inputs.service_password) }}
       IC_RABBITMQ_MANAGEMENT_URL: http://127.0.0.1:15672
       IC_NATS_URL: nats://127.0.0.1:4222
       IC_NATS_MONITOR_URL: http://127.0.0.1:8222
+      IC_SMTP_HOST: 127.0.0.1
+      IC_SMTP_PORT: 1025
       IC_SMTP_DSN: smtp://127.0.0.1:1025
       IC_MAILPIT_URL: http://127.0.0.1:8025
       IC_MAILPIT_API_URL: http://127.0.0.1:8025/api
+      IC_ELASTICSEARCH_HOST: 127.0.0.1
+      IC_ELASTICSEARCH_PORT: 9200
       IC_ELASTICSEARCH_URL: http://127.0.0.1:9200
+      IC_SCYLLADB_HOST: 127.0.0.1
+      IC_SCYLLADB_PORT: 8000
       IC_SCYLLADB_ENDPOINT: http://127.0.0.1:8000
       IC_SCYLLADB_REGION: us-east-1
-      IC_SCYLLADB_ACCESS_KEY_ID: phpforge
-      IC_SCYLLADB_SECRET_ACCESS_KEY: phpforge
+      IC_SCYLLADB_ACCESS_KEY_ID: ${{ inputs.service_db_user }}
+      IC_SCYLLADB_SECRET_ACCESS_KEY: ${{ inputs.service_password }}
       INTEGRATION_SERVICES: ${{ needs.prepare.outputs.integration_services }}
       SERVICE_TOPOLOGIES: ${{ needs.prepare.outputs.service_topologies }}
     steps:
@@ -331,7 +357,7 @@ jobs:
           elif [ -f psalm.xml.dist ]; then psalm_config=psalm.xml.dist
           elif [ "$package" = infocyph/phpforge ]; then psalm_config=resources/psalm.xml
           else psalm_config="$vendor_dir/infocyph/phpforge/resources/psalm.xml"; fi
-          php "$vendor_dir/bin/psalm" --config="$psalm_config" --security-analysis --threads=1 --no-progress --no-cache --report=psalm-results.sarif
+          php "$vendor_dir/bin/psalm.phar" --config="$psalm_config" --security-analysis --threads=1 --no-progress --no-cache --report=psalm-results.sarif
           psalm_status=$?
           set -e
           printf 'audit_status=%d\nphpstan_status=%d\nsarif_status=%d\npsalm_status=%d\n' "$audit_status" "$phpstan_status" "$sarif_status" "$psalm_status" >> "$GITHUB_OUTPUT"

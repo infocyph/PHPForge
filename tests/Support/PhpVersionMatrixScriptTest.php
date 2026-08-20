@@ -122,7 +122,7 @@ it('installs dependencies before one analyzer execution produces gates and sarif
         ->and($analyzerIndex)->toBeInt()->toBeGreaterThan($installIndex)
         ->and(substr_count($analyzerScript, 'bin/phpstan'))
         ->toBe(1)
-        ->and(substr_count($analyzerScript, 'bin/psalm'))
+        ->and(substr_count($analyzerScript, 'bin/psalm.phar'))
         ->toBe(1)
         ->and($analyzerScript)->toContain('--threads=1')
         ->and($analyzerScript)->toContain('phpstan-results.sarif')

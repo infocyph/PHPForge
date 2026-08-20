@@ -8,8 +8,8 @@ services:
     environment: &mysql-environment
       MYSQL_DATABASE: ${PHPFORGE_SERVICE_DATABASE:-phpforge}
       MYSQL_USER: ${PHPFORGE_SERVICE_USERNAME:-phpforge}
-      MYSQL_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-phpforge}
-      MYSQL_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-phpforge}
+      MYSQL_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+      MYSQL_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
     healthcheck: &mysql-health
       test: [CMD-SHELL, "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
       interval: 3s
@@ -32,7 +32,7 @@ services:
     command: ["--server-id=2", "--relay-log=mysql-relay-bin", "--read-only=ON", "--gtid-mode=ON", "--enforce-gtid-consistency=ON"]
     ports: ["3307:3306"]
     environment:
-      MYSQL_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-phpforge}
+      MYSQL_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
     healthcheck: *mysql-health
 
   mysql-replica-init:
@@ -53,8 +53,8 @@ services:
     environment: &mariadb-environment
       MARIADB_DATABASE: ${PHPFORGE_SERVICE_DATABASE:-phpforge}
       MARIADB_USER: ${PHPFORGE_SERVICE_USERNAME:-phpforge}
-      MARIADB_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-phpforge}
-      MARIADB_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-phpforge}
+      MARIADB_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+      MARIADB_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
     healthcheck: &mariadb-health
       test: [CMD-SHELL, "healthcheck.sh --connect --innodb_initialized"]
       interval: 3s
@@ -77,7 +77,7 @@ services:
     command: ["--server-id=2", "--relay-log=mariadb-relay-bin", "--read-only=ON"]
     ports: ["3309:3306"]
     environment:
-      MARIADB_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-phpforge}
+      MARIADB_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
     healthcheck: *mariadb-health
 
   mariadb-replica-init:
@@ -98,7 +98,7 @@ services:
     environment: &postgres-environment
       POSTGRES_DB: ${PHPFORGE_SERVICE_DATABASE:-phpforge}
       POSTGRES_USER: ${PHPFORGE_SERVICE_USERNAME:-phpforge}
-      POSTGRES_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-phpforge}
+      POSTGRES_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
     healthcheck:
       test: [CMD-SHELL, "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 3s
@@ -112,8 +112,8 @@ services:
     environment: &postgres-primary-environment
       POSTGRESQL_DATABASE: ${PHPFORGE_SERVICE_DATABASE:-phpforge}
       POSTGRESQL_USERNAME: ${PHPFORGE_SERVICE_USERNAME:-phpforge}
-      POSTGRESQL_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-phpforge}
-      POSTGRESQL_POSTGRES_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-phpforge}
+      POSTGRESQL_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+      POSTGRESQL_POSTGRES_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
       POSTGRESQL_REPLICATION_MODE: master
       POSTGRESQL_REPLICATION_USER: phpforge_repl
       POSTGRESQL_REPLICATION_PASSWORD: phpforge_repl
@@ -147,7 +147,7 @@ services:
     environment:
       ACCEPT_EULA: Y
       MSSQL_PID: Developer
-      MSSQL_SA_PASSWORD: ${PHPFORGE_MSSQL_PASSWORD:-Phpforge_123!}
+      MSSQL_SA_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
     healthcheck:
       test: [CMD-SHELL, "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '$${MSSQL_SA_PASSWORD}' -C -Q 'SELECT 1' >/dev/null"]
       interval: 5s
@@ -161,7 +161,7 @@ services:
     environment:
       MONGO_INITDB_DATABASE: ${PHPFORGE_SERVICE_DATABASE:-phpforge}
       MONGO_INITDB_ROOT_USERNAME: ${PHPFORGE_SERVICE_USERNAME:-phpforge}
-      MONGO_INITDB_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-phpforge}
+      MONGO_INITDB_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
     healthcheck:
       test: [CMD-SHELL, "mongosh --quiet --username '$${MONGO_INITDB_ROOT_USERNAME}' --password '$${MONGO_INITDB_ROOT_PASSWORD}' --authenticationDatabase admin --eval 'quit(db.runCommand({ping:1}).ok ? 0 : 1)'"]
       interval: 3s
@@ -199,10 +199,10 @@ services:
   redis:
     image: redis:8-alpine
     profiles: [redis]
-    command: ["redis-server", "--requirepass", "${PHPFORGE_SERVICE_PASSWORD:-phpforge}"]
+    command: ["redis-server", "--requirepass", "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}"]
     ports: ["6379:6379"]
     healthcheck:
-      test: [CMD, redis-cli, -a, "${PHPFORGE_SERVICE_PASSWORD:-phpforge}", ping]
+      test: [CMD, redis-cli, -a, "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}", ping]
       interval: 3s
       timeout: 3s
       retries: 30
@@ -210,10 +210,10 @@ services:
   valkey:
     image: valkey/valkey:8-alpine
     profiles: [valkey]
-    command: ["valkey-server", "--requirepass", "${PHPFORGE_SERVICE_PASSWORD:-phpforge}"]
+    command: ["valkey-server", "--requirepass", "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}"]
     ports: ["6380:6379"]
     healthcheck:
-      test: [CMD, valkey-cli, -a, "${PHPFORGE_SERVICE_PASSWORD:-phpforge}", ping]
+      test: [CMD, valkey-cli, -a, "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}", ping]
       interval: 3s
       timeout: 3s
       retries: 30
@@ -234,7 +234,7 @@ services:
     ports: ["5672:5672", "15672:15672"]
     environment:
       RABBITMQ_DEFAULT_USER: ${PHPFORGE_SERVICE_USERNAME:-phpforge}
-      RABBITMQ_DEFAULT_PASS: ${PHPFORGE_SERVICE_PASSWORD:-phpforge}
+      RABBITMQ_DEFAULT_PASS: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
     healthcheck:
       test: [CMD, rabbitmq-diagnostics, -q, ping]
       interval: 3s

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Infocyph\PHPForge\Composer\ServiceCommand;
 use Infocyph\PHPForge\Support\ServiceCatalog;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Yaml\Yaml;
@@ -51,6 +52,45 @@ it('keeps every catalog Compose profile represented in compose configuration', f
             }
         }
     }
+});
+
+it('exports every catalog environment variable in local and workflow orchestration', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $workflowEnvironment = $workflow['jobs']['run']['env'] ?? [];
+    $command = new ServiceCommand('up');
+    $method = new ReflectionMethod(ServiceCommand::class, 'serviceEnvironment');
+    $localEnvironment = $method->invoke($command, ServiceCatalog::names(), []);
+
+    expect($workflowEnvironment)->toBeArray()
+        ->and($localEnvironment)->toBeArray()
+        ->and($localEnvironment)->not->toHaveKey('PHPFORGE_MSSQL_PASSWORD')
+        ->and($localEnvironment['IC_MSSQL_PASSWORD'] ?? null)->toBe($localEnvironment['IC_SERVICE_PASSWORD'] ?? null);
+
+    foreach (ServiceCatalog::all() as $definition) {
+        foreach ($definition['environment'] as $variable) {
+            expect($workflowEnvironment)->toHaveKey($variable)
+                ->and($localEnvironment)->toHaveKey($variable);
+        }
+    }
+});
+
+it('keeps advanced workflow credential overrides connected to service environments', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $inputs = $workflow['on']['workflow_call']['inputs'] ?? [];
+    $environment = $workflow['jobs']['run']['env'] ?? [];
+
+    expect($inputs['service_db_name']['default'] ?? null)->toBe('phpforge')
+        ->and($inputs['service_db_user']['default'] ?? null)->toBe('phpforge')
+        ->and($inputs['service_password']['default'] ?? null)->toBe('Phpforge_123!')
+        ->and($inputs)->not->toHaveKey('service_db_password')
+        ->and($inputs)->not->toHaveKey('mssql_password')
+        ->and($environment['PHPFORGE_SERVICE_DATABASE'] ?? null)->toBe('${{ inputs.service_db_name }}')
+        ->and($environment['PHPFORGE_SERVICE_USERNAME'] ?? null)->toBe('${{ inputs.service_db_user }}')
+        ->and($environment['PHPFORGE_SERVICE_PASSWORD'] ?? null)->toBe('${{ inputs.service_password }}')
+        ->and($environment)->not->toHaveKey('PHPFORGE_MSSQL_PASSWORD')
+        ->and($environment['IC_MSSQL_PASSWORD'] ?? null)->toBe('${{ inputs.service_password }}')
+        ->and($environment['IC_REDIS_PASSWORD'] ?? null)->toBe('${{ inputs.service_password }}')
+        ->and($environment['IC_VALKEY_PASSWORD'] ?? null)->toBe('${{ inputs.service_password }}');
 });
 
 it('resolves canonical workflow service outputs including empty objects', function (): void {

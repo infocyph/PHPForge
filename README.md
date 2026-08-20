@@ -661,6 +661,9 @@ Workflow inputs:
 | `benchmark_stable_environment` | `false`                         | Enables regression failure only when result metadata also proves the same stable environment.                                        |
 | `integration_services`    | `[]`                                | JSON list of catalog service names; selected service extensions are installed automatically.                                         |
 | `service_topologies`      | `{}`                                | JSON object selecting non-default topologies, such as `{"mysql":"replica"}`.                                                        |
+| `service_db_name`         | `phpforge`                          | Advanced override for the shared integration-service database name.                                                                  |
+| `service_db_user`         | `phpforge`                          | Advanced override for the shared integration-service username.                                                                       |
+| `service_password`        | `Phpforge_123!`                     | Advanced override for the shared integration-service test password; the default satisfies SQL Server's password policy.              |
 | `artifact_retention_days` | `61`                                | Artifact retention days for uploaded `security-report` artifacts.                                                                   |
 
 #### Integration service values
@@ -800,7 +803,7 @@ composer ic:services:status
 composer ic:services:down
 ```
 
-Test credentials default to database/user/password `phpforge`; MSSQL uses a compliant deterministic test password. Override them with `IC_SERVICE_DATABASE`, `IC_SERVICE_USERNAME`, `IC_SERVICE_PASSWORD`, and `IC_MSSQL_PASSWORD`. These are development/CI defaults, never production credentials.
+Test credentials default to database and username `phpforge`, with the shared password `Phpforge_123!` for every service. In the reusable workflow, override them with `service_db_name`, `service_db_user`, and `service_password`. Local service commands accept `IC_SERVICE_DATABASE`, `IC_SERVICE_USERNAME`, and `IC_SERVICE_PASSWORD`. The service-specific `IC_MSSQL_PASSWORD` export contains that same shared password. These are development/CI defaults, never production credentials.
 
 Selected services export environment variables including:
 
@@ -810,8 +813,9 @@ Selected services export environment variables including:
 - `IC_MEMCACHED_HOST`, `IC_MEMCACHED_PORT`
 - database DSNs plus primary/replica DSNs for MySQL, MariaDB and PostgreSQL
 - `IC_MSSQL_DSN`, `IC_SQLITE_MEMORY_DSN`, `IC_SQLITE_FILE_DSN`, `IC_MONGODB_DSN`
-- `IC_RABBITMQ_DSN`, `IC_NATS_URL`, `IC_NATS_MONITOR_URL`
-- `IC_SMTP_DSN`, `IC_MAILPIT_URL`, `IC_MAILPIT_API_URL`
+- `IC_RABBITMQ_HOST`, `IC_RABBITMQ_PORT`, `IC_RABBITMQ_DSN`, `IC_RABBITMQ_MANAGEMENT_URL`
+- `IC_NATS_URL`, `IC_NATS_MONITOR_URL`
+- `IC_SMTP_HOST`, `IC_SMTP_PORT`, `IC_SMTP_DSN`, `IC_MAILPIT_URL`, `IC_MAILPIT_API_URL`
 - `IC_SCYLLADB_HOST`, `IC_SCYLLADB_PORT`, `IC_SCYLLADB_ENDPOINT`, `IC_SCYLLADB_REGION`, `IC_SCYLLADB_ACCESS_KEY_ID`, `IC_SCYLLADB_SECRET_ACCESS_KEY`
 - `IC_ELASTICSEARCH_HOST`, `IC_ELASTICSEARCH_PORT`, `IC_ELASTICSEARCH_URL`
 

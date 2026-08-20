@@ -142,6 +142,10 @@ final class ServiceCatalog
                 continue;
             }
 
+            if (!isset($catalog[$service])) {
+                continue;
+            }
+
             if (!array_key_exists($topology, $catalog[$service]['topologies'])) {
                 $errors[] = sprintf('Unsupported topology for %s: %s', $service, $topology);
             }

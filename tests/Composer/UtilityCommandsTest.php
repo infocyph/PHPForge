@@ -359,6 +359,7 @@ YAML
 })->with([
     'malformed list' => ['{"mysql":true}', '{}', 'integration_services must be a JSON string array'],
     'unknown service' => ['["unknown"]', '{}', 'Unknown integration service: unknown'],
+    'unknown service topology' => ['["unknown"]', '{"unknown":"standalone"}', 'Unknown integration service: unknown'],
     'unselected topology' => ['["redis"]', '{"mysql":"replica"}', 'Topology configured for unselected service: mysql'],
     'unsupported topology' => ['["redis"]', '{"redis":"replica"}', 'Unsupported topology for redis: replica'],
 ]);
