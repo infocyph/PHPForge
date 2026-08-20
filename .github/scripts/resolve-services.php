@@ -10,8 +10,17 @@ $topologiesJson = getenv('SERVICE_TOPOLOGIES_INPUT') ?: '{}';
 $configuredExtensions = getenv('PHP_EXTENSIONS_INPUT') ?: '';
 $services = json_decode($servicesJson, true);
 $topologiesObject = json_decode($topologiesJson);
+$containsNonString = static function (array $values): bool {
+    foreach ($values as $value) {
+        if (!is_string($value)) {
+            return true;
+        }
+    }
 
-if (!is_array($services) || !array_is_list($services) || array_any($services, static fn(mixed $service): bool => !is_string($service))) {
+    return false;
+};
+
+if (!is_array($services) || !array_is_list($services) || $containsNonString($services)) {
     fwrite(STDERR, "integration_services must be a JSON string array.\n");
     exit(1);
 }
@@ -23,7 +32,7 @@ if (!$topologiesObject instanceof stdClass) {
 
 $topologies = get_object_vars($topologiesObject);
 
-if (array_any($topologies, static fn(mixed $topology): bool => !is_string($topology))) {
+if ($containsNonString($topologies)) {
     fwrite(STDERR, "service_topologies must be a JSON object of service-to-topology strings.\n");
     exit(1);
 }

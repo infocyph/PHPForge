@@ -74,6 +74,16 @@ it('resolves canonical workflow service outputs including empty objects', functi
     expect(json_decode($empty->getOutput(), true, 512, JSON_THROW_ON_ERROR)['service_topologies'])->toBe('{}');
 });
 
+it('keeps the pre-setup workflow resolver free of PHP 8.4-only array helpers', function (): void {
+    $script = (string) file_get_contents(dirname(__DIR__, 2).'/.github/scripts/resolve-services.php');
+
+    expect($script)
+        ->not->toContain('array_any(')
+        ->not->toContain('array_all(')
+        ->not->toContain('array_find(')
+        ->not->toContain('array_find_key(');
+});
+
 it('maps every catalog probe to protocol-level readiness logic', function (): void {
     $script = (string) file_get_contents(dirname(__DIR__, 2).'/.github/scripts/verify-and-wait-services.sh');
 
