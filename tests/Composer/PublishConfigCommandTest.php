@@ -117,3 +117,32 @@ it('fails publish when target config path is not writable', function (): void {
         removePublishConfigCommandTree($projectRoot);
     }
 });
+
+it('publishes the custom forbidden-functions sniff with PHPCS config', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-publish-phpcs-'.uniqid('', true);
+    $vendorResources = $projectRoot.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'infocyph'.DIRECTORY_SEPARATOR.'phpforge'.DIRECTORY_SEPARATOR.'resources';
+    $source = dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpcs.xml.dist';
+
+    mkdir($vendorResources, 0755, true);
+    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
+    copy($source, $vendorResources.DIRECTORY_SEPARATOR.'phpcs.xml.dist');
+    chdir($projectRoot);
+
+    try {
+        $command = new PublishConfigCommand();
+        $method = new ReflectionMethod(PublishConfigCommand::class, 'publishFile');
+        $output = new BufferedOutput();
+        $published = $method->invoke($command, 'phpcs.xml.dist', false, '', $output);
+
+        expect($published)->toBeTrue()
+            ->and(is_file($projectRoot.'/phpcs.xml.dist'))->toBeTrue()
+            ->and(is_file($projectRoot.'/PHPForge/Sniffs/PHP/ForbiddenFunctionsSniff.php'))->toBeTrue();
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        removePublishConfigCommandTree($projectRoot);
+    }
+});

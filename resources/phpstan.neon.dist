@@ -25,11 +25,9 @@ parameters:
             - %currentWorkingDirectory%/bin/*
             - %currentWorkingDirectory%/benchmarks/*
             - %currentWorkingDirectory%/examples/*
-    parallel:
-        maximumNumberOfProcesses: 2
     cognitive_complexity:
         class: 80
         function: 12
-        dependency_tree: 80
+        dependency_tree: 120
         dependency_tree_types: []
     reportUnmatchedIgnoredErrors: true

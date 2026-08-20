@@ -33,19 +33,17 @@
         "pestphp/pest": "^5.1.1",
         "pestphp/pest-plugin-drift": "^5.0",
         "phpbench/phpbench": "^1.7",
-        "phpdocumentor/type-resolver": "^2.0",
         "phpstan/phpstan": "^2.2.8",
         "psalm/phar": "^6.16.1",
-        "rector/rector": "^2.6.2",
+        "rector/rector": "^2.6.3",
         "squizlabs/php_codesniffer": "^4.0.4",
         "symfony/console": "^8.1.4",
         "symfony/process": "^8.1",
-        "symfony/var-dumper": "^8.1.2",
-        "symfony/yaml": "^8.1.2",
         "tomasvotruba/cognitive-complexity": "^1.2.0"
     },
     "require-dev": {
-        "composer/composer": "^2.10.2"
+        "composer/composer": "^2.10.2",
+        "symfony/yaml": "^8.1.2"
     },
     "prefer-stable": true,
     "autoload": {
@@ -99,6 +97,9 @@
         "ic:release:audit": "@php bin/phpforge audit",
         "ic:release:constraints": "@php bin/phpforge release-constraints",
         "ic:release:guard": "@php bin/run-task.php release:guard",
+        "ic:services:down": "@php bin/phpforge services:down",
+        "ic:services:status": "@php bin/phpforge services:status",
+        "ic:services:up": "@php bin/phpforge services:up",
         "ic:soak:worker": "@php bin/phpforge soak:worker",
         "ic:test:architecture": "@php bin/run-task.php test:architecture",
         "ic:test:bench": "@ic:benchmark",
@@ -115,6 +116,6 @@
         "ic:tests": "@php bin/run-task.php tests",
         "ic:tests:all": "@ic:tests",
         "ic:tests:details": "@php bin/run-task.php tests:details",
-        "ic:tests:parallel": "@php bin/run-task.php tests:parallel"
+        "ic:tests:parallel": "@ic:tests"
     }
 }

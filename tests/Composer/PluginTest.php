@@ -33,7 +33,7 @@ function removePluginTestTree(string $path): void
     rmdir($path);
 }
 
-it('copies bundled captainhook config into project root when missing', function (): void {
+it('does nothing when the project has not opted into captainhook', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-plugin-' . uniqid('', true);
     $vendorResources = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'infocyph' . DIRECTORY_SEPARATOR . 'phpforge' . DIRECTORY_SEPARATOR . 'resources';
@@ -57,11 +57,7 @@ it('copies bundled captainhook config into project root when missing', function 
         expect(fn() => $plugin->installHooks($event))->not
             ->toThrow(RuntimeException::class)
             ->and(is_file($projectConfig))
-            ->toBeTrue()
-            ->and(file_get_contents($projectConfig))
-            ->toBe(
-                file_get_contents($bundledConfig),
-            )
+            ->toBeFalse()
             ->and(is_dir($projectRoot . DIRECTORY_SEPARATOR . '.codex'))
             ->toBeFalse();
     } finally {

@@ -11,6 +11,9 @@ on:
 jobs:
   security-standards:
     uses: ./.github/workflows/security-standards.yml
+    with:
+      integration_services: '[]'
+      service_topologies: '{}'
     permissions:
       security-events: write
       actions: read

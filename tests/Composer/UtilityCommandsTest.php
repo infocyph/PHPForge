@@ -279,7 +279,7 @@ it('recognizes a local reusable security workflow', function (): void {
     }
 });
 
-it('parses optional service workflow inputs in doctor diagnostics', function (): void {
+it('parses and validates canonical service workflow inputs in doctor diagnostics', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-utility-doctor-workflow-'.uniqid('', true);
 
@@ -292,33 +292,8 @@ jobs:
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     with:
-      php_versions: '["8.4","8.5"]'
-      dependency_versions: '["prefer-lowest","prefer-stable"]'
-      php_extensions: ""
-      composer_flags: ""
-      phpstan_memory_limit: "1G"
-      psalm_threads: "1"
-      run_analysis: true
-      run_svg_report: true
-      fail_on_skipped_tests: false
-      run_clean_install: true
-      benchmark_composer_script: ""
-      benchmark_result_file: ""
-      benchmark_baseline_file: ""
-      benchmark_max_regression_percent: 2
-      benchmark_stable_environment: false
-      enable_redis_service: true
-      enable_valkey_service: true
-      enable_memcached_service: true
-      enable_postgres_service: true
-      enable_mysql_service: false
-      enable_scylladb_service: true
-      enable_elasticsearch_service: false
-      enable_mongodb_service: true
-      service_db_name: "cachelayer"
-      service_db_user: "phpforge"
-      service_db_password: "phpforge"
-      artifact_retention_days: 61
+      integration_services: '["sqlite"]'
+      service_topologies: '{}'
 YAML
     );
 
@@ -334,10 +309,8 @@ YAML
 
         expect($result['exit_code'])->toBe(0)
             ->and(is_array($decoded))->toBeTrue()
-            ->and(($decoded['workflow']['inputs']['enable_redis_service'] ?? null))->toBe('true')
-            ->and(($decoded['workflow']['inputs']['enable_valkey_service'] ?? null))->toBe('true')
-            ->and(($decoded['workflow']['inputs']['enable_scylladb_service'] ?? null))->toBe('true')
-            ->and(($decoded['workflow']['inputs']['service_db_user'] ?? null))->toBe('phpforge')
+            ->and(($decoded['workflow']['inputs']['integration_services'] ?? null))->toBe('["sqlite"]')
+            ->and(($decoded['workflow']['inputs']['service_topologies'] ?? null))->toBe('{}')
             ->and(($decoded['workflow']['warnings'] ?? []))->toBe([]);
     } finally {
         if (is_string($originalCwd)) {
@@ -345,6 +318,62 @@ YAML
         }
 
         removeUtilityCommandsTree($projectRoot);
+    }
+});
+
+it('reports invalid canonical service workflow configuration', function (string $services, string $topologies, string $warning): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-utility-doctor-invalid-'.uniqid('', true);
+    $workflowPath = $projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'workflows'.DIRECTORY_SEPARATOR.'security-standards.yml';
+
+    mkdir(dirname($workflowPath), 0755, true);
+    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
+    file_put_contents($workflowPath, <<<YAML
+name: Doctor fixture
+jobs:
+  phpforge:
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
+    with:
+      integration_services: '{$services}'
+      service_topologies: '{$topologies}'
+YAML
+    );
+    chdir($projectRoot);
+
+    try {
+        $result = runComposerCommand(
+            new DoctorCommand(),
+            ['--json' => true],
+            [new Option('json', null, Option::VALUE_NONE)],
+        );
+        $decoded = json_decode($result['output'], true, 512, JSON_THROW_ON_ERROR);
+
+        expect(implode("\n", $decoded['workflow']['warnings'] ?? []))->toContain($warning);
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        removeUtilityCommandsTree($projectRoot);
+    }
+})->with([
+    'malformed list' => ['{"mysql":true}', '{}', 'integration_services must be a JSON string array'],
+    'unknown service' => ['["unknown"]', '{}', 'Unknown integration service: unknown'],
+    'unknown service topology' => ['["unknown"]', '{"unknown":"standalone"}', 'Unknown integration service: unknown'],
+    'unselected topology' => ['["redis"]', '{"mysql":"replica"}', 'Topology configured for unselected service: mysql'],
+    'unsupported topology' => ['["redis"]', '{"redis":"replica"}', 'Unsupported topology for redis: replica'],
+]);
+
+it('reports unavailable compose for selected external services', function (): void {
+    $command = new DoctorCommand();
+    $method = new ReflectionMethod(DoctorCommand::class, 'dockerComposeAvailable');
+    $previousPath = getenv('PATH');
+    putenv('PATH=/definitely-not-a-real-bin-directory');
+
+    try {
+        expect($method->invoke($command))->toBeFalse();
+    } finally {
+        putenv($previousPath === false ? 'PATH' : 'PATH='.$previousPath);
     }
 });
 

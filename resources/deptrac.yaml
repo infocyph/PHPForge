@@ -47,7 +47,6 @@ deptrac:
             - symfony/console
             - symfony/process
             - symfony/string
-            - symfony/var-dumper
             - tomasvotruba/cognitive-complexity
             - psalm/phar
   ruleset:

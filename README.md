@@ -9,6 +9,10 @@ Reusable Composer-powered QA, refactoring, benchmark, release, hook and CI tooli
 
 PHPForge is installed as a dev dependency in PHP libraries and packages. It provides Composer commands under the `ic:*` namespace, ships default tool configuration, installs CaptainHook hooks, exposes a reusable GitHub Actions workflow and includes starter templates for GitLab CI, Bitbucket Pipelines and Forgejo Actions.
 
+**Start here:** [Install](#install) · [Quick Start](#quick-start) · [Set up GitHub Actions](#github-actions) · [Choose integration services](#integration-service-values)
+
+All GitHub Actions integration services are opt-in. The generated workflow starts with `integration_services: '[]'` and `service_topologies: '{}'`.
+
 ## What It Includes
 
 PHPForge brings these tools through one package:
@@ -97,54 +101,16 @@ Initialize optional project files:
 composer ic:init
 ```
 
-`ic:init` is interactive by default. It uses selector prompts for common choices and keeps a custom option for project-specific values:
+`ic:init` is interactive by default and keeps the normal setup capability-oriented:
 
 ```text
-Install CaptainHook pre-commit config (validate, audit, parallel CI)?
-Install GitHub Actions workflow wrapper (parallel CI, SARIF, SVG report)?
-Install GitLab CI pipeline (.gitlab-ci.yml)?
-Install Bitbucket pipeline (bitbucket-pipelines.yml)?
-Install Forgejo workflow (.forgejo/workflows/security-standards.yml)?
-Install community files, issue forms and typed pull request templates?
-PHPForge workflow ref
-PHP version matrix
-Dependency matrix
-PHP extensions
-Extra Composer flags
-PHPStan memory limit
-Psalm threads
-Enable SARIF code-scanning analysis job?
-Generate SVG security and quality report artifacts?
-Enable Redis service container in workflow run job?
-Enable Valkey service container in workflow run job?
-Enable Memcached service container in workflow run job?
-Enable PostgreSQL service container in workflow run job?
-Enable MySQL service container in workflow run job?
-Enable ScyllaDB Alternator service container in workflow run job?
-Enable Elasticsearch service container in workflow run job?
-Enable MongoDB service container in workflow run job?
-Shared service database name:
-Shared service username:
-Shared service password:
+Install GitHub Actions workflow?
+Install CaptainHook?
+Select integration services
+Select a non-standalone topology for services that support one
 ```
 
-`service_db_*` prompts are always shown once workflow setup is selected so one credential set can be reused across services.
-
-Selector presets include:
-
-| Prompt                | Built-in Choices                                                                                                                                                                                   |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PHPForge workflow ref | `main`, configured ref or custom                                                                                                                                                                |
-| PHP version matrix    | `supported`, `current`, `stable` or custom JSON. Presets resolve live with fallback to `["8.4","8.5"]`.                                                                                   |
-| Dependency matrix     | `full` => `["prefer-lowest","prefer-stable"]`, `stable` => `["prefer-stable"]` or custom JSON. Prompt shows resolved JSON beside each option.                                             |
-| PHP extensions        | `none` => `""`, `detected` (from project `composer.json` `ext-*` entries in `require`, `require-dev` and `suggest`), `common`, `mysql`, `pgsql`, `mysql+pgsql` or custom |
-| Extra Composer flags  | `none` => `""`, `with-all-dependencies` => `--with-all-dependencies`, `ignore-ext-redis` => `--ignore-platform-req=ext-redis` or custom. Prompt explains each option effect.          |
-| PHPStan memory limit  | `1G`, `2G`, `4G` or custom                                                                                                                                                                  |
-| Psalm threads         | `1`, `2`, `4` or custom                                                                                                                                                                     |
-
-`supported` includes non-EOL PHP minor cycles (>= `8.4`), `current` uses the latest two supported cycles and `stable` uses the latest supported cycle.
-When detected `ext-*` entries exist in `composer.json`, the PHP extensions selector defaults to the detected preset.
-PHP version, dependency matrix, PHP extensions and Composer flags selectors show resolved values in the prompt and print the final resolved value after selection.
+Runtime versions come from `resources/runtime.php`. Selected services automatically contribute their PHP extensions through the canonical service catalog. Analyzer tuning, credentials and low-level CI settings are intentionally absent from the normal init flow; advanced reusable-workflow inputs remain available for direct edits when needed.
 
 Depending on your selections, `ic:init` can generate:
 
@@ -197,7 +163,6 @@ composer ic:init --forgejo-workflow
 composer ic:init --community-templates
 composer ic:init --no-interaction-defaults
 composer ic:init --force
-composer ic:int
 ```
 
 ## Command Reference
@@ -214,12 +179,14 @@ This is the primary engineering instruction for scope control, implementation de
 
 ### Test Commands
 
+PHPForge parallelizes independent tools, not duplicate copies of the same checker. Source-mutating processors remain sequential. Started parallel peers are allowed to finish, successful output stays concise, failures retain bounded diagnostics, and summaries follow declaration order.
+
 | Command                         | Purpose                                                                                                                                                        |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `composer ic:tests`           | Full project quality suite: syntax, Pest parallel tests, Pint check, PHPCS summary, duplicate detection, comment policy checks, Deptrac, PHPStan, Psalm security analysis and Rector dry run. |
+| `composer ic:tests`           | Full bounded-parallel quality suite. Each checker runs once; aggregate Pest is not nested-parallel and aggregate Psalm uses one thread. |
 | `composer ic:tests:all`       | Alias of `ic:tests`.                                                                                                                                         |
-| `composer ic:tests:parallel`  | Runs syntax first, then executes the remaining quality checks with bounded parallelism and a buffered PASS/FAIL summary.                                       |
-| `composer ic:tests:details`   | Runs detailed checks without the parallel Pest shortcut.                                                                                                       |
+| `composer ic:tests:parallel`  | Alias of `ic:tests`.                                                                                                                                            |
+| `composer ic:tests:details`   | Runs focused checks sequentially with full diagnostic output.                                                                                                  |
 | `composer ic:test:syntax`     | Runs the PHP syntax checker using `phpprobe.json`, Git ignores and configured excludes.                                                                     |
 | `composer ic:test:code`       | Runs Pest when the project has a `tests/` directory; otherwise skips it.                                                                                     |
 | `composer ic:test:lint`       | Runs Pint in check mode.                                                                                                                                       |
@@ -276,6 +243,7 @@ Useful checker options:
 | ---------------------------------- | ------------------------------------------------------------------------------------------- |
 | `composer ic:ci`                 | Runs the normal CI suite through the same bounded parallel runner as `ic:tests:parallel`. |
 | `composer ic:ci --prefer-lowest` | Runs the CI set without PHPStan and Psalm for prefer-lowest dependency jobs.                |
+| `composer ic:ci --without-analysis` | Runs the CI set without PHPStan and Psalm when a dedicated analysis job owns them.       |
 
 ### Process Commands
 
@@ -444,7 +412,6 @@ Use the `composer ic:*` commands in consuming packages. PHPForge does not requir
 | `composer ic:init --community-templates`            | Copies community policy files, issue forms/config, the general PR fallback and typed PR templates.             |
 | `composer ic:init --no-interaction-defaults`        | Copies default init files without prompting.                                                                   |
 | `composer ic:init --force`                          | Overwrites existing copied files.                                                                              |
-| `composer ic:int`                                   | Alias of `composer ic:init`.                                                                                   |
 | `composer ic:hooks`                                 | Installs enabled CaptainHook hooks.                                                                            |
 | `composer ic:doctor`                                | Shows detected configs, vendor-dir, plugin permissions, hook status and workflow wrapper validation warnings. |
 | `composer ic:doctor --json`                         | Outputs doctor diagnostics as JSON, including workflow wrapper validation details.                             |
@@ -586,9 +553,8 @@ composer ic:publish-config psalm.xml --force
 
 | Variable                    | Default | Purpose                                                                                                  |
 | --------------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
-| `IC_PEST_PROCESSES`         | `10`    | Controls Pest parallel processes for `ic:tests`.                                                         |
-| `IC_TEST_CONCURRENCY`       | `3`     | Controls the maximum concurrently running tools for `ic:tests:parallel`.                                 |
-| `PHPFORGE_PARALLEL`         | `3`     | Alias for `IC_TEST_CONCURRENCY`; useful in generic CI parallelism settings.                              |
+| `IC_TEST_CONCURRENCY`       | task count (max `16`) | Canonical maximum number of independent tools run concurrently.                           |
+| `PHPFORGE_PARALLEL`         | unset   | Legacy fallback for `IC_TEST_CONCURRENCY`.                                                              |
 | `PHPFORGE_QUALITY_SUMMARY`  | none    | Writes an aggregate per-tool quality result JSON file for `ic:ci`, `ic:tests` and `ic:tests:parallel`.  |
 | `IC_QUALITY_SUMMARY`        | none    | Alias for `PHPFORGE_QUALITY_SUMMARY`.                                                                    |
 | `IC_PHPSTAN_MEMORY_LIMIT`   | `1G`    | Controls PHPStan memory limit.                                                                           |
@@ -598,7 +564,6 @@ composer ic:publish-config psalm.xml --force
 Example:
 
 ```bash
-IC_PEST_PROCESSES=4 composer ic:tests
 IC_TEST_CONCURRENCY=4 composer ic:tests:parallel
 PHPFORGE_QUALITY_SUMMARY=var/quality.json composer ic:ci
 IC_PHPSTAN_MEMORY_LIMIT=2G composer ic:test:static
@@ -629,7 +594,7 @@ This package also has a root `post-autoload-dump` script:
 "post-autoload-dump": "@php bin/install-captainhook.php"
 ```
 
-That helper keeps hooks installed for this repository. Consuming projects get automatic hook installation from the PHPForge Composer plugin: it uses project `captainhook.json` when present, otherwise it copies the bundled `captainhook.json` into project root and installs hooks from there.
+That helper keeps hooks installed for this repository. For consuming projects, `ic:init --captainhook` owns creation of `captainhook.json`. The Composer plugin refreshes hooks only when that project-owned file already exists; projects that did not opt in are left unchanged.
 
 ## GitHub Actions
 
@@ -672,45 +637,19 @@ jobs:
       actions: read
       contents: read
     with:
-      php_versions: '["8.4","8.5"]'
-      dependency_versions: '["prefer-lowest","prefer-stable"]'
-      php_extensions: ""
-      composer_flags: ""
-      phpstan_memory_limit: "1G"
-      psalm_threads: "1"
-      run_analysis: true
-      run_svg_report: true
-      fail_on_skipped_tests: false
-      run_clean_install: true
-      benchmark_composer_script: ""
-      benchmark_result_file: ""
-      benchmark_baseline_file: ""
-      benchmark_max_regression_percent: 2
-      benchmark_stable_environment: false
-      enable_redis_service: false
-      enable_valkey_service: false
-      enable_memcached_service: false
-      enable_postgres_service: false
-      enable_mysql_service: false
-      enable_scylladb_service: false
-      enable_elasticsearch_service: false
-      enable_mongodb_service: false
-      service_db_name: "phpforge"
-      service_db_user: "phpforge"
-      service_db_password: "phpforge"
-      artifact_retention_days: 61
+      integration_services: '[]'
+      service_topologies: '{}'
 ```
 
 Workflow inputs:
 
 | Input                       | Default                               | Purpose                                                                                                                               |
 | --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `php_versions`            | `["8.4","8.5"]`                         | PHP matrix as a JSON array string. Unsupported versions are silently omitted before jobs are created.                                |
+| `php_versions`            | runtime manifest                        | Optional PHP matrix JSON string. The versioned `resources/runtime.php` manifest is authoritative.                                   |
 | `dependency_versions`     | `["prefer-lowest","prefer-stable"]` | Composer dependency modes as a JSON array string.                                                                                     |
 | `php_extensions`          | `""`                                | Comma-separated PHP extensions passed to `shivammathur/setup-php`.                                                                  |
 | `composer_flags`          | `""`                                | Extra flags appended to Composer install/update commands.                                                                             |
 | `phpstan_memory_limit`    | `1G`                                | PHPStan memory limit used by workflow analysis.                                                                                       |
-| `psalm_threads`           | `1`                                 | Psalm thread count used by workflow analysis.                                                                                         |
 | `run_analysis`            | `true`                              | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs.                                                      |
 | `run_svg_report`          | `true`                              | Generates `security-report.svg` and `security-summary.json` with per-version matrix results, per-version benchmark timings/trends and tool versions. |
 | `fail_on_skipped_tests`   | `false`                             | Adds `--fail-on-skipped` to Pest execution so skipped tests fail the CI test job.                                                    |
@@ -720,18 +659,59 @@ Workflow inputs:
 | `benchmark_baseline_file` | `""`                                | Optional repository baseline compared with `benchmark_result_file`.                                                                  |
 | `benchmark_max_regression_percent` | `2`                       | Maximum successful-RPM regression for the stable-environment gate.                                                                   |
 | `benchmark_stable_environment` | `false`                         | Enables regression failure only when result metadata also proves the same stable environment.                                        |
-| `enable_redis_service`    | `false`                             | Starts a Redis service container and waits for readiness before running test commands.                                               |
-| `enable_valkey_service`   | `false`                             | Starts a Valkey service container and waits for readiness before running test commands.                                              |
-| `enable_memcached_service`| `false`                             | Starts a Memcached service container and waits for readiness before running test commands.                                           |
-| `enable_postgres_service` | `false`                             | Starts a PostgreSQL service container and waits for readiness before running test commands.                                          |
-| `enable_mysql_service`    | `false`                             | Starts a MySQL service container and waits for readiness before running test commands.                                               |
-| `enable_scylladb_service` | `false`                             | Starts a ScyllaDB Alternator service container and waits for readiness before running test commands.                                 |
-| `enable_elasticsearch_service` | `false`                        | Starts an Elasticsearch service container and waits for readiness before running test commands.                                      |
-| `enable_mongodb_service`  | `false`                             | Starts a MongoDB service container and waits for readiness before running test commands.                                             |
-| `service_db_name`         | `phpforge`                          | Shared database name for PostgreSQL/MySQL/MongoDB service containers.                                                                |
-| `service_db_user`         | `phpforge`                          | Shared username reused across service containers and exported client env vars.                                                       |
-| `service_db_password`     | `phpforge`                          | Shared password reused across service containers and exported client env vars.                                                       |
+| `integration_services`    | `[]`                                | JSON list of catalog service names; selected service extensions are installed automatically.                                         |
+| `service_topologies`      | `{}`                                | JSON object selecting non-default topologies, such as `{"mysql":"replica"}`.                                                        |
+| `service_db_name`         | `phpforge`                          | Advanced override for the shared integration-service database name.                                                                  |
+| `service_db_user`         | `phpforge`                          | Advanced override for the shared integration-service username.                                                                       |
+| `service_password`        | `Phpforge_123!`                     | Advanced override for the shared integration-service test password; the default satisfies SQL Server's password policy.              |
 | `artifact_retention_days` | `61`                                | Artifact retention days for uploaded `security-report` artifacts.                                                                   |
+
+#### Integration service values
+
+Both inputs are YAML strings containing JSON. `integration_services` accepts any unique combination of these exact catalog keys:
+
+| Key | Service | Supported topology values |
+| --- | --- | --- |
+| `mysql` | MySQL | `standalone`, `replica` |
+| `mariadb` | MariaDB | `standalone`, `replica` |
+| `postgres` | PostgreSQL | `standalone`, `replica` |
+| `mssql` | Microsoft SQL Server | `standalone` |
+| `sqlite` | SQLite, in-memory and file-backed | `standalone` |
+| `mongodb` | MongoDB | `standalone`, `replica-set` |
+| `redis` | Redis | `standalone` |
+| `valkey` | Valkey | `standalone` |
+| `memcached` | Memcached | `standalone` |
+| `rabbitmq` | RabbitMQ | `standalone` |
+| `nats` | NATS with JetStream | `standalone` |
+| `mailpit` | Mailpit SMTP and HTTP API | `standalone` |
+| `elasticsearch` | Elasticsearch | `standalone` |
+| `scylladb` | ScyllaDB Alternator | `standalone` |
+
+An empty list disables integration services:
+
+```yaml
+with:
+  integration_services: '[]'
+  service_topologies: '{}'
+```
+
+For standalone services, select their keys and leave `service_topologies` empty:
+
+```yaml
+with:
+  integration_services: '["sqlite","redis","mailpit"]'
+  service_topologies: '{}'
+```
+
+Only non-default topology choices need to be mapped. Every topology key must also appear in `integration_services`:
+
+```yaml
+with:
+  integration_services: '["mysql","mariadb","postgres","mongodb"]'
+  service_topologies: '{"mysql":"replica","mariadb":"replica","postgres":"replica","mongodb":"replica-set"}'
+```
+
+Explicit `"standalone"` mappings are accepted but unnecessary because standalone is the default. Unknown services, unsupported topology values and topology entries for unselected services fail workflow preparation with a validation error.
 
 ### Workflow Input Details
 
@@ -764,7 +744,7 @@ with:
 ```
 
 Normal workflow workers run `composer ic:ci`, which delegates to the same bounded parallel runner as `ic:tests:parallel`.
-The CI path uses `phpprobe comments --ci`, so comment-policy output stays error-focused in workflow logs.
+The aggregate CI path uses `phpprobe check --preset=ci`, while the focused comment command uses `phpprobe comments --ci`, so comment-policy output stays error-focused in workflow logs.
 When the matrix entry is `prefer-lowest`, PHPForge still runs `composer ic:ci --prefer-lowest`, skipping heavyweight PHPStan and Psalm checks for that dependency edge.
 
 `php_extensions` is passed to `shivammathur/setup-php`:
@@ -804,41 +784,42 @@ with:
   phpstan_memory_limit: "2G"
 ```
 
-`psalm_threads` controls Psalm parallelism:
-
-```yaml
-with:
-  psalm_threads: "2"
-```
-
 Optional integration services are disabled by default:
 
 ```yaml
 with:
-  enable_redis_service: true
-  enable_valkey_service: false
-  enable_memcached_service: true
-  enable_postgres_service: true
-  enable_mysql_service: false
-  enable_scylladb_service: true
-  enable_elasticsearch_service: true
-  enable_mongodb_service: true
-  service_db_name: "cachelayer"
-  service_db_user: "phpforge"
-  service_db_password: "phpforge"
+  integration_services: '["mysql","mariadb","postgres","redis","rabbitmq","nats","mailpit"]'
+  service_topologies: '{"mysql":"replica","postgres":"replica"}'
 ```
 
-When a service is enabled, the workflow exports these environment variables in the `run` job:
+Services are selected from one canonical catalog: MySQL, MariaDB, PostgreSQL, MSSQL, SQLite, MongoDB, Redis, Valkey, Memcached, RabbitMQ, NATS with JetStream, Mailpit, Elasticsearch and ScyllaDB. MySQL, MariaDB and PostgreSQL support `replica`; MongoDB supports `replica-set`. The workflow installs required PHP extensions, starts only selected Compose profiles, and performs protocol-level readiness before tests.
+
+Use the same checked-in selection locally:
+
+```bash
+composer ic:init --services='["mysql","redis","mailpit"]' --service-topologies='{"mysql":"replica"}'
+composer ic:services:up
+composer ic:services:status
+composer ic:services:down
+```
+
+Test credentials default to database and username `phpforge`, with the shared password `Phpforge_123!` for every service. In the reusable workflow, override them with `service_db_name`, `service_db_user`, and `service_password`. Local service commands accept `IC_SERVICE_DATABASE`, `IC_SERVICE_USERNAME`, and `IC_SERVICE_PASSWORD`. The service-specific `IC_MSSQL_PASSWORD` export contains that same shared password. These are development/CI defaults, never production credentials.
+
+Selected services export environment variables including:
 
 - `IC_REDIS_HOST`, `IC_REDIS_PORT`, `IC_REDIS_PASSWORD`
 - `IC_VALKEY_HOST`, `IC_VALKEY_PORT`, `IC_VALKEY_PASSWORD`
 - `IC_SERVICE_DATABASE`, `IC_SERVICE_USERNAME`, `IC_SERVICE_PASSWORD`
 - `IC_MEMCACHED_HOST`, `IC_MEMCACHED_PORT`
-- `IC_POSTGRES_DSN`, `IC_POSTGRES_USER`, `IC_POSTGRES_PASSWORD`
-- `IC_MYSQL_DSN`, `IC_MYSQL_USER`, `IC_MYSQL_PASSWORD`
+- database DSNs plus primary/replica DSNs for MySQL, MariaDB and PostgreSQL
+- `IC_MSSQL_DSN`, `IC_SQLITE_MEMORY_DSN`, `IC_SQLITE_FILE_DSN`, `IC_MONGODB_DSN`
+- `IC_RABBITMQ_HOST`, `IC_RABBITMQ_PORT`, `IC_RABBITMQ_DSN`, `IC_RABBITMQ_MANAGEMENT_URL`
+- `IC_NATS_URL`, `IC_NATS_MONITOR_URL`
+- `IC_SMTP_HOST`, `IC_SMTP_PORT`, `IC_SMTP_DSN`, `IC_MAILPIT_URL`, `IC_MAILPIT_API_URL`
 - `IC_SCYLLADB_HOST`, `IC_SCYLLADB_PORT`, `IC_SCYLLADB_ENDPOINT`, `IC_SCYLLADB_REGION`, `IC_SCYLLADB_ACCESS_KEY_ID`, `IC_SCYLLADB_SECRET_ACCESS_KEY`
 - `IC_ELASTICSEARCH_HOST`, `IC_ELASTICSEARCH_PORT`, `IC_ELASTICSEARCH_URL`
-- `IC_MONGODB_HOST`, `IC_MONGODB_PORT`, `IC_MONGODB_DSN`
+
+Replica mode verifies real replicated data visibility before tests start. SQLite is an additional compatibility target, not a substitute for production database engines. Mailpit validates SMTP/email integration but does not replace provider-specific or real deliverability testing.
 
 `run_analysis` controls the dedicated Composer audit, PHPStan, Psalm and SARIF
 analysis job:
@@ -965,20 +946,8 @@ jobs:
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     with:
-      php_versions: '["8.4","8.5"]'
-      dependency_versions: '["prefer-lowest","prefer-stable"]'
-      php_extensions: "mbstring, redis, memcached, pdo_pgsql, pdo_mysql, mongodb"
-      enable_redis_service: true
-      enable_valkey_service: false
-      enable_memcached_service: true
-      enable_postgres_service: true
-      enable_mysql_service: true
-      enable_scylladb_service: true
-      enable_elasticsearch_service: true
-      enable_mongodb_service: true
-      service_db_name: "cachelayer"
-      service_db_user: "phpforge"
-      service_db_password: "phpforge"
+      integration_services: '["mysql","postgres","redis","mailpit"]'
+      service_topologies: '{"mysql":"replica","postgres":"replica"}'
 ```
 
 Project with extensions and larger analysis limits:
@@ -997,7 +966,6 @@ jobs:
       php_extensions: "mbstring, intl, bcmath, pdo_mysql"
       composer_flags: "--ignore-platform-req=ext-redis"
       phpstan_memory_limit: "2G"
-      psalm_threads: "2"
       run_analysis: true
 ```
 

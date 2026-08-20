@@ -10,7 +10,7 @@ use Symfony\Component\Console\Output\ConsoleOutput;
 final class Cli
 {
     private const string COMMAND_ROWS = <<<'COMMANDS'
-ci|Quality|ci [--prefer-lowest]|Run the CI quality suite.
+ci|Quality|ci [--prefer-lowest] [--without-analysis]|Run the CI quality suite.
 syntax|Quality|syntax [paths...]|Check PHP syntax.
 duplicates|Quality|duplicates [options] [paths...]|Find duplicated code.
 comments|Quality|comments [options] [paths...]|Check the comment policy.
@@ -151,11 +151,11 @@ COMMANDS;
     {
         $output = new ConsoleOutput();
 
-        if (!in_array('--prefer-lowest', $args, true)) {
-            return new ParallelRunner($output)->run(TaskCatalog::syntax(), TaskCatalog::testParallelCi());
+        if (!in_array('--prefer-lowest', $args, true) && !in_array('--without-analysis', $args, true)) {
+            return new ParallelRunner($output)->run([], TaskCatalog::testAllCi());
         }
 
-        return new Runner($output, false)->run(TaskCatalog::ci(true));
+        return new ParallelRunner($output)->run([], TaskCatalog::ci(true));
     }
 
     /**

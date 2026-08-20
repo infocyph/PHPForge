@@ -6,7 +6,6 @@ namespace Infocyph\PHPForge\Composer;
 
 use Composer\Command\BaseCommand as Command;
 use Infocyph\PHPForge\Support\ParallelRunner;
-use Infocyph\PHPForge\Support\Runner;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -22,15 +21,16 @@ final class CiCommand extends Command
     {
         $this
             ->setDescription('Run the CI quality set, optionally skipping heavyweight analysis.')
-            ->addOption('prefer-lowest', null, InputOption::VALUE_NONE, 'Skip PHPStan and Psalm for prefer-lowest dependency jobs.');
+            ->addOption('prefer-lowest', null, InputOption::VALUE_NONE, 'Skip PHPStan and Psalm for prefer-lowest dependency jobs.')
+            ->addOption('without-analysis', null, InputOption::VALUE_NONE, 'Skip PHPStan and Psalm when a separate CI analysis job owns them.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        if ((bool) $input->getOption('prefer-lowest')) {
-            return new Runner($output, false)->run(TaskCatalog::ci(true));
+        if ((bool) $input->getOption('prefer-lowest') || (bool) $input->getOption('without-analysis')) {
+            return new ParallelRunner($output)->run([], TaskCatalog::ci(true));
         }
 
-        return new ParallelRunner($output)->run(TaskCatalog::syntax(), TaskCatalog::testParallelCi());
+        return new ParallelRunner($output)->run([], TaskCatalog::testAllCi());
     }
 }

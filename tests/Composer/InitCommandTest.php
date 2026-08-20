@@ -3,48 +3,44 @@
 declare(strict_types=1);
 
 use Infocyph\PHPForge\Composer\InitCommand;
+use Infocyph\PHPForge\Support\ServiceCatalog;
 use Infocyph\PHPForge\Support\WorkflowWrapper;
 use Symfony\Component\Console\Output\BufferedOutput;
 
-it('normalizes json string list settings for workflow template rendering', function (): void {
-    $command = new InitCommand();
-    $method = new ReflectionMethod(InitCommand::class, 'normalizedJsonStringList');
+it('parses service selection as a unique JSON string list', function (): void {
+    $method = new ReflectionMethod(InitCommand::class, 'jsonStringList');
     $output = new BufferedOutput();
 
-    $normalized = $method->invoke($command, '["8.4","8.5"]', 'php_versions', $output);
+    $services = $method->invoke(new InitCommand(), '["mysql","redis","mysql"]', 'services', $output);
 
-    expect($normalized)->toBe('["8.4","8.5"]');
+    expect($services)->toBe(['mysql', 'redis'])
+        ->and($output->fetch())->toBe('');
 });
 
-it('rejects invalid workflow ref values', function (): void {
+it('rejects malformed service and topology JSON', function (): void {
     $command = new InitCommand();
-    $method = new ReflectionMethod(InitCommand::class, 'validatedWorkflowRef');
+    $listMethod = new ReflectionMethod(InitCommand::class, 'jsonStringList');
+    $mapMethod = new ReflectionMethod(InitCommand::class, 'jsonStringMap');
     $output = new BufferedOutput();
 
-    $result = $method->invoke($command, 'main bad', $output);
-
-    expect($result)->toBeNull()
-        ->and($output->fetch())->toContain('Invalid workflow_ref');
+    expect($listMethod->invoke($command, '{"mysql":true}', 'services', $output))->toBeNull()
+        ->and($mapMethod->invoke($command, '["replica"]', 'service-topologies', $output))->toBeNull()
+        ->and($output->fetch())->toContain('must be a JSON');
 });
 
-it('rejects multiline scalar workflow settings', function (): void {
-    $command = new InitCommand();
-    $method = new ReflectionMethod(InitCommand::class, 'singleLineValue');
-    $output = new BufferedOutput();
-
-    $result = $method->invoke($command, "line1\nline2", 'composer_flags', $output);
-
-    expect($result)->toBeNull()
-        ->and($output->fetch())->toContain('newlines are not allowed');
+it('validates topology selection against the canonical service catalog', function (): void {
+    expect(ServiceCatalog::validate(['mysql'], ['mysql' => 'replica']))->toBe([])
+        ->and(ServiceCatalog::validate(['redis'], ['redis' => 'replica']))->toContain('Unsupported topology for redis: replica')
+        ->and(ServiceCatalog::validate(['unknown'], ['unknown' => 'standalone']))->toContain('Unknown integration service: unknown')
+        ->and(ServiceCatalog::validate(['redis'], ['mysql' => 'replica']))->toContain('Topology configured for unselected service: mysql');
 });
 
-it('escapes yaml double-quoted values safely', function (): void {
-    $escaped = WorkflowWrapper::yamlDoubleQuoted("a\"b\nc\\d");
-
-    expect($escaped)->toBe('"a\\"b\\nc\\\\d"');
+it('escapes yaml values safely', function (): void {
+    expect(WorkflowWrapper::yamlDoubleQuoted("a\"b\nc\\d"))->toBe('"a\\"b\\nc\\\\d"')
+        ->and(WorkflowWrapper::yamlSingleQuoted("a'b"))->toBe("'a''b'");
 });
 
-it('updates workflow wrappers without relying on template default literals', function (): void {
+it('renders the compact service workflow contract', function (): void {
     $template = <<<'YAML'
 name: "Security & Standards"
 
@@ -52,54 +48,21 @@ jobs:
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@old-ref
     with:
-      php_versions: '["9.9"]'
-      dependency_versions: '["prefer-stable"]'
+      integration_services: '[]'
+      service_topologies: '{}'
 YAML;
 
     $updated = WorkflowWrapper::update($template, 'main', [
-        'php_versions' => WorkflowWrapper::yamlSingleQuoted('["8.4","8.5"]'),
-        'dependency_versions' => WorkflowWrapper::yamlSingleQuoted('["prefer-lowest","prefer-stable"]'),
-        'php_extensions' => WorkflowWrapper::yamlDoubleQuoted('mbstring, intl'),
-        'composer_flags' => WorkflowWrapper::yamlDoubleQuoted('--with-all-dependencies'),
-        'phpstan_memory_limit' => WorkflowWrapper::yamlDoubleQuoted('2G'),
-        'psalm_threads' => WorkflowWrapper::yamlDoubleQuoted('2'),
-        'run_analysis' => 'false',
-        'run_svg_report' => 'true',
-        'enable_redis_service' => 'true',
-        'enable_valkey_service' => 'false',
-        'enable_memcached_service' => 'true',
-        'enable_postgres_service' => 'true',
-        'enable_mysql_service' => 'false',
-        'enable_scylladb_service' => 'true',
-        'enable_elasticsearch_service' => 'false',
-        'enable_mongodb_service' => 'true',
-        'service_db_name' => WorkflowWrapper::yamlDoubleQuoted('phpforge'),
-        'service_db_user' => WorkflowWrapper::yamlDoubleQuoted('phpforge'),
-        'service_db_password' => WorkflowWrapper::yamlDoubleQuoted('phpforge'),
+        'integration_services' => WorkflowWrapper::yamlSingleQuoted('["mysql","mongodb"]'),
+        'service_topologies' => WorkflowWrapper::yamlSingleQuoted('{"mysql":"replica","mongodb":"replica-set"}'),
     ]);
 
     expect($updated)->toContain('uses: infocyph/phpforge/.github/workflows/security-standards.yml@main')
-        ->and($updated)->toContain('php_versions: \'["8.4","8.5"]\'')
-        ->and($updated)->toContain('php_extensions: "mbstring, intl"')
-        ->and($updated)->toContain('run_analysis: false')
-        ->and($updated)->toContain('enable_redis_service: true')
-        ->and($updated)->toContain('enable_valkey_service: false')
-        ->and($updated)->toContain('enable_scylladb_service: true')
-        ->and($updated)->toContain('service_db_user: "phpforge"');
+        ->and($updated)->toContain('integration_services: \'["mysql","mongodb"]\'')
+        ->and($updated)->toContain('service_topologies: \'{"mysql":"replica","mongodb":"replica-set"}\'')
+        ->and($updated)->not->toContain('enable_mysql_service');
 });
 
-it('defaults community templates init selection to disabled', function (): void {
-    $command = new InitCommand();
-    $method = new ReflectionMethod(InitCommand::class, 'defaultSettings');
-
-    $settings = $method->invoke($command, 'main');
-
-    expect($settings['community_templates'] ?? null)->toBeFalse()
-        ->and($settings['php_versions'] ?? null)->toBe('["8.4","8.5"]');
-});
-
-it('can be instantiated with the ic:int alias name', function (): void {
-    $command = new InitCommand('ic:int');
-
-    expect($command->getName())->toBe('ic:int');
+it('publishes only the canonical init command name', function (): void {
+    expect((new InitCommand())->getName())->toBe('ic:init');
 });

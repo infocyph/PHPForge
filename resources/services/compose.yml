@@ -1,0 +1,288 @@
+name: phpforge
+
+services:
+  mysql:
+    image: mysql:8.4
+    profiles: [mysql]
+    ports: ["3306:3306"]
+    environment: &mysql-environment
+      MYSQL_DATABASE: ${PHPFORGE_SERVICE_DATABASE:-phpforge}
+      MYSQL_USER: ${PHPFORGE_SERVICE_USERNAME:-phpforge}
+      MYSQL_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+      MYSQL_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+    healthcheck: &mysql-health
+      test: [CMD-SHELL, "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  mysql-primary:
+    image: mysql:8.4
+    profiles: [mysql-replica]
+    command: ["--server-id=1", "--log-bin=mysql-bin", "--binlog-format=ROW", "--gtid-mode=ON", "--enforce-gtid-consistency=ON"]
+    ports: ["3306:3306"]
+    environment: *mysql-environment
+    volumes:
+      - ./mysql/primary-init.sh:/docker-entrypoint-initdb.d/10-replication.sh:ro
+    healthcheck: *mysql-health
+
+  mysql-replica:
+    image: mysql:8.4
+    profiles: [mysql-replica]
+    command: ["--server-id=2", "--relay-log=mysql-relay-bin", "--read-only=ON", "--gtid-mode=ON", "--enforce-gtid-consistency=ON"]
+    ports: ["3307:3306"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+    healthcheck: *mysql-health
+
+  mysql-replica-init:
+    image: mysql:8.4
+    profiles: [mysql-replica]
+    depends_on:
+      mysql-primary: {condition: service_healthy}
+      mysql-replica: {condition: service_healthy}
+    environment: *mysql-environment
+    volumes:
+      - ./mysql/configure-replica.sh:/configure-replica.sh:ro
+    entrypoint: ["bash", "/configure-replica.sh"]
+
+  mariadb:
+    image: mariadb:11.8
+    profiles: [mariadb]
+    ports: ["3308:3306"]
+    environment: &mariadb-environment
+      MARIADB_DATABASE: ${PHPFORGE_SERVICE_DATABASE:-phpforge}
+      MARIADB_USER: ${PHPFORGE_SERVICE_USERNAME:-phpforge}
+      MARIADB_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+      MARIADB_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+    healthcheck: &mariadb-health
+      test: [CMD-SHELL, "healthcheck.sh --connect --innodb_initialized"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  mariadb-primary:
+    image: mariadb:11.8
+    profiles: [mariadb-replica]
+    command: ["--server-id=1", "--log-bin=mariadb-bin", "--binlog-format=ROW"]
+    ports: ["3308:3306"]
+    environment: *mariadb-environment
+    volumes:
+      - ./mariadb/primary-init.sh:/docker-entrypoint-initdb.d/10-replication.sh:ro
+    healthcheck: *mariadb-health
+
+  mariadb-replica:
+    image: mariadb:11.8
+    profiles: [mariadb-replica]
+    command: ["--server-id=2", "--relay-log=mariadb-relay-bin", "--read-only=ON"]
+    ports: ["3309:3306"]
+    environment:
+      MARIADB_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+    healthcheck: *mariadb-health
+
+  mariadb-replica-init:
+    image: mariadb:11.8
+    profiles: [mariadb-replica]
+    depends_on:
+      mariadb-primary: {condition: service_healthy}
+      mariadb-replica: {condition: service_healthy}
+    environment: *mariadb-environment
+    volumes:
+      - ./mariadb/configure-replica.sh:/configure-replica.sh:ro
+    entrypoint: ["bash", "/configure-replica.sh"]
+
+  postgres:
+    image: postgres:17-alpine
+    profiles: [postgres]
+    ports: ["5432:5432"]
+    environment: &postgres-environment
+      POSTGRES_DB: ${PHPFORGE_SERVICE_DATABASE:-phpforge}
+      POSTGRES_USER: ${PHPFORGE_SERVICE_USERNAME:-phpforge}
+      POSTGRES_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  postgres-primary:
+    image: bitnami/postgresql:17
+    profiles: [postgres-replica]
+    ports: ["5432:5432"]
+    environment: &postgres-primary-environment
+      POSTGRESQL_DATABASE: ${PHPFORGE_SERVICE_DATABASE:-phpforge}
+      POSTGRESQL_USERNAME: ${PHPFORGE_SERVICE_USERNAME:-phpforge}
+      POSTGRESQL_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+      POSTGRESQL_POSTGRES_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+      POSTGRESQL_REPLICATION_MODE: master
+      POSTGRESQL_REPLICATION_USER: phpforge_repl
+      POSTGRESQL_REPLICATION_PASSWORD: phpforge_repl
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U $${POSTGRESQL_USERNAME} -d $${POSTGRESQL_DATABASE}"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  postgres-replica:
+    image: bitnami/postgresql:17
+    profiles: [postgres-replica]
+    ports: ["5433:5432"]
+    depends_on:
+      postgres-primary: {condition: service_healthy}
+    environment:
+      <<: *postgres-primary-environment
+      POSTGRESQL_REPLICATION_MODE: slave
+      POSTGRESQL_MASTER_HOST: postgres-primary
+      POSTGRESQL_MASTER_PORT_NUMBER: 5432
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U $${POSTGRESQL_USERNAME} -d $${POSTGRESQL_DATABASE}"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    profiles: [mssql]
+    ports: ["1433:1433"]
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+    healthcheck:
+      test: [CMD-SHELL, "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '$${MSSQL_SA_PASSWORD}' -C -Q 'SELECT 1' >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+
+  mongodb:
+    image: mongo:8
+    profiles: [mongodb]
+    ports: ["27017:27017"]
+    environment:
+      MONGO_INITDB_DATABASE: ${PHPFORGE_SERVICE_DATABASE:-phpforge}
+      MONGO_INITDB_ROOT_USERNAME: ${PHPFORGE_SERVICE_USERNAME:-phpforge}
+      MONGO_INITDB_ROOT_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+    healthcheck:
+      test: [CMD-SHELL, "mongosh --quiet --username '$${MONGO_INITDB_ROOT_USERNAME}' --password '$${MONGO_INITDB_ROOT_PASSWORD}' --authenticationDatabase admin --eval 'quit(db.runCommand({ping:1}).ok ? 0 : 1)'"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+  mongodb-primary:
+    image: mongo:8
+    profiles: [mongodb-replica]
+    command: ["mongod", "--replSet", "phpforge-rs", "--bind_ip_all", "--port", "27017"]
+    ports: ["27017:27017"]
+    healthcheck: &mongodb-replica-health
+      test: [CMD-SHELL, "mongosh --quiet --eval 'quit(db.runCommand({ping:1}).ok ? 0 : 1)'"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+  mongodb-secondary:
+    image: mongo:8
+    profiles: [mongodb-replica]
+    command: ["mongod", "--replSet", "phpforge-rs", "--bind_ip_all", "--port", "27017"]
+    ports: ["27018:27017"]
+    healthcheck: *mongodb-replica-health
+
+  mongodb-replica-init:
+    image: mongo:8
+    profiles: [mongodb-replica]
+    depends_on:
+      mongodb-primary: {condition: service_healthy}
+      mongodb-secondary: {condition: service_healthy}
+    volumes:
+      - ./mongodb/configure-replica.js:/configure-replica.js:ro
+    entrypoint: ["mongosh", "--host", "mongodb-primary", "--file", "/configure-replica.js"]
+
+  redis:
+    image: redis:8-alpine
+    profiles: [redis]
+    command: ["redis-server", "--requirepass", "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}"]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: [CMD, redis-cli, -a, "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}", ping]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    profiles: [valkey]
+    command: ["valkey-server", "--requirepass", "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}"]
+    ports: ["6380:6379"]
+    healthcheck:
+      test: [CMD, valkey-cli, -a, "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}", ping]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  memcached:
+    image: memcached:1.6-alpine
+    profiles: [memcached]
+    ports: ["11211:11211"]
+    healthcheck:
+      test: [CMD-SHELL, "printf 'version\\r\\n' | nc 127.0.0.1 11211 | grep -q VERSION"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    profiles: [rabbitmq]
+    ports: ["5672:5672", "15672:15672"]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${PHPFORGE_SERVICE_USERNAME:-phpforge}
+      RABBITMQ_DEFAULT_PASS: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+  nats:
+    image: nats:2.11-alpine
+    profiles: [nats]
+    command: ["--jetstream", "--store_dir=/data", "--http_port=8222"]
+    ports: ["4222:4222", "8222:8222"]
+    healthcheck:
+      test: [CMD-SHELL, "wget -q -O - http://127.0.0.1:8222/healthz | grep -q ok"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    profiles: [mailpit]
+    ports: ["1025:1025", "8025:8025"]
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.2
+    profiles: [elasticsearch]
+    ports: ["9200:9200"]
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    healthcheck:
+      test: [CMD-SHELL, "curl -fsS http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+
+  scylladb:
+    image: scylladb/scylla:2025.2
+    profiles: [scylladb]
+    command: ["--smp", "1", "--memory", "1G", "--overprovisioned", "1", "--alternator-port", "8000", "--alternator-write-isolation", "only_rmw_uses_lwt"]
+    ports: ["8000:8000"]
+    healthcheck:
+      test: [CMD-SHELL, "curl -fsS http://127.0.0.1:10000/storage_service/scylla_release_version >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 60

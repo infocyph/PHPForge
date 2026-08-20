@@ -86,32 +86,47 @@ it('guards every PHP workflow job with the filtered matrix result', function ():
         ->toContain("needs.prepare.outputs.has_supported_php_versions == 'true'");
 });
 
-it('installs dependencies before resolving package-aware analysis configs', function (): void {
+it('preserves topology-aware integration DSNs in workflow YAML', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $environment = $workflow['jobs']['run']['env'] ?? [];
+
+    expect($environment['IC_SQLITE_MEMORY_DSN'] ?? null)->toBe('sqlite::memory:')
+        ->and($environment['IC_MONGODB_DSN'] ?? null)->toContain('directConnection=true')
+        ->and($environment['IC_MONGODB_REPLICA_SET'] ?? null)->toContain('phpforge-rs');
+});
+
+it('exposes the compact service controls in the project workflow', function (): void {
+    $root = dirname(__DIR__, 2);
+    $workflow = Yaml::parseFile($root.'/.github/workflows/phpforge.yml');
+    $template = Yaml::parseFile($root.'/resources/workflows/security-standards.yml');
+    $expected = [
+        'integration_services' => '[]',
+        'service_topologies' => '{}',
+    ];
+
+    expect($workflow['jobs']['security-standards']['with'] ?? null)->toBe($expected)
+        ->and($template['jobs']['phpforge']['with'] ?? null)->toBe($expected);
+});
+
+it('installs dependencies before one analyzer execution produces gates and sarif', function (): void {
     $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
     $steps = $workflow['jobs']['analyze']['steps'] ?? [];
     $stepsByName = array_column($steps, null, 'name');
     $stepNames = array_column($steps, 'name');
 
     $installIndex = array_search('Install dependencies', $stepNames, true);
-    $phpstanIndex = array_search('Run PHPStan (Code Scanning)', $stepNames, true);
-    $psalmIndex = array_search('Run Psalm Security Scan', $stepNames, true);
-    $phpstanScript = $stepsByName['Run PHPStan (Code Scanning)']['run'] ?? '';
-    $psalmScript = $stepsByName['Run Psalm Security Scan']['run'] ?? '';
+    $analyzerIndex = array_search('Run audit and analyzers once', $stepNames, true);
+    $analyzerScript = $stepsByName['Run audit and analyzers once']['run'] ?? '';
 
     expect($installIndex)->toBeInt()
-        ->and($phpstanIndex)->toBeInt()->toBeGreaterThan($installIndex)
-        ->and($psalmIndex)->toBeInt()->toBeGreaterThan($installIndex)
-        ->and($phpstanScript)->toContain('PACKAGE_NAME="$(composer config name --no-plugins --no-scripts')
-        ->and($phpstanScript)->toContain('elif [ "$PACKAGE_NAME" = "infocyph/phpforge" ]; then')
-        ->and($phpstanScript)->toContain('PHPSTAN_CONFIG="resources/phpstan.neon.dist"')
-        ->and($phpstanScript)->toContain(
-            'PHPSTAN_CONFIG="$VENDOR_DIR/infocyph/phpforge/resources/phpstan.neon.dist"',
-        )
-        ->and($psalmScript)->toContain('elif [ "$PACKAGE_NAME" = "infocyph/phpforge" ]; then')
-        ->and($psalmScript)->toContain('PSALM_CONFIG="resources/psalm.xml"')
-        ->and($psalmScript)->toContain('PSALM_CONFIG="$VENDOR_DIR/infocyph/phpforge/resources/psalm.xml"')
-        ->and($stepsByName['Upload PHPStan Results']['continue-on-error'] ?? null)->toBeTrue()
-        ->and($stepsByName['Upload Psalm Results']['continue-on-error'] ?? null)->toBeTrue();
+        ->and($analyzerIndex)->toBeInt()->toBeGreaterThan($installIndex)
+        ->and(substr_count($analyzerScript, 'bin/phpstan'))
+        ->toBe(1)
+        ->and(substr_count($analyzerScript, 'bin/psalm.phar'))
+        ->toBe(1)
+        ->and($analyzerScript)->toContain('--threads=1')
+        ->and($analyzerScript)->toContain('phpstan-results.sarif')
+        ->and($analyzerScript)->toContain('psalm-results.sarif');
 });
 
 it('resolves benchmark config from the project root or the correct PHPForge package location', function (): void {

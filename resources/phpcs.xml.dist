@@ -51,7 +51,7 @@
     <rule ref="Generic.Files.LineEndings"/>
 
     <!-- Forbidden functions -->
-    <rule ref="Generic.PHP.ForbiddenFunctions">
+    <rule ref="./PHPForge/Sniffs/PHP/ForbiddenFunctionsSniff.php">
         <properties>
             <property name="forbiddenFunctions" type="array">
                 <element key="echo" value="null"/>
