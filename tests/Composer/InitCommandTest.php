@@ -102,3 +102,38 @@ it('accepts an empty interactive service selection', function (): void {
         ->and($selection['topologies'])->toBe([])
         ->and($output->fetch())->not->toContain('is invalid');
 });
+
+it('does not persist service selections during init', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-init-' . uniqid('', true);
+    $configuration = $projectRoot . DIRECTORY_SEPARATOR . '.phpforge-services.json';
+
+    mkdir($projectRoot, 0755, true);
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+    chdir($projectRoot);
+
+    try {
+        $command = new InitCommand();
+        $input = new ArrayInput([
+            '--services' => '["mysql"]',
+            '--service-topologies' => '{}',
+        ], $command->getDefinition());
+        $input->setInteractive(false);
+        $method = new ReflectionMethod(InitCommand::class, 'execute');
+        $status = $method->invoke($command, $input, new BufferedOutput());
+
+        expect($status)->toBe(0)
+            ->and(is_file($configuration))->toBeFalse();
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        if (is_file($configuration)) {
+            unlink($configuration);
+        }
+
+        unlink($projectRoot . DIRECTORY_SEPARATOR . 'composer.json');
+        rmdir($projectRoot);
+    }
+});

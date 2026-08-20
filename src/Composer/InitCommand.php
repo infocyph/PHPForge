@@ -70,8 +70,6 @@ final class InitCommand extends Command
             }
         }
 
-        $copied += $this->writeServiceConfiguration($selection['services'], $selection['topologies'], $force, $output);
-
         $output->writeln('Supported PHP: ' . implode(', ', $this->runtimeVersions()));
 
         if ($selection['flags']['captainhook'] && $this->installHooks($output) !== 0) {
@@ -333,19 +331,5 @@ final class InitCommand extends Command
         $output->writeln(sprintf('<info>Copied: %s</info>', $target));
 
         return 1;
-    }
-
-    /**
-     * @param list<string> $services
-     * @param array<string, string> $topologies
-     */
-    private function writeServiceConfiguration(array $services, array $topologies, bool $force, OutputInterface $output): int
-    {
-        $contents = json_encode([
-            'integration_services' => $services,
-            'service_topologies' => (object) $topologies,
-        ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . PHP_EOL;
-
-        return $this->write($contents, Paths::projectRootPath() . '/.phpforge-services.json', $force, $output);
     }
 }
