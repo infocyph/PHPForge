@@ -88,6 +88,30 @@ it('falls back to vendor PHPForge resources for consuming projects', function ()
     }
 });
 
+it('prefers the vendor package captainhook config over bundled resources', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-paths-' . uniqid('', true);
+    $vendorPackage = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'infocyph' . DIRECTORY_SEPARATOR . 'phpforge';
+    $vendorResources = $vendorPackage . DIRECTORY_SEPARATOR . 'resources';
+    $packageConfig = $vendorPackage . DIRECTORY_SEPARATOR . 'captainhook.json';
+
+    mkdir($vendorResources, 0755, true);
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+    file_put_contents($packageConfig, '{"source":"package"}');
+    file_put_contents($vendorResources . DIRECTORY_SEPARATOR . 'captainhook.json', '{"source":"resources"}');
+    chdir($projectRoot);
+
+    try {
+        expect(Paths::config('captainhook.json'))->toBe($packageConfig);
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        removePathsTestTree($projectRoot);
+    }
+});
+
 it('hard fails for consuming projects when project and vendor configs are missing', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-paths-'.uniqid('', true);

@@ -40,6 +40,7 @@ function taskCommands(string $task): array
         'process:sniff' => TaskCatalog::sniffFix(),
         'bench:chart' => TaskCatalog::benchChart(),
         'bench:quick' => TaskCatalog::benchQuick(),
+        'hooks' => TaskCatalog::hooks(),
         'release:guard' => TaskCatalog::releaseGuard(),
         'test:code' => TaskCatalog::testCode(),
         'test:architecture' => TaskCatalog::architecture(),

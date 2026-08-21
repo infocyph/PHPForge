@@ -29,8 +29,13 @@
         ]
     },
     "prepare-commit-msg": {
-        "enabled": false,
-        "actions": []
+        "enabled": true,
+        "actions": [
+            {
+                "action": "composer ic:commit-message \"{$ARG|value-of:message-file}\"",
+                "options": []
+            }
+        ]
     },
     "post-commit": {
         "enabled": false,

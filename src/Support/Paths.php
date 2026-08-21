@@ -40,6 +40,14 @@ final class Paths
 
     public static function bundledConfigFileOrNull(string $file): ?string
     {
+        if ($file === 'captainhook.json') {
+            $vendorPackageConfig = self::vendorPackageRoot() . DIRECTORY_SEPARATOR . $file;
+
+            if (is_file($vendorPackageConfig)) {
+                return $vendorPackageConfig;
+            }
+        }
+
         $vendorResourceFile = self::vendorResourceFile($file);
 
         if (is_file($vendorResourceFile)) {

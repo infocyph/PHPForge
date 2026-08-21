@@ -53,6 +53,8 @@ COMMANDS;
             new PublishCommunityTemplatesCommand(),
             new PublishCommunityTemplatesCommand('ic:publish-community-templates'),
             new CleanCommand(),
+            new StageCommand(),
+            new CommitMessageCommand(),
             new VersionCommand(),
             new BenchmarkCommand('validate', 'ic:benchmark:validate'),
             new BenchmarkCommand('compare', 'ic:benchmark:compare'),

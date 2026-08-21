@@ -31,6 +31,8 @@
 - `composer ic:publish-community-templates` - alias of `composer ic:community`.
 - `composer ic:hooks` - install/update enabled CaptainHook hooks.
 - `composer ic:clean` - remove known PHPForge output files and cache directories.
+- `composer ic:stage <file...>` - normalize Composer files, reject selected PHP changes with invalid syntax, then stage the selected and normalization-generated files.
+- `composer ic:commit-message <message-file>` - generate an empty Git commit-message file from the staged diff with Gemini; normally called by the CaptainHook `prepare-commit-msg` hook. Preserve existing messages and never expose `GEMINI_API_KEY` or staged diff content in output.
 - `composer ic:version` - print PHPForge/PHP/runtime path metadata.
 - `composer ic:phpstan:sarif input.json output.sarif` - convert PHPStan JSON to SARIF 2.1.0.
 
@@ -77,6 +79,7 @@
 ## CI Notes
 
 - Config precedence: project root -> `vendor/infocyph/phpforge/resources` -> source `resources/` (only in `infocyph/phpforge` repo).
+- CaptainHook is the exception: `captainhook.json` resolves from the project root first, then `vendor/infocyph/phpforge/captainhook.json`, then the bundled resources fallback.
 - PHPForge parallelizes independent tools, not duplicate copies of the same checker. Aggregate Pest is one process, aggregate Psalm uses one thread, and PHPStan has no nested worker pool.
 - Source-mutating processors remain sequential.
 - `IC_TEST_CONCURRENCY` is the canonical bounded task concurrency setting (eligible task count by default, maximum 16); `PHPFORGE_PARALLEL` is a legacy fallback.
