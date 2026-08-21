@@ -138,6 +138,8 @@ it('maps every catalog probe to protocol-level readiness logic', function (): vo
 
     expect($script)->toContain('phpforge_replication_probe')
         ->toContain('replication_token=')
+        ->toContain('extension_loaded($argv[1])')
+        ->not->toContain('php -m | grep')
         ->not->toContain('for ($attempt = 0; $attempt < 30; $attempt++)')
         ->toContain('replSetGetStatus')
         ->toContain('/api/health/checks/alarms')
