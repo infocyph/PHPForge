@@ -649,7 +649,7 @@ composer ic:commit-message "{$ARG|value-of:message-file}"
 
 When `GEMINI_API_KEY` is set and Git has not already supplied a message, PHPForge sends the staged diff to Gemini and writes the generated message before Git opens the editor. Messages supplied with `git commit -m`, amended messages, merge/squash messages and any other non-empty message are preserved. If the key is absent or Gemini is unavailable, generation is skipped and the normal commit flow continues.
 
-The staged diff is external data sent to Google's Gemini API. Review staged files before committing and do not enable this integration for repositories whose policy prohibits sending source changes to an external model. Requests are capped at the first 1,000,000 diff bytes; the API key and diff are never written to command output. The default instruction is the decoded `sys_instruction_b64` prompt from `gitx` and is bundled at `resources/commit-message-instructions.md`.
+The staged diff is external data sent to Google's Gemini API. Review staged files before committing and do not enable this integration for repositories whose policy prohibits sending source changes to an external model. PHPForge sends the complete diff as Base64 data inside the JSON HTTP request body, never as a shell argument, so operating-system argument-length limits do not apply. The request remains subject to Gemini's API and model limits. The API key and diff are never written to command output. 
 
 This package also has a root `post-autoload-dump` script:
 

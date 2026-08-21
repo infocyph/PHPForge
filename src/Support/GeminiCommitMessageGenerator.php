@@ -8,8 +8,6 @@ final readonly class GeminiCommitMessageGenerator
 {
     public const string DEFAULT_MODEL = 'gemini-flash-lite-latest';
 
-    private const int MAX_DIFF_BYTES = 1_000_000;
-
     /** @param null|\Closure(string, string, string): string $request */
     public function __construct(private ?\Closure $request = null) {}
 
@@ -48,6 +46,18 @@ final readonly class GeminiCommitMessageGenerator
         return $this->message($response);
     }
 
+    private function decodeInstruction(string $encoded, string $source): string
+    {
+        $compact = preg_replace('/\s+/', '', $encoded);
+        $decoded = is_string($compact) ? base64_decode($compact, true) : false;
+
+        if (!is_string($decoded) || trim($decoded) === '') {
+            throw new \RuntimeException($source . ' is not valid base64 text.');
+        }
+
+        return $decoded;
+    }
+
     private function environment(string $name): ?string
     {
         $value = getenv($name);
@@ -60,22 +70,16 @@ final readonly class GeminiCommitMessageGenerator
         $encoded = $this->environment('GITX_SYS_INSTRUCTION_B64');
 
         if ($encoded !== null) {
-            $decoded = base64_decode($encoded, true);
-
-            if (!is_string($decoded) || trim($decoded) === '') {
-                throw new \RuntimeException('GITX_SYS_INSTRUCTION_B64 is not valid base64 text.');
-            }
-
-            return $decoded;
+            return $this->decodeInstruction($encoded, 'GITX_SYS_INSTRUCTION_B64');
         }
 
-        $instruction = file_get_contents(Paths::packageFile('resources/commit-message-instructions.md'));
+        $encoded = file_get_contents(Paths::packageFile('resources/commit-message-instructions.b64'));
 
-        if (!is_string($instruction) || trim($instruction) === '') {
+        if (!is_string($encoded) || trim($encoded) === '') {
             throw new \RuntimeException('The bundled commit-message instruction is unavailable.');
         }
 
-        return $instruction;
+        return $this->decodeInstruction($encoded, 'The bundled commit-message instruction');
     }
 
     private function message(string $response): string
@@ -99,21 +103,13 @@ final readonly class GeminiCommitMessageGenerator
 
     private function payload(string $diff): string
     {
-        $truncated = strlen($diff) > self::MAX_DIFF_BYTES;
-        $diff = substr($diff, 0, self::MAX_DIFF_BYTES);
-        $requestText = 'Analyze the following staged git diff and generate a commit message.';
-
-        if ($truncated) {
-            $requestText .= ' The diff was truncated to its first 1,000,000 bytes.';
-        }
-
         return json_encode([
             'system_instruction' => [
                 'parts' => [['text' => $this->instruction()]],
             ],
             'contents' => [[
                 'parts' => [
-                    ['text' => $requestText],
+                    ['text' => 'Analyze the following staged git diff and generate a commit message.'],
                     [
                         'inline_data' => [
                             'mime_type' => 'text/plain',

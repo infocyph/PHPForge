@@ -103,9 +103,11 @@ it('publishes the commit message command through the Composer plugin', function 
 it('uses the gitx instruction and staged diff in the Gemini request', function (): void {
     $originalKey = getenv('GEMINI_API_KEY');
     $originalModel = getenv('GEMINI_MODEL');
+    $originalInstruction = getenv('GITX_SYS_INSTRUCTION_B64');
     $captured = [];
     putenv('GEMINI_API_KEY=test-api-key');
     putenv('GEMINI_MODEL=test-model');
+    putenv('GITX_SYS_INSTRUCTION_B64');
 
     try {
         $generator = new GeminiCommitMessageGenerator(
@@ -123,15 +125,86 @@ it('uses the gitx instruction and staged diff in the Gemini request', function (
         $payload = json_decode($captured['payload'] ?? '', true, 512, JSON_THROW_ON_ERROR);
         $encodedDiff = $payload['contents'][0]['parts'][1]['inline_data']['data'] ?? null;
         $instruction = $payload['system_instruction']['parts'][0]['text'] ?? null;
+        $bundledInstruction = file_get_contents(__DIR__ . '/../../resources/commit-message-instructions.b64');
+        $compactInstruction = is_string($bundledInstruction)
+            ? preg_replace('/\s+/', '', $bundledInstruction)
+            : null;
+        $decodedInstruction = is_string($compactInstruction)
+            ? base64_decode($compactInstruction, true)
+            : false;
 
         expect($message)->toBe(':sparkles: feat(hooks): generate commit messages')
             ->and($captured['url'] ?? null)->toContain('/test-model:generateContent')
             ->and($captured['apiKey'] ?? null)->toBe('test-api-key')
             ->and(is_string($encodedDiff) ? base64_decode($encodedDiff, true) : null)->toContain('diff --git')
-            ->and($instruction)->toContain('You are a commit message generator.');
+            ->and($bundledInstruction)->toBeString()
+            ->and($decodedInstruction)->toBeString()
+            ->and($instruction)->toBe($decodedInstruction)
+            ->and(hash('sha256', is_string($instruction) ? $instruction : ''))->toBe(
+                '7d76f3c851ccaf7cac6409d35cfc9679c26ff2d2df85a731129c0cabf7ac668d',
+            );
     } finally {
         restoreCommitMessageEnvironment('GEMINI_API_KEY', $originalKey);
         restoreCommitMessageEnvironment('GEMINI_MODEL', $originalModel);
+        restoreCommitMessageEnvironment('GITX_SYS_INSTRUCTION_B64', $originalInstruction);
+    }
+});
+
+it('sends complete staged diffs larger than one megabyte', function (): void {
+    $originalKey = getenv('GEMINI_API_KEY');
+    $originalInstruction = getenv('GITX_SYS_INSTRUCTION_B64');
+    $capturedPayload = '';
+    $diff = "diff --git a/large.php b/large.php\n" . str_repeat('+large staged change\n', 55_000);
+    putenv('GEMINI_API_KEY=test-api-key');
+    putenv('GITX_SYS_INSTRUCTION_B64');
+
+    try {
+        $generator = new GeminiCommitMessageGenerator(
+            static function (string $url, string $apiKey, string $payload) use (&$capturedPayload): string {
+                if ($url === '' || $apiKey === '') {
+                    throw new RuntimeException('The Gemini request fixture is incomplete.');
+                }
+
+                $capturedPayload = $payload;
+
+                return '{"candidates":[{"content":{"parts":[{"text":"test(hooks): cover large diffs"}]}}]}';
+            },
+        );
+        $generator->generate($diff);
+        $payload = json_decode($capturedPayload, true, 512, JSON_THROW_ON_ERROR);
+        $encodedDiff = $payload['contents'][0]['parts'][1]['inline_data']['data'] ?? null;
+        $decodedDiff = is_string($encodedDiff) ? base64_decode($encodedDiff, true) : false;
+        $requestText = $payload['contents'][0]['parts'][0]['text'] ?? null;
+
+        expect(strlen($diff))->toBeGreaterThan(1_000_000)
+            ->and($decodedDiff)->toBeString()
+            ->and(strlen(is_string($decodedDiff) ? $decodedDiff : ''))->toBe(strlen($diff))
+            ->and(hash('sha256', is_string($decodedDiff) ? $decodedDiff : ''))->toBe(hash('sha256', $diff))
+            ->and($requestText)->not->toContain('truncated');
+    } finally {
+        restoreCommitMessageEnvironment('GEMINI_API_KEY', $originalKey);
+        restoreCommitMessageEnvironment('GITX_SYS_INSTRUCTION_B64', $originalInstruction);
+    }
+});
+
+it('rejects malformed base64 instruction overrides before sending a request', function (): void {
+    $originalKey = getenv('GEMINI_API_KEY');
+    $originalInstruction = getenv('GITX_SYS_INSTRUCTION_B64');
+    putenv('GEMINI_API_KEY=test-api-key');
+    putenv('GITX_SYS_INSTRUCTION_B64=not-valid-base64!');
+
+    try {
+        $generator = new GeminiCommitMessageGenerator(
+            failingGeminiResponse('Gemini must not be called.'),
+        );
+
+        expect(static fn(): string => $generator->generate('diff'))->toThrow(
+            RuntimeException::class,
+            'GITX_SYS_INSTRUCTION_B64 is not valid base64 text.',
+        );
+    } finally {
+        restoreCommitMessageEnvironment('GEMINI_API_KEY', $originalKey);
+        restoreCommitMessageEnvironment('GITX_SYS_INSTRUCTION_B64', $originalInstruction);
     }
 });
 
