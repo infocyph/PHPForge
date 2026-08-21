@@ -55,7 +55,7 @@ missing=()
 while IFS= read -r extension; do
   [ -z "$extension" ] && continue
 
-  if ! php -m | grep -Fxiq "$extension"; then
+  if ! php -r 'exit(extension_loaded($argv[1]) ? 0 : 1);' "$extension"; then
     missing+=("$extension")
   fi
 done <<< "$required_extensions"
