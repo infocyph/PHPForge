@@ -342,6 +342,28 @@ it('uses the project captainhook config when present', function (): void {
     expect($command)->toContain('--configuration=' . getcwd() . DIRECTORY_SEPARATOR . 'captainhook.json');
 });
 
+it('falls back to the vendor package captainhook config', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-task-catalog-' . uniqid('', true);
+    $vendorPackage = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'infocyph' . DIRECTORY_SEPARATOR . 'phpforge';
+    $configPath = $vendorPackage . DIRECTORY_SEPARATOR . 'captainhook.json';
+
+    mkdir($vendorPackage, 0755, true);
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+    file_put_contents($configPath, '{}');
+    chdir($projectRoot);
+
+    try {
+        expect(TaskCatalog::hooks()[0])->toContain('--configuration=' . $configPath);
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        removeTaskCatalogTree($projectRoot);
+    }
+});
+
 it('lets project phpstan config define analysed paths', function (): void {
     $command = TaskCatalog::staticAnalysis()[0];
     expect($command)->toContain('--configuration=' . Paths::packageFile('resources/phpstan.neon.dist'));

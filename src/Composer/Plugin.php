@@ -65,11 +65,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         }
 
         try {
-            $configPath = $this->projectCaptainHookConfig();
-
-            if (!is_string($configPath)) {
-                return;
-            }
+            $configPath = Paths::config('captainhook.json');
 
             $process = new Process(CaptainHook::installCommand($configPath), getcwd() ?: null);
             $process->setTimeout(null);
@@ -116,13 +112,6 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         }
 
         return $missing;
-    }
-
-    private function projectCaptainHookConfig(): ?string
-    {
-        $projectConfig = Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'captainhook.json';
-
-        return is_file($projectConfig) ? $projectConfig : null;
     }
 
     /**

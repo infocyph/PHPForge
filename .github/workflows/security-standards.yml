@@ -252,6 +252,7 @@ jobs:
           php-version: ${{ matrix.php-version }}
           tools: composer:v2
           extensions: ${{ needs.prepare.outputs.php_extensions }}
+          ini-values: ${{ contains(needs.prepare.outputs.php_extensions, 'apcu') && 'apc.enable_cli=1, apcu.enable_cli=1' || '' }}
           coverage: none
       - name: Start selected services
         if: needs.prepare.outputs.has_external_services == 'true'

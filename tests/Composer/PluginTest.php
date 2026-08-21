@@ -33,19 +33,24 @@ function removePluginTestTree(string $path): void
     rmdir($path);
 }
 
-it('does nothing when the project has not opted into captainhook', function (): void {
+it('installs hooks from the vendor package config when project config is absent', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-plugin-' . uniqid('', true);
     $vendorResources = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'infocyph' . DIRECTORY_SEPARATOR . 'phpforge' . DIRECTORY_SEPARATOR . 'resources';
+    $vendorPackage = dirname($vendorResources);
     $vendorBin = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'bin';
     $bundledConfig = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'captainhook.json';
+    $installLog = $projectRoot . DIRECTORY_SEPARATOR . 'captainhook-install.log';
 
     mkdir($vendorResources, 0755, true);
     mkdir($vendorBin, 0755, true);
     mkdir($projectRoot . DIRECTORY_SEPARATOR . '.git');
     file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
-    copy($bundledConfig, $vendorResources . DIRECTORY_SEPARATOR . 'captainhook.json');
-    file_put_contents($vendorBin . DIRECTORY_SEPARATOR . 'captainhook', "<?php\nexit(0);\n");
+    copy($bundledConfig, $vendorPackage . DIRECTORY_SEPARATOR . 'captainhook.json');
+    file_put_contents(
+        $vendorBin . DIRECTORY_SEPARATOR . 'captainhook',
+        "<?php\nfile_put_contents(getcwd() . '/captainhook-install.log', implode(PHP_EOL, \$argv));\n",
+    );
 
     chdir($projectRoot);
 
@@ -58,6 +63,8 @@ it('does nothing when the project has not opted into captainhook', function (): 
             ->toThrow(RuntimeException::class)
             ->and(is_file($projectConfig))
             ->toBeFalse()
+            ->and(file_get_contents($installLog))
+            ->toContain('--configuration=' . $vendorPackage . DIRECTORY_SEPARATOR . 'captainhook.json')
             ->and(is_dir($projectRoot . DIRECTORY_SEPARATOR . '.codex'))
             ->toBeFalse();
     } finally {

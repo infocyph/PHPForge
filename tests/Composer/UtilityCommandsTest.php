@@ -70,7 +70,10 @@ it('exposes root diagnostic Composer scripts', function (): void {
 
     expect(is_array($composer))->toBeTrue()
         ->and($composer['scripts']['ic:doctor'] ?? null)->toBe('@php bin/phpforge doctor')
-        ->and($composer['scripts']['ic:list-config'] ?? null)->toBe('@php bin/phpforge list-config');
+        ->and($composer['scripts']['ic:list-config'] ?? null)->toBe('@php bin/phpforge list-config')
+        ->and($composer['scripts']['ic:commit-message'] ?? null)->toBe('@php bin/phpforge commit-message')
+        ->and($composer['scripts']['ic:hooks'] ?? null)->toBe('@php bin/run-task.php hooks')
+        ->and($composer['scripts']['ic:stage'] ?? null)->toBe('@php bin/phpforge stage');
 });
 
 it('lists config inventory as json', function (): void {

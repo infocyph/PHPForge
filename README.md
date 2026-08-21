@@ -192,6 +192,8 @@ If CaptainHook was selected, hooks install automatically on the next `composer i
 | Validate before a pull request | `composer ic:ci` |
 | Show full sequential diagnostics | `composer ic:tests:details` |
 | Apply safe automated fixes | `composer ic:process` |
+| Normalize, validate and stage files | `composer ic:stage <file...>` |
+| Generate the commit message | `git commit` (through CaptainHook and Gemini) |
 | Run benchmarks | `composer ic:benchmark` |
 | Run the release gate | `composer ic:release:guard` |
 | Inspect configuration problems | `composer ic:doctor` |
@@ -463,8 +465,17 @@ Use the `composer ic:*` commands in consuming packages. PHPForge does not requir
 | `composer ic:publish-community-templates`           | Alias of `composer ic:community`.                                                                              |
 | `composer ic:publish-community-templates --force`   | Alias of `composer ic:community --force`.                                                                      |
 | `composer ic:clean`                                 | Removes known PHPForge output files and cache directories.                                                     |
+| `composer ic:stage <file...>`                       | Normalizes Composer files, checks selected changed PHP files for syntax errors, then stages them. Composer files changed by normalization are included automatically. |
+| `composer ic:commit-message <message-file>`         | Populates an empty Git commit-message file from the staged diff with Gemini; normally invoked by CaptainHook. |
 | `composer ic:version`                               | Shows PHPForge, PHP, PHP binary and vendor-dir information.                                                   |
 | `composer ic:phpstan:sarif input.json output.sarif` | Converts PHPStan JSON output to SARIF 2.1.0.                                                                   |
+
+`ic:stage` validates PHP from the working tree before calling `git add`, so a syntax error prevents every selected/generated path from being staged. Composer normalization may still update `composer.json` or `composer.lock` in the working tree; those generated changes are staged only after syntax validation succeeds.
+
+```bash
+composer ic:stage src/Example.php tests/ExampleTest.php
+composer ic:stage src tests
+```
 
 ## Configuration
 
@@ -474,6 +485,8 @@ For every bundled PHPForge config in `resources/`, lookup is:
 1. Project root config, for example `pint.json` or `phpstan.neon.dist`.
 2. Installed package config under `vendor/infocyph/phpforge/resources`.
 3. PHPForge source-tree `resources/` only when the current project itself is `infocyph/phpforge`.
+
+CaptainHook additionally checks `vendor/infocyph/phpforge/captainhook.json` immediately after the project-root file. This lets hooks work without copying configuration into the consuming project; a root `captainhook.json` remains the customization override.
 
 If none of those exists outside the PHPForge source project, PHPForge fails instead of silently inventing a config path.
 
@@ -594,6 +607,9 @@ composer ic:publish-config psalm.xml --force
 | `IC_PHPSTAN_MEMORY_LIMIT`   | `1G`    | Controls PHPStan memory limit.                                                                           |
 | `IC_PSALM_THREADS`          | `1`     | Controls Psalm thread count.                                                                             |
 | `IC_HOOKS_STRICT`           | `1`     | Fails Composer when automatic CaptainHook install fails. Set to `0` for best-effort hook installation.   |
+| `GEMINI_API_KEY`            | unset   | Enables AI commit-message generation in the `prepare-commit-msg` hook.                                   |
+| `GEMINI_MODEL`              | `gemini-flash-lite-latest` | Selects the Gemini model used for commit-message generation.                     |
+| `GITX_SYS_INSTRUCTION_B64`  | bundled prompt | Overrides the bundled `gitx` commit-message instruction with base64-encoded text.                   |
 
 Example:
 
@@ -602,6 +618,7 @@ IC_TEST_CONCURRENCY=4 composer ic:tests:parallel
 PHPFORGE_QUALITY_SUMMARY=var/quality.json composer ic:ci
 IC_PHPSTAN_MEMORY_LIMIT=2G composer ic:test:static
 IC_HOOKS_STRICT=0 composer install
+GEMINI_API_KEY=... git commit
 ```
 
 ## Integrations
@@ -624,13 +641,23 @@ composer ic:release:audit
 composer ic:ci
 ```
 
+The bundled `prepare-commit-msg` hook also runs:
+
+```bash
+composer ic:commit-message "{$ARG|value-of:message-file}"
+```
+
+When `GEMINI_API_KEY` is set and Git has not already supplied a message, PHPForge sends the staged diff to Gemini and writes the generated message before Git opens the editor. Messages supplied with `git commit -m`, amended messages, merge/squash messages and any other non-empty message are preserved. If the key is absent or Gemini is unavailable, generation is skipped and the normal commit flow continues.
+
+The staged diff is external data sent to Google's Gemini API. Review staged files before committing and do not enable this integration for repositories whose policy prohibits sending source changes to an external model. PHPForge sends the complete diff as Base64 data inside the JSON HTTP request body, never as a shell argument, so operating-system argument-length limits do not apply. The request remains subject to Gemini's API and model limits. The API key and diff are never written to command output. 
+
 This package also has a root `post-autoload-dump` script:
 
 ```json
 "post-autoload-dump": "@php bin/install-captainhook.php"
 ```
 
-That helper keeps hooks installed for this repository. For consuming projects, `ic:init --captainhook` owns creation of `captainhook.json`. The Composer plugin refreshes hooks only when that project-owned file already exists; projects that did not opt in are left unchanged.
+That helper keeps hooks installed for this repository. In consuming projects the Composer plugin uses a root `captainhook.json` when present, otherwise it falls back to `vendor/infocyph/phpforge/captainhook.json`. Run `ic:init --captainhook` only when the project needs a customizable root copy.
 
 ### GitHub Actions
 

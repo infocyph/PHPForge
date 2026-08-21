@@ -8,6 +8,8 @@ use Infocyph\PHPForge\Composer\BenchmarkCommand;
 use Infocyph\PHPForge\Composer\DoctorCommand;
 use Infocyph\PHPForge\Composer\ListConfigCommand;
 use Infocyph\PHPForge\Composer\ServiceCommand;
+use Infocyph\PHPForge\Composer\StageCommand;
+use Infocyph\PHPForge\Composer\CommitMessageCommand;
 use Infocyph\PHPForge\Composer\WorkerSoakCommand;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArgvInput;
@@ -34,6 +36,8 @@ $composerCommands = [
     'services:up',
     'services:down',
     'services:status',
+    'stage',
+    'commit-message',
 ];
 
 if (in_array($argv[1] ?? null, $composerCommands, true) && !class_exists(Composer\Command\BaseCommand::class)) {
@@ -69,10 +73,13 @@ if (!class_exists(Cli::class)) {
     require __DIR__ . '/../src/Support/ParallelRunner.php';
     require __DIR__ . '/../src/Support/Runner.php';
     require __DIR__ . '/../src/Support/ServiceCatalog.php';
+    require __DIR__ . '/../src/Support/GeminiCommitMessageGenerator.php';
     require __DIR__ . '/../src/Composer/TaskCatalog.php';
     require __DIR__ . '/../src/Composer/BenchmarkCommand.php';
     require __DIR__ . '/../src/Composer/WorkerSoakCommand.php';
     require __DIR__ . '/../src/Composer/ServiceCommand.php';
+    require __DIR__ . '/../src/Composer/StageCommand.php';
+    require __DIR__ . '/../src/Composer/CommitMessageCommand.php';
     require __DIR__ . '/../src/Support/Cli.php';
 }
 
@@ -85,6 +92,8 @@ $standaloneCommand = match ($argv[1] ?? null) {
     'services:up' => new ServiceCommand('up', ''),
     'services:down' => new ServiceCommand('down', ''),
     'services:status' => new ServiceCommand('status', ''),
+    'stage' => new StageCommand('stage'),
+    'commit-message' => new CommitMessageCommand('commit-message'),
     default => null,
 };
 

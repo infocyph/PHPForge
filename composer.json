@@ -80,7 +80,9 @@
         "ic:benchmark:compare": "@php bin/phpforge benchmark:compare",
         "ic:benchmark:validate": "@php bin/phpforge benchmark:validate",
         "ic:ci": "@php bin/phpforge ci",
+        "ic:commit-message": "@php bin/phpforge commit-message",
         "ic:doctor": "@php bin/phpforge doctor",
+        "ic:hooks": "@php bin/run-task.php hooks",
         "ic:list-config": "@php bin/phpforge list-config",
         "ic:phpstan:sarif": "@php bin/phpforge phpstan-sarif",
         "ic:process": [
@@ -101,6 +103,7 @@
         "ic:services:status": "@php bin/phpforge services:status",
         "ic:services:up": "@php bin/phpforge services:up",
         "ic:soak:worker": "@php bin/phpforge soak:worker",
+        "ic:stage": "@php bin/phpforge stage",
         "ic:test:architecture": "@php bin/run-task.php test:architecture",
         "ic:test:bench": "@ic:benchmark",
         "ic:test:code": "@php bin/run-task.php test:code",
