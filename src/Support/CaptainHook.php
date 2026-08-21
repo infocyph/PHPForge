@@ -20,6 +20,7 @@ final class CaptainHook
             Paths::bin('captainhook'),
             'install',
             '--configuration=' . $configPath,
+            '--bootstrap=' . self::bootstrapPath($configPath),
             '--no-interaction',
         ];
 
@@ -35,6 +36,32 @@ final class CaptainHook
         }
 
         return $command;
+    }
+
+    private static function bootstrapPath(string $configPath): string
+    {
+        $configDirectory = str_replace('\\', '/', dirname($configPath));
+        $autoloadPath = str_replace(
+            '\\',
+            '/',
+            Paths::vendorDir() . DIRECTORY_SEPARATOR . 'autoload.php',
+        );
+        $configParts = explode('/', rtrim($configDirectory, '/'));
+        $autoloadParts = explode('/', $autoloadPath);
+
+        while (
+            $configParts !== []
+            && $autoloadParts !== []
+            && self::samePathSegment($configParts[0], $autoloadParts[0])
+        ) {
+            array_shift($configParts);
+            array_shift($autoloadParts);
+        }
+
+        return implode('/', [
+            ...array_fill(0, count($configParts), '..'),
+            ...$autoloadParts,
+        ]);
     }
 
     private static function installHelp(): string
@@ -56,6 +83,13 @@ final class CaptainHook
         self::$installHelp = $process->getOutput() . PHP_EOL . $process->getErrorOutput();
 
         return self::$installHelp;
+    }
+
+    private static function samePathSegment(string $left, string $right): bool
+    {
+        return DIRECTORY_SEPARATOR === '\\'
+            ? strcasecmp($left, $right) === 0
+            : $left === $right;
     }
 
     private static function supportsInstallOption(string $option): bool
