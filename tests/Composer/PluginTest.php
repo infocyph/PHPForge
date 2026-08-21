@@ -46,6 +46,7 @@ it('installs hooks from the vendor package config when project config is absent'
     mkdir($vendorBin, 0755, true);
     mkdir($projectRoot . DIRECTORY_SEPARATOR . '.git');
     file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php', "<?php\n");
     copy($bundledConfig, $vendorPackage . DIRECTORY_SEPARATOR . 'captainhook.json');
     file_put_contents(
         $vendorBin . DIRECTORY_SEPARATOR . 'captainhook',
@@ -65,6 +66,8 @@ it('installs hooks from the vendor package config when project config is absent'
             ->toBeFalse()
             ->and(file_get_contents($installLog))
             ->toContain('--configuration=' . $vendorPackage . DIRECTORY_SEPARATOR . 'captainhook.json')
+            ->toContain('--bootstrap=../../autoload.php')
+            ->not->toContain('phpforge/vendor/autoload.php')
             ->and(is_dir($projectRoot . DIRECTORY_SEPARATOR . '.codex'))
             ->toBeFalse();
     } finally {

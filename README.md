@@ -657,7 +657,7 @@ This package also has a root `post-autoload-dump` script:
 "post-autoload-dump": "@php bin/install-captainhook.php"
 ```
 
-That helper keeps hooks installed for this repository. In consuming projects the Composer plugin uses a root `captainhook.json` when present, otherwise it falls back to `vendor/infocyph/phpforge/captainhook.json`. Run `ic:init --captainhook` only when the project needs a customizable root copy.
+That helper keeps hooks installed for this repository. In consuming projects the Composer plugin uses a root `captainhook.json` when present, otherwise it falls back to `vendor/infocyph/phpforge/captainhook.json` while continuing to load the consuming project's `vendor/autoload.php`. Run `ic:init --captainhook` only when the project needs a customizable root copy.
 
 ### GitHub Actions
 
