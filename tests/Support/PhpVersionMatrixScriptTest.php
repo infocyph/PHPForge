@@ -123,12 +123,25 @@ it('exposes the compact service controls in the project workflow', function (): 
     $workflow = Yaml::parseFile($root.'/.github/workflows/phpforge.yml');
     $template = Yaml::parseFile($root.'/resources/workflows/security-standards.yml');
     $expected = [
+        'fail_on_skipped_tests' => true,
         'integration_services' => '[]',
         'service_topologies' => '{}',
     ];
 
     expect($workflow['jobs']['security-standards']['with'] ?? null)->toBe($expected)
         ->and($template['jobs']['phpforge']['with'] ?? null)->toBe($expected);
+});
+
+it('fails workflow Pest runs when tests are skipped by default', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $inputs = $workflow['on']['workflow_call']['inputs'] ?? [];
+    $steps = $workflow['jobs']['run']['steps'] ?? [];
+    $stepsByName = array_column($steps, null, 'name');
+    $environment = $stepsByName['Run quality suite once']['env'] ?? [];
+
+    expect($inputs['fail_on_skipped_tests']['default'] ?? null)->toBeTrue()
+        ->and($environment['IC_PEST_FAIL_ON_SKIPPED'] ?? null)
+        ->toBe('${{ inputs.fail_on_skipped_tests }}');
 });
 
 it('passes CI flags as options to the registered Composer command', function (): void {

@@ -71,6 +71,16 @@ it('runs composer normalize as part of process all', function (): void {
     expect(TaskCatalog::processAll()[0])->toBe(['composer', 'normalize']);
 });
 
+it('keeps fail-on-skipped opt-in outside the workflow environment', function (): void {
+    withTaskCatalogEnv('IC_PEST_FAIL_ON_SKIPPED', null, function (): void {
+        expect(TaskCatalog::testCode()[0])->not->toContain('--fail-on-skipped');
+    });
+
+    withTaskCatalogEnv('IC_PEST_FAIL_ON_SKIPPED', 'true', function (): void {
+        expect(TaskCatalog::testCode()[0])->toContain('--fail-on-skipped');
+    });
+});
+
 it('runs stable runtime constraints before audit and quality in the release guard', function (): void {
     $tasks = TaskCatalog::releaseGuard();
 
