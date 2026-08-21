@@ -89,7 +89,7 @@
 - `service_topologies` is a JSON object. Every topology key must also be selected in `integration_services`; omitted entries use `standalone`. MySQL, MariaDB and PostgreSQL support `replica`, while MongoDB supports `replica-set`. Readiness proves replicated data visibility.
 - SQLite is an additional compatibility target, not a substitute for production database engines.
 - Mailpit validates SMTP/email integration but does not replace provider-specific or real deliverability testing.
-- Reusable workflow strict skip gate: set `fail_on_skipped_tests: true` to pass `--fail-on-skipped` to Pest in CI.
+- Reusable workflow strict skip gate: `fail_on_skipped_tests` defaults to `true` and passes `--fail-on-skipped` to Pest in CI. Set it to `false` only when skipped workflow tests are acceptable; local and CaptainHook runs remain unchanged.
 - Reusable workflow clean install gate: `run_clean_install` defaults to `true` and checks production installation on the final configured PHP version.
 - Representative benchmark inputs: `benchmark_composer_script`, `benchmark_result_file`, `benchmark_baseline_file`, `benchmark_max_regression_percent`, `benchmark_stable_environment`.
 - Never enable the benchmark regression budget on a noisy environment. Both result files must also declare matching stable environment metadata.

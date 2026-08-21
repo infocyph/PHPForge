@@ -42,7 +42,7 @@ on:
         description: "Treat skipped Pest tests as failures."
         required: false
         type: boolean
-        default: false
+        default: true
       run_clean_install:
         description: "Verify a production-style Composer install."
         required: false

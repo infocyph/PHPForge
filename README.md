@@ -700,6 +700,7 @@ jobs:
       actions: read
       contents: read
     with:
+      fail_on_skipped_tests: true
       integration_services: '[]'
       service_topologies: '{}'
 ```
@@ -713,6 +714,7 @@ Common workflow inputs:
 | `integration_services` | `[]` | Tests require one or more catalog services. |
 | `service_topologies` | `{}` | A selected service needs replica or replica-set mode. |
 | `run_analysis` | `true` | Set to `false` only when the dedicated PHPStan/Psalm and SARIF job should be disabled. |
+| `fail_on_skipped_tests` | `true` | Fails workflow QA when Pest reports any skipped test. |
 
 <details>
 <summary>All workflow inputs and defaults</summary>
@@ -726,7 +728,7 @@ Common workflow inputs:
 | `phpstan_memory_limit` | `1G` | PHPStan memory limit used by workflow analysis. |
 | `run_analysis` | `true` | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs. |
 | `run_svg_report` | `true` | Generates `security-report.svg` and `security-summary.json`. |
-| `fail_on_skipped_tests` | `false` | Adds `--fail-on-skipped` to Pest execution. |
+| `fail_on_skipped_tests` | `true` | Adds `--fail-on-skipped` to workflow Pest execution. Set to `false` only when skipped tests are acceptable in CI. |
 | `run_clean_install` | `true` | Verifies a production-style `--no-dev` install and authoritative autoload. |
 | `benchmark_composer_script` | `""` | Optional Composer script that produces a representative benchmark result. |
 | `benchmark_result_file` | `""` | Workload-neutral result JSON file validated after the benchmark script. |
@@ -930,11 +932,11 @@ with:
   run_svg_report: true
 ```
 
-`fail_on_skipped_tests` makes skipped Pest tests fail CI:
+Workflow Pest runs fail on skipped tests by default. This is a workflow-only policy; local and CaptainHook-triggered `composer ic:ci` runs are unchanged. To permit skipped tests in a particular caller:
 
 ```yaml
 with:
-  fail_on_skipped_tests: true
+  fail_on_skipped_tests: false
 ```
 
 `run_clean_install` adds a separate release-install check. It selects the last entry in `php_versions`, installs from a clean checkout with `--no-dev --optimize-autoloader`, checks platform requirements and verifies an authoritative classmap:
