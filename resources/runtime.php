@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 return [
     'php_versions' => ['8.4', '8.5'],
+    'service_client_versions' => [
+        'mssql_odbc' => '18',
+    ],
     'service_images' => [
         'mysql' => 'mysql:9.7',
         'mariadb' => 'mariadb:12.3',

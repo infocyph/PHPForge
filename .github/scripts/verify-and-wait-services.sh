@@ -19,10 +19,11 @@ fi
 wait_for() {
   local name="$1"
   local probe="$2"
+  local diagnostic=""
   shift 2
 
   for ((_attempt = 1; _attempt <= retry_attempts; _attempt++)); do
-    if php -r "$probe" "$@" >/dev/null 2>&1; then
+    if diagnostic="$(php -r "$probe" "$@" 2>&1)"; then
       echo "${name} ready"
       return 0
     fi
@@ -31,6 +32,11 @@ wait_for() {
   done
 
   echo "::error::${name} service not ready"
+  diagnostic="${diagnostic//$'\r'/ }"
+  diagnostic="${diagnostic//$'\n'/ }"
+  if [[ -n "$diagnostic" ]]; then
+    echo "::error::Last ${name} probe error: ${diagnostic:0:1000}"
+  fi
   return 1
 }
 
@@ -85,7 +91,7 @@ while IFS= read -r service; do
       dsn_name="IC_${upper}_DSN"
       user_name="IC_${upper}_USER"
       password_name="IC_${upper}_PASSWORD"
-      wait_for "$service" '$dsn = getenv($argv[1]); $user = getenv($argv[2]); $pass = getenv($argv[3]); try { $pdo = new PDO((string) $dsn, (string) $user, (string) $pass); exit($pdo->query("SELECT 1") === false ? 1 : 0); } catch (Throwable) { exit(1); }' "$dsn_name" "$user_name" "$password_name"
+      wait_for "$service" '$dsn = getenv($argv[1]); $user = getenv($argv[2]); $pass = getenv($argv[3]); try { $pdo = new PDO((string) $dsn, (string) $user, (string) $pass); exit($pdo->query("SELECT 1") === false ? 1 : 0); } catch (Throwable $error) { fwrite(STDERR, $error::class . ": " . $error->getMessage()); exit(1); }' "$dsn_name" "$user_name" "$password_name"
       ;;
     sqlite)
       wait_for sqlite '$memory = new PDO((string) getenv("IC_SQLITE_MEMORY_DSN")); $file = new PDO((string) getenv("IC_SQLITE_FILE_DSN")); exit($memory->query("SELECT 1") !== false && $file->query("SELECT 1") !== false ? 0 : 1);'

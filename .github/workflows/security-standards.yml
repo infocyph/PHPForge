@@ -254,7 +254,9 @@ jobs:
           ref: ${{ job.workflow_sha }}
           path: .phpforge-workflow
           sparse-checkout: |
+            .github/scripts/install-mssql-odbc-driver.sh
             .github/scripts/verify-and-wait-services.sh
+            resources/runtime.php
             resources/services
           sparse-checkout-cone-mode: false
       - name: Setup PHP
@@ -265,6 +267,10 @@ jobs:
           extensions: ${{ needs.prepare.outputs.php_extensions }}
           ini-values: ${{ contains(needs.prepare.outputs.php_extensions, 'apcu') && 'apc.enable_cli=1, apcu.enable_cli=1' || '' }}
           coverage: none
+      - name: Install Microsoft ODBC driver for SQL Server
+        if: contains(fromJson(needs.prepare.outputs.integration_services), 'mssql')
+        shell: bash
+        run: bash .phpforge-workflow/.github/scripts/install-mssql-odbc-driver.sh
       - name: Start selected services
         if: needs.prepare.outputs.has_external_services == 'true'
         shell: bash
@@ -274,7 +280,11 @@ jobs:
           compose=(docker compose -f .phpforge-workflow/resources/services/compose.yml)
           while IFS= read -r profile; do compose+=(--profile "$profile"); done < <(jq -r '.[]' <<< "$COMPOSE_PROFILES_JSON")
           "${compose[@]}" up -d
-          bash .phpforge-workflow/.github/scripts/verify-and-wait-services.sh
+          if ! bash .phpforge-workflow/.github/scripts/verify-and-wait-services.sh; then
+            "${compose[@]}" ps -a
+            "${compose[@]}" logs --no-color --tail=100
+            exit 1
+          fi
       - name: Validate and resolve dependencies
         shell: bash
         run: |

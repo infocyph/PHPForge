@@ -173,6 +173,8 @@ it('maps every catalog probe to protocol-level readiness logic', function (): vo
     expect($script)->toContain('phpforge_replication_probe')
         ->toContain('replication_token=')
         ->toContain('extension_loaded($argv[1])')
+        ->toContain('Last ${name} probe error:')
+        ->toContain('$error->getMessage()')
         ->not->toContain('php -m | grep')
         ->not->toContain('for ($attempt = 0; $attempt < 30; $attempt++)')
         ->toContain('replSetGetStatus')
@@ -211,9 +213,28 @@ it('uses the versioned runtime manifest as the service image source of truth', f
     }
 
     expect($runtime['php_versions'] ?? null)->toBe(['8.4', '8.5'])
+        ->and($runtime['service_client_versions']['mssql_odbc'] ?? null)->toBe('18')
         ->and(array_keys($runtime['service_images'] ?? []))->toBe(array_values(array_filter(
             ServiceCatalog::names(),
             static fn (string $service): bool => $service !== 'sqlite',
         )))
         ->and(implode("\n", $runtime['service_images'] ?? []))->not->toContain('bitnami/');
+});
+
+it('installs the versioned official MSSQL ODBC client only for MSSQL workflows', function (): void {
+    $root = dirname(__DIR__, 2);
+    $workflow = Yaml::parseFile($root.'/.github/workflows/security-standards.yml');
+    $steps = $workflow['jobs']['run']['steps'] ?? [];
+    $stepsByName = array_column($steps, null, 'name');
+    $installerStep = $stepsByName['Install Microsoft ODBC driver for SQL Server'] ?? [];
+    $installer = (string) file_get_contents($root.'/.github/scripts/install-mssql-odbc-driver.sh');
+
+    expect($installerStep['if'] ?? null)
+        ->toBe("contains(fromJson(needs.prepare.outputs.integration_services), 'mssql')")
+        ->and($installerStep['run'] ?? null)
+        ->toBe('bash .phpforge-workflow/.github/scripts/install-mssql-odbc-driver.sh')
+        ->and($installer)->toContain('service_client_versions"]["mssql_odbc')
+        ->toContain('https://packages.microsoft.com/config/')
+        ->toContain('ACCEPT_EULA=Y')
+        ->toContain('odbcinst -q -d -n "$driver_name"');
 });

@@ -788,6 +788,8 @@ Image versions are maintained centrally in [`resources/runtime.php`](resources/r
 | Elasticsearch | `docker.elastic.co/elasticsearch/elasticsearch:9.5.0` | [Elastic registry](https://www.docker.elastic.co/r/elasticsearch/elasticsearch) | two-node cluster | `9200`, peer `9201` |
 | ScyllaDB | `scylladb/scylla:2026.2` | [ScyllaDB official image](https://hub.docker.com/r/scylladb/scylla) | three-node cluster | Alternator `8000`–`8002`; admin `10000`–`10002` |
 
+When `mssql` is selected, the workflow also installs Microsoft's official `msodbcsql18` host driver from `packages.microsoft.com`. The `pdo_sqlsrv` PHP extension uses that native driver to reach the SQL Server container; enabling the PHP extension alone is not sufficient. Its major version is maintained in `service_client_versions.mssql_odbc` in [`resources/runtime.php`](resources/runtime.php).
+
 The small SQL Server shared-volume initializer uses the Docker Official `alpine:3.24` image; it does not run a service workload. RabbitMQ clustering supplies the nodes needed for quorum queues, but applications must still declare quorum queues when message replication is required.
 
 An empty list disables integration services:
