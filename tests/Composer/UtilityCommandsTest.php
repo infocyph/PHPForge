@@ -364,7 +364,7 @@ YAML
     'unknown service' => ['["unknown"]', '{}', 'Unknown integration service: unknown'],
     'unknown service topology' => ['["unknown"]', '{"unknown":"standalone"}', 'Unknown integration service: unknown'],
     'unselected topology' => ['["redis"]', '{"mysql":"replica"}', 'Topology configured for unselected service: mysql'],
-    'unsupported topology' => ['["redis"]', '{"redis":"replica"}', 'Unsupported topology for redis: replica'],
+    'unsupported topology' => ['["memcached"]', '{"memcached":"replica"}', 'Unsupported topology for memcached: replica'],
 ]);
 
 it('reports unavailable compose for selected external services', function (): void {

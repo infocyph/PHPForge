@@ -198,6 +198,8 @@ jobs:
       IC_POSTGRES_USER: ${{ inputs.service_db_user }}
       IC_POSTGRES_PASSWORD: ${{ inputs.service_password }}
       IC_MSSQL_DSN: sqlsrv:Server=127.0.0.1,1433;TrustServerCertificate=1
+      IC_MSSQL_PRIMARY_DSN: sqlsrv:Server=127.0.0.1,1433;Database=${{ inputs.service_db_name }};TrustServerCertificate=1
+      IC_MSSQL_REPLICA_DSN: sqlsrv:Server=127.0.0.1,1434;Database=${{ inputs.service_db_name }};TrustServerCertificate=1
       IC_MSSQL_USER: sa
       IC_SQLITE_MEMORY_DSN: "sqlite::memory:"
       IC_SQLITE_FILE_DSN: sqlite:/tmp/phpforge.sqlite
@@ -205,9 +207,13 @@ jobs:
       IC_MONGODB_REPLICA_SET: ${{ fromJson(needs.prepare.outputs.service_topologies).mongodb == 'replica-set' && 'phpforge-rs' || '' }}
       IC_REDIS_HOST: 127.0.0.1
       IC_REDIS_PORT: 6379
+      IC_REDIS_REPLICA_HOST: 127.0.0.1
+      IC_REDIS_REPLICA_PORT: 6381
       IC_REDIS_PASSWORD: ${{ inputs.service_password }}
       IC_VALKEY_HOST: 127.0.0.1
       IC_VALKEY_PORT: 6380
+      IC_VALKEY_REPLICA_HOST: 127.0.0.1
+      IC_VALKEY_REPLICA_PORT: 6382
       IC_VALKEY_PASSWORD: ${{ inputs.service_password }}
       IC_MEMCACHED_HOST: 127.0.0.1
       IC_MEMCACHED_PORT: 11211
@@ -215,8 +221,10 @@ jobs:
       IC_RABBITMQ_PORT: 5672
       IC_RABBITMQ_DSN: ${{ format('amqp://{0}:{1}@127.0.0.1:5672', inputs.service_db_user, inputs.service_password) }}
       IC_RABBITMQ_MANAGEMENT_URL: http://127.0.0.1:15672
+      IC_RABBITMQ_CLUSTER_NODES: 127.0.0.1:5672,127.0.0.1:5673,127.0.0.1:5674
       IC_NATS_URL: nats://127.0.0.1:4222
       IC_NATS_MONITOR_URL: http://127.0.0.1:8222
+      IC_NATS_CLUSTER_URLS: nats://127.0.0.1:4222,nats://127.0.0.1:4223,nats://127.0.0.1:4224
       IC_SMTP_HOST: 127.0.0.1
       IC_SMTP_PORT: 1025
       IC_SMTP_DSN: smtp://127.0.0.1:1025
@@ -225,9 +233,12 @@ jobs:
       IC_ELASTICSEARCH_HOST: 127.0.0.1
       IC_ELASTICSEARCH_PORT: 9200
       IC_ELASTICSEARCH_URL: http://127.0.0.1:9200
+      IC_ELASTICSEARCH_CLUSTER_URLS: http://127.0.0.1:9200,http://127.0.0.1:9201
       IC_SCYLLADB_HOST: 127.0.0.1
       IC_SCYLLADB_PORT: 8000
       IC_SCYLLADB_ENDPOINT: http://127.0.0.1:8000
+      IC_SCYLLADB_ADMIN_URL: http://127.0.0.1:10000
+      IC_SCYLLADB_CLUSTER_ENDPOINTS: http://127.0.0.1:8000,http://127.0.0.1:8001,http://127.0.0.1:8002
       IC_SCYLLADB_REGION: us-east-1
       IC_SCYLLADB_ACCESS_KEY_ID: ${{ inputs.service_db_user }}
       IC_SCYLLADB_SECRET_ACCESS_KEY: ${{ inputs.service_password }}
