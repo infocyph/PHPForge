@@ -35,6 +35,40 @@ it('resolves unique extensions and topology profiles from the catalog', function
         ))->toBe(['mysql-replica', 'mongodb-replica']);
 });
 
+it('resolves every supported non-standalone topology', function (): void {
+    $services = ServiceCatalog::names();
+    $topologies = [
+        'mysql' => 'replica',
+        'mariadb' => 'replica',
+        'postgres' => 'replica',
+        'mssql' => 'availability-group',
+        'mongodb' => 'replica-set',
+        'redis' => 'replica',
+        'valkey' => 'replica',
+        'rabbitmq' => 'cluster',
+        'nats' => 'cluster',
+        'elasticsearch' => 'cluster',
+        'scylladb' => 'cluster',
+    ];
+
+    expect(ServiceCatalog::validate($services, $topologies))->toBe([])
+        ->and(ServiceCatalog::profiles($services, $topologies))->toBe([
+            'mysql-replica',
+            'mariadb-replica',
+            'postgres-replica',
+            'mssql-availability-group',
+            'mongodb-replica',
+            'redis-replica',
+            'valkey-replica',
+            'memcached',
+            'rabbitmq-cluster',
+            'nats-cluster',
+            'mailpit',
+            'elasticsearch-cluster',
+            'scylladb-cluster',
+        ]);
+});
+
 it('keeps every catalog Compose profile represented in compose configuration', function (): void {
     $compose = Yaml::parseFile(dirname(__DIR__, 2).'/resources/services/compose.yml');
     $profiles = [];
@@ -143,12 +177,43 @@ it('maps every catalog probe to protocol-level readiness logic', function (): vo
         ->not->toContain('for ($attempt = 0; $attempt < 30; $attempt++)')
         ->toContain('replSetGetStatus')
         ->toContain('/api/health/checks/alarms')
+        ->toContain('/api/nodes')
         ->toContain('/jsz')
+        ->toContain('/routez')
+        ->toContain('wait_for_nodes=2')
+        ->toContain('/gossiper/endpoint/live/')
         ->toContain('/v1/info');
 });
 
-it('uses the versioned runtime manifest as a valid unique matrix', function (): void {
+it('uses the versioned runtime manifest as the service image source of truth', function (): void {
     $runtime = require dirname(__DIR__, 2).'/resources/runtime.php';
+    $compose = Yaml::parseFile(dirname(__DIR__, 2).'/resources/services/compose.yml');
+    $profileImages = [];
 
-    expect($runtime['php_versions'] ?? null)->toBe(['8.4', '8.5']);
+    foreach (ServiceCatalog::all() as $name => $definition) {
+        foreach ($definition['topologies'] as $profile) {
+            if (is_string($profile)) {
+                $profileImages[$profile] = $runtime['service_images'][$name] ?? null;
+            }
+        }
+    }
+
+    foreach ($compose['services'] ?? [] as $name => $service) {
+        $expected = $runtime['service_support_images'][$name] ?? null;
+
+        if (!is_string($expected)) {
+            $profile = $service['profiles'][0] ?? null;
+            $expected = is_string($profile) ? ($profileImages[$profile] ?? null) : null;
+        }
+
+        expect($expected)->toBeString()
+            ->and($service['image'] ?? null)->toBe($expected);
+    }
+
+    expect($runtime['php_versions'] ?? null)->toBe(['8.4', '8.5'])
+        ->and(array_keys($runtime['service_images'] ?? []))->toBe(array_values(array_filter(
+            ServiceCatalog::names(),
+            static fn (string $service): bool => $service !== 'sqlite',
+        )))
+        ->and(implode("\n", $runtime['service_images'] ?? []))->not->toContain('bitnami/');
 });

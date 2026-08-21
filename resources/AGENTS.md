@@ -86,7 +86,8 @@
 - Optional focused-command tuning: `IC_PSALM_THREADS`, `IC_PHPSTAN_MEMORY_LIMIT`.
 - Reusable workflow services are opt-in and disabled by default: `integration_services: '[]'` and `service_topologies: '{}'`.
 - `integration_services` is a JSON list of canonical keys: `mysql`, `mariadb`, `postgres`, `mssql`, `sqlite`, `mongodb`, `redis`, `valkey`, `memcached`, `rabbitmq`, `nats`, `mailpit`, `elasticsearch` and `scylladb`. The workflow resolves required PHP extensions automatically.
-- `service_topologies` is a JSON object. Every topology key must also be selected in `integration_services`; omitted entries use `standalone`. MySQL, MariaDB and PostgreSQL support `replica`, while MongoDB supports `replica-set`. Readiness proves replicated data visibility.
+- `service_topologies` is a JSON object. Every topology key must also be selected in `integration_services`; omitted entries use `standalone`. MySQL, MariaDB, PostgreSQL, Redis and Valkey support `replica`; MSSQL supports `availability-group`; MongoDB supports `replica-set`; RabbitMQ, NATS, Elasticsearch and ScyllaDB support `cluster`. Readiness proves replication or cluster membership. SQLite, Memcached and Mailpit are standalone-only.
+- Integration-service and support-image versions are canonical in `resources/runtime.php`; every Compose image must remain synchronized with that manifest and must come from its upstream-owned registry/image.
 - SQLite is an additional compatibility target, not a substitute for production database engines.
 - Mailpit validates SMTP/email integration but does not replace provider-specific or real deliverability testing.
 - Reusable workflow strict skip gate: `fail_on_skipped_tests` defaults to `true` and passes `--fail-on-skipped` to Pest in CI. Set it to `false` only when skipped workflow tests are acceptable; local and CaptainHook runs remain unchanged.
@@ -99,6 +100,6 @@
   - PostgreSQL requires `pdo_pgsql`; MySQL/MariaDB require `pdo_mysql`; MSSQL requires `pdo_sqlsrv`; SQLite requires `pdo_sqlite`.
   - MongoDB requires `mongodb` extension.
 - Service envs exported by workflow:
-  - Redis: `IC_REDIS_HOST`, `IC_REDIS_PORT`, `IC_REDIS_PASSWORD`
-  - Valkey: `IC_VALKEY_HOST`, `IC_VALKEY_PORT`, `IC_VALKEY_PASSWORD`
-  - ScyllaDB Alternator: `IC_SCYLLADB_HOST`, `IC_SCYLLADB_PORT`, `IC_SCYLLADB_ENDPOINT`, `IC_SCYLLADB_REGION`, `IC_SCYLLADB_ACCESS_KEY_ID`, `IC_SCYLLADB_SECRET_ACCESS_KEY`
+  - Redis: `IC_REDIS_HOST`, `IC_REDIS_PORT`, `IC_REDIS_REPLICA_HOST`, `IC_REDIS_REPLICA_PORT`, `IC_REDIS_PASSWORD`
+  - Valkey: `IC_VALKEY_HOST`, `IC_VALKEY_PORT`, `IC_VALKEY_REPLICA_HOST`, `IC_VALKEY_REPLICA_PORT`, `IC_VALKEY_PASSWORD`
+  - ScyllaDB Alternator: `IC_SCYLLADB_HOST`, `IC_SCYLLADB_PORT`, `IC_SCYLLADB_ENDPOINT`, `IC_SCYLLADB_ADMIN_URL`, `IC_SCYLLADB_CLUSTER_ENDPOINTS`, `IC_SCYLLADB_REGION`, `IC_SCYLLADB_ACCESS_KEY_ID`, `IC_SCYLLADB_SECRET_ACCESS_KEY`

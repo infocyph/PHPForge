@@ -33,7 +33,7 @@ it('rejects malformed service and topology JSON', function (): void {
 
 it('validates topology selection against the canonical service catalog', function (): void {
     expect(ServiceCatalog::validate(['mysql'], ['mysql' => 'replica']))->toBe([])
-        ->and(ServiceCatalog::validate(['redis'], ['redis' => 'replica']))->toContain('Unsupported topology for redis: replica')
+        ->and(ServiceCatalog::validate(['memcached'], ['memcached' => 'replica']))->toContain('Unsupported topology for memcached: replica')
         ->and(ServiceCatalog::validate(['unknown'], ['unknown' => 'standalone']))->toContain('Unknown integration service: unknown')
         ->and(ServiceCatalog::validate(['redis'], ['mysql' => 'replica']))->toContain('Topology configured for unselected service: mysql');
 });

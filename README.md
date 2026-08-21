@@ -712,7 +712,7 @@ Common workflow inputs:
 | `php_versions` | runtime manifest | The project needs a smaller supported PHP matrix. |
 | `dependency_versions` | `["prefer-lowest","prefer-stable"]` | The project needs only one Composer dependency mode. |
 | `integration_services` | `[]` | Tests require one or more catalog services. |
-| `service_topologies` | `{}` | A selected service needs replica or replica-set mode. |
+| `service_topologies` | `{}` | A selected service needs a supported replica, replica-set, availability-group, or cluster mode. |
 | `run_analysis` | `true` | Set to `false` only when the dedicated PHPStan/Psalm and SARIF job should be disabled. |
 | `fail_on_skipped_tests` | `true` | Fails workflow QA when Pest reports any skipped test. |
 
@@ -753,17 +753,42 @@ Both inputs are YAML strings containing JSON. `integration_services` accepts any
 | `mysql` | MySQL | `standalone`, `replica` |
 | `mariadb` | MariaDB | `standalone`, `replica` |
 | `postgres` | PostgreSQL | `standalone`, `replica` |
-| `mssql` | Microsoft SQL Server | `standalone` |
+| `mssql` | Microsoft SQL Server | `standalone`, `availability-group` |
 | `sqlite` | SQLite, in-memory and file-backed | `standalone` |
 | `mongodb` | MongoDB | `standalone`, `replica-set` |
-| `redis` | Redis | `standalone` |
-| `valkey` | Valkey | `standalone` |
+| `redis` | Redis | `standalone`, `replica` |
+| `valkey` | Valkey | `standalone`, `replica` |
 | `memcached` | Memcached | `standalone` |
-| `rabbitmq` | RabbitMQ | `standalone` |
-| `nats` | NATS with JetStream | `standalone` |
+| `rabbitmq` | RabbitMQ | `standalone`, `cluster` |
+| `nats` | NATS with JetStream | `standalone`, `cluster` |
 | `mailpit` | Mailpit SMTP and HTTP API | `standalone` |
-| `elasticsearch` | Elasticsearch | `standalone` |
-| `scylladb` | ScyllaDB Alternator | `standalone` |
+| `elasticsearch` | Elasticsearch | `standalone`, `cluster` |
+| `scylladb` | ScyllaDB Alternator | `standalone`, `cluster` |
+
+SQLite is process-local/file-backed, Memcached distributes keys client-side, and Mailpit is a test SMTP sink; none provides a native replica topology suitable for this catalog. They therefore remain explicitly standalone-only.
+
+##### Service images and endpoints
+
+Image versions are maintained centrally in [`resources/runtime.php`](resources/runtime.php) and verified against every Compose service by the test suite. PHPForge uses upstream-owned images only:
+
+| Service | Image | Upstream source | Non-standalone layout | Published endpoints |
+| --- | --- | --- | --- | --- |
+| MySQL | `mysql:9.7` | [Docker Official Image](https://hub.docker.com/_/mysql) | primary + replica | `3306`, replica `3307` |
+| MariaDB | `mariadb:12.3` | [Docker Official Image](https://hub.docker.com/_/mariadb) | primary + replica | `3308`, replica `3309` |
+| PostgreSQL | `postgres:18-alpine` | [Docker Official Image](https://hub.docker.com/_/postgres) | streaming primary + replica | `5432`, replica `5433` |
+| Microsoft SQL Server | `mcr.microsoft.com/mssql/server:2025-latest` | [Microsoft Container Registry](https://mcr.microsoft.com/product/mssql/server/about) | two-node read-scale availability group | `1433`, replica `1434` |
+| SQLite | host PHP extension | [SQLite](https://www.sqlite.org/) | standalone only | in-memory/file DSNs |
+| MongoDB | `mongo:8.3` | [Docker Official Image](https://hub.docker.com/_/mongo) | two-member replica set | `27017`, secondary `27018` |
+| Redis | `redis:8.10-alpine` | [Docker Official Image](https://hub.docker.com/_/redis) | primary + read-only replica | `6379`, replica `6381` |
+| Valkey | `valkey/valkey:9.1-alpine` | [Valkey official image](https://hub.docker.com/r/valkey/valkey) | primary + read-only replica | `6380`, replica `6382` |
+| Memcached | `memcached:1.6.45-alpine` | [Docker Official Image](https://hub.docker.com/_/memcached) | standalone only | `11211` |
+| RabbitMQ | `rabbitmq:4.3-management-alpine` | [Docker Official Image](https://hub.docker.com/_/rabbitmq) | three-node cluster | AMQP `5672`–`5674`; management `15672`–`15674` |
+| NATS | `nats:2.14-alpine` | [Docker Official Image](https://hub.docker.com/_/nats) | three-node JetStream cluster | clients `4222`–`4224`; monitoring `8222`–`8224` |
+| Mailpit | `axllent/mailpit:v1.30` | [Mailpit publisher image](https://hub.docker.com/r/axllent/mailpit) | standalone only | SMTP `1025`; UI/API `8025` |
+| Elasticsearch | `docker.elastic.co/elasticsearch/elasticsearch:9.5.0` | [Elastic registry](https://www.docker.elastic.co/r/elasticsearch/elasticsearch) | two-node cluster | `9200`, peer `9201` |
+| ScyllaDB | `scylladb/scylla:2026.2` | [ScyllaDB official image](https://hub.docker.com/r/scylladb/scylla) | three-node cluster | Alternator `8000`–`8002`; admin `10000`–`10002` |
+
+The small SQL Server shared-volume initializer uses the Docker Official `alpine:3.24` image; it does not run a service workload. RabbitMQ clustering supplies the nodes needed for quorum queues, but applications must still declare quorum queues when message replication is required.
 
 An empty list disables integration services:
 
@@ -785,8 +810,8 @@ Only non-default topology choices need to be mapped. Every topology key must als
 
 ```yaml
 with:
-  integration_services: '["mysql","mariadb","postgres","mongodb"]'
-  service_topologies: '{"mysql":"replica","mariadb":"replica","postgres":"replica","mongodb":"replica-set"}'
+  integration_services: '["mysql","mariadb","postgres","mssql","mongodb","redis","valkey","rabbitmq","nats","elasticsearch","scylladb"]'
+  service_topologies: '{"mysql":"replica","mariadb":"replica","postgres":"replica","mssql":"availability-group","mongodb":"replica-set","redis":"replica","valkey":"replica","rabbitmq":"cluster","nats":"cluster","elasticsearch":"cluster","scylladb":"cluster"}'
 ```
 
 Explicit `"standalone"` mappings are accepted but unnecessary because standalone is the default. Unknown services, unsupported topology values and topology entries for unselected services fail workflow preparation with a validation error.
@@ -878,7 +903,7 @@ with:
   service_topologies: '{"mysql":"replica","postgres":"replica"}'
 ```
 
-Services are selected from one canonical catalog: MySQL, MariaDB, PostgreSQL, MSSQL, SQLite, MongoDB, Redis, Valkey, Memcached, RabbitMQ, NATS with JetStream, Mailpit, Elasticsearch and ScyllaDB. MySQL, MariaDB and PostgreSQL support `replica`; MongoDB supports `replica-set`. The workflow installs required PHP extensions, starts only selected Compose profiles, and performs protocol-level readiness before tests.
+Services are selected from one canonical catalog: MySQL, MariaDB, PostgreSQL, MSSQL, SQLite, MongoDB, Redis, Valkey, Memcached, RabbitMQ, NATS with JetStream, Mailpit, Elasticsearch and ScyllaDB. MySQL, MariaDB, PostgreSQL, Redis and Valkey support `replica`; MSSQL supports `availability-group`; MongoDB supports `replica-set`; RabbitMQ, NATS, Elasticsearch and ScyllaDB support `cluster`. The workflow installs required PHP extensions, starts only selected Compose profiles, and performs protocol-level readiness before tests.
 
 Use the same checked-in selection locally:
 
@@ -893,19 +918,19 @@ Test credentials default to database and username `phpforge`, with the shared pa
 
 Selected services export environment variables including:
 
-- `IC_REDIS_HOST`, `IC_REDIS_PORT`, `IC_REDIS_PASSWORD`
-- `IC_VALKEY_HOST`, `IC_VALKEY_PORT`, `IC_VALKEY_PASSWORD`
+- `IC_REDIS_HOST`, `IC_REDIS_PORT`, `IC_REDIS_REPLICA_HOST`, `IC_REDIS_REPLICA_PORT`, `IC_REDIS_PASSWORD`
+- `IC_VALKEY_HOST`, `IC_VALKEY_PORT`, `IC_VALKEY_REPLICA_HOST`, `IC_VALKEY_REPLICA_PORT`, `IC_VALKEY_PASSWORD`
 - `IC_SERVICE_DATABASE`, `IC_SERVICE_USERNAME`, `IC_SERVICE_PASSWORD`
 - `IC_MEMCACHED_HOST`, `IC_MEMCACHED_PORT`
-- database DSNs plus primary/replica DSNs for MySQL, MariaDB and PostgreSQL
+- database DSNs plus primary/replica DSNs for MySQL, MariaDB, PostgreSQL and MSSQL
 - `IC_MSSQL_DSN`, `IC_SQLITE_MEMORY_DSN`, `IC_SQLITE_FILE_DSN`, `IC_MONGODB_DSN`
-- `IC_RABBITMQ_HOST`, `IC_RABBITMQ_PORT`, `IC_RABBITMQ_DSN`, `IC_RABBITMQ_MANAGEMENT_URL`
-- `IC_NATS_URL`, `IC_NATS_MONITOR_URL`
+- `IC_RABBITMQ_HOST`, `IC_RABBITMQ_PORT`, `IC_RABBITMQ_DSN`, `IC_RABBITMQ_MANAGEMENT_URL`, `IC_RABBITMQ_CLUSTER_NODES`
+- `IC_NATS_URL`, `IC_NATS_MONITOR_URL`, `IC_NATS_CLUSTER_URLS`
 - `IC_SMTP_HOST`, `IC_SMTP_PORT`, `IC_SMTP_DSN`, `IC_MAILPIT_URL`, `IC_MAILPIT_API_URL`
-- `IC_SCYLLADB_HOST`, `IC_SCYLLADB_PORT`, `IC_SCYLLADB_ENDPOINT`, `IC_SCYLLADB_REGION`, `IC_SCYLLADB_ACCESS_KEY_ID`, `IC_SCYLLADB_SECRET_ACCESS_KEY`
-- `IC_ELASTICSEARCH_HOST`, `IC_ELASTICSEARCH_PORT`, `IC_ELASTICSEARCH_URL`
+- `IC_SCYLLADB_HOST`, `IC_SCYLLADB_PORT`, `IC_SCYLLADB_ENDPOINT`, `IC_SCYLLADB_ADMIN_URL`, `IC_SCYLLADB_CLUSTER_ENDPOINTS`, `IC_SCYLLADB_REGION`, `IC_SCYLLADB_ACCESS_KEY_ID`, `IC_SCYLLADB_SECRET_ACCESS_KEY`
+- `IC_ELASTICSEARCH_HOST`, `IC_ELASTICSEARCH_PORT`, `IC_ELASTICSEARCH_URL`, `IC_ELASTICSEARCH_CLUSTER_URLS`
 
-Replica mode verifies real replicated data visibility before tests start. SQLite is an additional compatibility target, not a substitute for production database engines. Mailpit validates SMTP/email integration but does not replace provider-specific or real deliverability testing.
+Database and key-value replica modes verify real replicated data visibility before tests start. Cluster modes verify their expected member count. SQLite is an additional compatibility target, not a substitute for production database engines. Mailpit validates SMTP/email integration but does not replace provider-specific or real deliverability testing.
 
 </details>
 
