@@ -103,6 +103,21 @@ it('preserves topology-aware integration DSNs in workflow YAML', function (): vo
         ->and($environment['IC_MONGODB_REPLICA_SET'] ?? null)->toContain('phpforge-rs');
 });
 
+it('enables APCu for CLI when it is present in the resolved extension list', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $steps = $workflow['jobs']['run']['steps'] ?? [];
+    $setupSteps = array_values(array_filter(
+        $steps,
+        static fn(mixed $step): bool => is_array($step) && ($step['uses'] ?? null) === 'shivammathur/setup-php@v2',
+    ));
+
+    expect($setupSteps)->toHaveCount(1)
+        ->and($setupSteps[0]['with']['extensions'] ?? null)
+        ->toBe('${{ needs.prepare.outputs.php_extensions }}')
+        ->and($setupSteps[0]['with']['ini-values'] ?? null)
+        ->toBe("\${{ contains(needs.prepare.outputs.php_extensions, 'apcu') && 'apc.enable_cli=1, apcu.enable_cli=1' || '' }}");
+});
+
 it('exposes the compact service controls in the project workflow', function (): void {
     $root = dirname(__DIR__, 2);
     $workflow = Yaml::parseFile($root.'/.github/workflows/phpforge.yml');
