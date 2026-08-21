@@ -82,7 +82,7 @@
 - CaptainHook is the exception: `captainhook.json` resolves from the project root first, then `vendor/infocyph/phpforge/captainhook.json`, then the bundled resources fallback; every location must bootstrap the consuming project's Composer autoloader.
 - PHPForge parallelizes independent tools, not duplicate copies of the same checker. Aggregate Pest is one process, aggregate Psalm uses one thread, and PHPStan has no nested worker pool.
 - Source-mutating processors remain sequential.
-- `IC_TEST_CONCURRENCY` is the canonical bounded task concurrency setting (eligible task count by default, maximum 16); `PHPFORGE_PARALLEL` is a legacy fallback.
+- `IC_TEST_CONCURRENCY` is the canonical bounded task concurrency setting (eligible task count by default, maximum 16); `PHPFORGE_PARALLEL` is a legacy fallback. `IC_TEST_TASK_TIMEOUT` bounds each independent tool to 300 seconds by default (maximum 3600).
 - Optional focused-command tuning: `IC_PSALM_THREADS`, `IC_PHPSTAN_MEMORY_LIMIT`.
 - Reusable workflow services are opt-in and disabled by default: `integration_services: '[]'` and `service_topologies: '{}'`.
 - `integration_services` is a JSON list of canonical keys: `mysql`, `mariadb`, `postgres`, `mssql`, `sqlite`, `mongodb`, `redis`, `valkey`, `memcached`, `rabbitmq`, `nats`, `mailpit`, `elasticsearch` and `scylladb`. The workflow resolves required PHP extensions automatically.

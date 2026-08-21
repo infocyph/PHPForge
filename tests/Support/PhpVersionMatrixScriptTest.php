@@ -144,6 +144,18 @@ it('fails workflow Pest runs when tests are skipped by default', function (): vo
         ->toBe('${{ inputs.fail_on_skipped_tests }}');
 });
 
+it('bounds each workflow quality tool and exposes the timeout input', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $inputs = $workflow['on']['workflow_call']['inputs'] ?? [];
+    $steps = $workflow['jobs']['run']['steps'] ?? [];
+    $stepsByName = array_column($steps, null, 'name');
+    $environment = $stepsByName['Run quality suite once']['env'] ?? [];
+
+    expect($inputs['quality_task_timeout_seconds']['default'] ?? null)->toBe(300)
+        ->and($environment['IC_TEST_TASK_TIMEOUT'] ?? null)
+        ->toBe('${{ inputs.quality_task_timeout_seconds }}');
+});
+
 it('passes CI flags as options to the registered Composer command', function (): void {
     $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
     $steps = $workflow['jobs']['run']['steps'] ?? [];

@@ -28,6 +28,11 @@ on:
         required: false
         type: string
         default: "1G"
+      quality_task_timeout_seconds:
+        description: "Maximum runtime in seconds for each independent quality tool."
+        required: false
+        type: number
+        default: 300
       run_analysis:
         description: "Run the dedicated analyzer/SARIF job."
         required: false
@@ -297,6 +302,7 @@ jobs:
         env:
           IC_PHPSTAN_MEMORY_LIMIT: ${{ inputs.phpstan_memory_limit }}
           IC_PEST_FAIL_ON_SKIPPED: ${{ inputs.fail_on_skipped_tests }}
+          IC_TEST_TASK_TIMEOUT: ${{ inputs.quality_task_timeout_seconds }}
         run: |
           args=()
           if [ "${{ matrix.dependency-version }}" = "prefer-lowest" ]; then args+=(--prefer-lowest); fi
