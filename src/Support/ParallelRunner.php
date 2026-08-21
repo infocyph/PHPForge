@@ -5,13 +5,20 @@ declare(strict_types=1);
 namespace Infocyph\PHPForge\Support;
 
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
 
 final readonly class ParallelRunner
 {
+    private const int DEFAULT_TASK_TIMEOUT_SECONDS = 300;
+
+    private const int LONG_RUNNING_REPORT_SECONDS = 60;
+
     private const int MAX_CONCURRENCY = 16;
 
     private const int MAX_OUTPUT_BYTES = 4_194_304;
+
+    private const int MAX_TASK_TIMEOUT_SECONDS = 3_600;
 
     public function __construct(
         private OutputInterface $output,
@@ -32,6 +39,25 @@ final readonly class ParallelRunner
         }
 
         return self::boundedConcurrency($eligibleTasks);
+    }
+
+    public static function timeoutFrom(mixed $value): int
+    {
+        $candidate = $value;
+
+        if ($candidate === null) {
+            $candidate = getenv('IC_TEST_TASK_TIMEOUT');
+        }
+
+        if (is_string($candidate) && $candidate !== '' && filter_var($candidate, FILTER_VALIDATE_INT) !== false) {
+            return self::boundedTimeout((int) $candidate);
+        }
+
+        if (is_int($candidate)) {
+            return self::boundedTimeout($candidate);
+        }
+
+        return self::DEFAULT_TASK_TIMEOUT_SECONDS;
     }
 
     /**
@@ -68,15 +94,33 @@ final readonly class ParallelRunner
         return max(1, min(self::MAX_CONCURRENCY, $value));
     }
 
+    private static function boundedTimeout(int $value): int
+    {
+        return max(1, min(self::MAX_TASK_TIMEOUT_SECONDS, $value));
+    }
+
     /**
-     * @param array<int, array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int}> $active
-     * @return list<array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int}>
+     * @param array<int, array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int,long_running_reported:bool}> $active
+     * @return list<array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int,long_running_reported:bool}>
      */
     private function collectFinished(array &$active): array
     {
         $finished = [];
 
         foreach ($active as $id => $entry) {
+            try {
+                $entry['process']->checkTimeout();
+            } catch (ProcessTimedOutException) {
+                fwrite($entry['stderr'], sprintf(
+                    "Task exceeded the configured timeout of %d seconds (IC_TEST_TASK_TIMEOUT).\n",
+                    (int) $entry['process']->getTimeout(),
+                ));
+                $finished[] = $entry;
+                unset($active[$id]);
+
+                continue;
+            }
+
             if ($entry['process']->isRunning()) {
                 continue;
             }
@@ -89,7 +133,7 @@ final readonly class ParallelRunner
     }
 
     /**
-     * @param array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int} $entry
+     * @param array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int,long_running_reported:bool} $entry
      * @return array{heading:string,exit_code:int,status:string}
      */
     private function renderFinished(array $entry): array
@@ -146,6 +190,27 @@ final readonly class ParallelRunner
     }
 
     /**
+     * @param array<int, array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int,long_running_reported:bool}> $active
+     */
+    private function reportLongRunning(array &$active): void
+    {
+        foreach ($active as &$entry) {
+            if ($entry['long_running_reported'] || microtime(true) - $entry['started_at'] < self::LONG_RUNNING_REPORT_SECONDS) {
+                continue;
+            }
+
+            $this->output->writeln(sprintf(
+                '<comment>Still running after %d seconds: %s</comment>',
+                self::LONG_RUNNING_REPORT_SECONDS,
+                $entry['heading'],
+            ));
+            $entry['long_running_reported'] = true;
+        }
+
+        unset($entry);
+    }
+
+    /**
      * @param list<string> $task
      * @return array{heading:string,status:string,exit_code:int}
      */
@@ -190,6 +255,7 @@ final readonly class ParallelRunner
             }
 
             if ($active !== []) {
+                $this->reportLongRunning($active);
                 usleep(100_000);
             }
         }
@@ -260,7 +326,7 @@ final readonly class ParallelRunner
 
     /**
      * @param list<string> $task
-     * @return array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int}
+     * @return array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int,long_running_reported:bool}
      */
     private function startTask(array $task, int $index): array
     {
@@ -276,7 +342,7 @@ final readonly class ParallelRunner
         $stdoutTruncated = false;
         $stderrTruncated = false;
         $process = new Process($task, getcwd() ?: null, $this->taskEnvironment());
-        $process->setTimeout(null);
+        $process->setTimeout(self::timeoutFrom(null));
         $process->disableOutput();
         $process->start(function (string $type, string $buffer) use (
             $stdout,
@@ -305,6 +371,7 @@ final readonly class ParallelRunner
             'stderr_truncated' => &$stderrTruncated,
             'started_at' => microtime(true),
             'index' => $index,
+            'long_running_reported' => false,
         ];
     }
 

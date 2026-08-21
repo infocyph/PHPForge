@@ -37,6 +37,25 @@ it('prefers the canonical concurrency variable and bounds explicit overrides', f
     });
 });
 
+it('defaults and bounds the per-task timeout', function (): void {
+    withParallelRunnerEnv('IC_TEST_TASK_TIMEOUT', null, function (): void {
+        expect(ParallelRunner::timeoutFrom(null))->toBe(300)
+            ->and(ParallelRunner::timeoutFrom('0'))->toBe(1)
+            ->and(ParallelRunner::timeoutFrom('7200'))->toBe(3600)
+            ->and(ParallelRunner::timeoutFrom('invalid'))->toBe(300);
+    });
+});
+
+it('terminates and reports a task that exceeds its configured timeout', function (): void {
+    withParallelRunnerEnv('IC_TEST_TASK_TIMEOUT', '1', function (): void {
+        $output = new BufferedOutput();
+        $exitCode = (new ParallelRunner($output))->run([], [[PHP_BINARY, '-r', 'sleep(5);']], 1);
+
+        expect($exitCode)->not->toBe(0)
+            ->and($output->fetch())->toContain('Task exceeded the configured timeout of 1 seconds');
+    });
+});
+
 it('lets every started peer finish when another task fails', function (): void {
     $marker = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-peer-'.uniqid('', true);
     $output = new BufferedOutput();

@@ -602,6 +602,7 @@ composer ic:publish-config psalm.xml --force
 | --------------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
 | `IC_TEST_CONCURRENCY`       | task count (max `16`) | Canonical maximum number of independent tools run concurrently.                           |
 | `PHPFORGE_PARALLEL`         | unset   | Legacy fallback for `IC_TEST_CONCURRENCY`.                                                              |
+| `IC_TEST_TASK_TIMEOUT`      | `300`   | Maximum seconds for each independent quality tool (bounded to `1`–`3600`).                              |
 | `PHPFORGE_QUALITY_SUMMARY`  | none    | Writes an aggregate per-tool quality result JSON file for `ic:ci`, `ic:tests` and `ic:tests:parallel`.  |
 | `IC_QUALITY_SUMMARY`        | none    | Alias for `PHPFORGE_QUALITY_SUMMARY`.                                                                    |
 | `IC_PHPSTAN_MEMORY_LIMIT`   | `1G`    | Controls PHPStan memory limit.                                                                           |
@@ -726,6 +727,7 @@ Common workflow inputs:
 | `php_extensions` | `""` | Comma-separated PHP extensions passed to `shivammathur/setup-php`. |
 | `composer_flags` | `""` | Extra flags appended to Composer install/update commands. |
 | `phpstan_memory_limit` | `1G` | PHPStan memory limit used by workflow analysis. |
+| `quality_task_timeout_seconds` | `300` | Maximum runtime for each independent quality tool; long-running tools are identified after 60 seconds. |
 | `run_analysis` | `true` | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs. |
 | `run_svg_report` | `true` | Generates `security-report.svg` and `security-summary.json`. |
 | `fail_on_skipped_tests` | `true` | Adds `--fail-on-skipped` to workflow Pest execution. Set to `false` only when skipped tests are acceptable in CI. |
