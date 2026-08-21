@@ -172,6 +172,7 @@ it('maps every catalog probe to protocol-level readiness logic', function (): vo
 
     expect($script)->toContain('phpforge_replication_probe')
         ->toContain('replication_token=')
+        ->toContain('wait_for mssql-availability-group')
         ->toContain('extension_loaded($argv[1])')
         ->toContain('Last ${name} probe error:')
         ->toContain('$error->getMessage()')
@@ -185,6 +186,12 @@ it('maps every catalog probe to protocol-level readiness logic', function (): vo
         ->toContain('wait_for_nodes=2')
         ->toContain('/gossiper/endpoint/live/')
         ->toContain('/v1/info');
+
+    $availabilityGroupReady = strpos($script, 'wait_for mssql-availability-group');
+    $availabilityGroupWrite = strpos($script, '$primary = new PDO((string) getenv("IC_MSSQL_PRIMARY_DSN")');
+
+    expect($availabilityGroupReady)->toBeInt()
+        ->and($availabilityGroupWrite)->toBeInt()->toBeGreaterThan($availabilityGroupReady);
 });
 
 it('uses the versioned runtime manifest as the service image source of truth', function (): void {
