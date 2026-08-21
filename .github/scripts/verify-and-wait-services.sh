@@ -136,6 +136,7 @@ while IFS= read -r service; do
       ;;
     mssql:availability-group)
       replication_token="$(php -r 'echo bin2hex(random_bytes(8));')"
+      wait_for mssql-availability-group '$replica = new PDO((string) getenv("IC_MSSQL_REPLICA_DSN"), (string) getenv("IC_MSSQL_USER"), (string) getenv("IC_MSSQL_PASSWORD")); exit($replica->query("SELECT 1") === false ? 1 : 0);'
       php -r '$primary = new PDO((string) getenv("IC_MSSQL_PRIMARY_DSN"), (string) getenv("IC_MSSQL_USER"), (string) getenv("IC_MSSQL_PASSWORD")); $check = $primary->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"); $check->execute(["dbo", "phpforge_replication_probe"]); if ((int) $check->fetchColumn() === 0) { $primary->exec("CREATE TABLE dbo.phpforge_replication_probe (token VARCHAR(64) PRIMARY KEY)"); } $statement = $primary->prepare("INSERT INTO dbo.phpforge_replication_probe (token) VALUES (?)"); $statement->execute([$argv[1]]);' "$replication_token"
       wait_for mssql-replication '$replica = new PDO((string) getenv("IC_MSSQL_REPLICA_DSN"), (string) getenv("IC_MSSQL_USER"), (string) getenv("IC_MSSQL_PASSWORD")); $query = $replica->prepare("SELECT token FROM dbo.phpforge_replication_probe WHERE token = ?"); $query->execute([$argv[1]]); exit($query->fetchColumn() === $argv[1] ? 0 : 1);' "$replication_token"
       ;;
