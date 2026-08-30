@@ -45,6 +45,7 @@ deptrac:
             - rector/rector
             - squizlabs/php_codesniffer
             - symfony/console
+            - symfony/polyfill-php85
             - symfony/process
             - symfony/string
             - tomasvotruba/cognitive-complexity

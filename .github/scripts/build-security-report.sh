@@ -47,9 +47,9 @@ job_conclusion() {
 while IFS= read -r php_version; do
   [ -z "$php_version" ] && continue
 
-  code_analysis_prefer_lowest="$(job_conclusion "Code Analysis - PHP ${php_version} - prefer-lowest")"
-  code_analysis_prefer_stable="$(job_conclusion "Code Analysis - PHP ${php_version} - prefer-stable")"
-  security_analysis="$(job_conclusion "Security Analysis - PHP ${php_version}")"
+  code_analysis_prefer_lowest="$(job_conclusion "QA - PHP ${php_version} - prefer-lowest")"
+  code_analysis_prefer_stable="$(job_conclusion "QA - PHP ${php_version} - prefer-stable")"
+  security_analysis="$(job_conclusion "Analysis - PHP ${php_version}")"
 
   if [ "$analyze_result" = "skipped" ] && [ "$security_analysis" = "missing" ]; then
     security_analysis="skipped"
@@ -76,7 +76,7 @@ check_results_json="$(jq -c '
       dependency_mode: "prefer-lowest",
       php_version: $row.php_version,
       status: $row.code_analysis_prefer_lowest,
-      source_job: ("Code Analysis - PHP " + $row.php_version + " - prefer-lowest"),
+      source_job: ("QA - PHP " + $row.php_version + " - prefer-lowest"),
       generated_by: "run"
     },
     {
@@ -84,7 +84,7 @@ check_results_json="$(jq -c '
       dependency_mode: "prefer-stable",
       php_version: $row.php_version,
       status: $row.code_analysis_prefer_stable,
-      source_job: ("Code Analysis - PHP " + $row.php_version + " - prefer-stable"),
+      source_job: ("QA - PHP " + $row.php_version + " - prefer-stable"),
       generated_by: "run"
     },
     {
@@ -92,7 +92,7 @@ check_results_json="$(jq -c '
       dependency_mode: null,
       php_version: $row.php_version,
       status: $row.security_analysis,
-      source_job: ("Security Analysis - PHP " + $row.php_version),
+      source_job: ("Analysis - PHP " + $row.php_version),
       generated_by: "analyze"
     }
   ]
@@ -284,7 +284,7 @@ done < <(jq -r '
           [
             $job.steps[]?
             | .name // ""
-            | capture("^Benchmark context - PHP (?<v>[0-9]+(\\.[0-9]+)*)$")?
+            | capture("^Setup benchmark - PHP (?<v>[0-9]+(\\.[0-9]+)*)$")?
             | .v
           ]
           | .[0]
