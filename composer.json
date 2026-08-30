@@ -38,6 +38,7 @@
         "rector/rector": "^2.6.4",
         "squizlabs/php_codesniffer": "^4.0.4",
         "symfony/console": "^8.1.5",
+        "symfony/polyfill-php85": "^1.33",
         "symfony/process": "^8.1.5",
         "tomasvotruba/cognitive-complexity": "^1.2.0"
     },
