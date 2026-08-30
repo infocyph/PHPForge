@@ -30,20 +30,20 @@
         "ergebnis/composer-normalize": "^2.52",
         "infocyph/phpprobe": "^0.9.0",
         "laravel/pint": "^1.30.5",
-        "pestphp/pest": "^5.1.1",
+        "pestphp/pest": "^5.1.3",
         "pestphp/pest-plugin-drift": "^5.0",
         "phpbench/phpbench": "^1.7",
-        "phpstan/phpstan": "^2.2.8",
+        "phpstan/phpstan": "^2.2.9",
         "psalm/phar": "^6.16.1",
-        "rector/rector": "^2.6.3",
+        "rector/rector": "^2.6.4",
         "squizlabs/php_codesniffer": "^4.0.4",
-        "symfony/console": "^8.1.4",
-        "symfony/process": "^8.1",
+        "symfony/console": "^8.1.5",
+        "symfony/process": "^8.1.5",
         "tomasvotruba/cognitive-complexity": "^1.2.0"
     },
     "require-dev": {
-        "composer/composer": "^2.10.2",
-        "symfony/yaml": "^8.1.2"
+        "composer/composer": "^2.10.3",
+        "symfony/yaml": "^8.1.5"
     },
     "prefer-stable": true,
     "autoload": {

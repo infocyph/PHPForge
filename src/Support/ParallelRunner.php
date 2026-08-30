@@ -44,10 +44,7 @@ final readonly class ParallelRunner
     public static function timeoutFrom(mixed $value): int
     {
         $candidate = $value;
-
-        if ($candidate === null) {
-            $candidate = getenv('IC_TEST_TASK_TIMEOUT');
-        }
+        $candidate ??= getenv('IC_TEST_TASK_TIMEOUT');
 
         if (is_string($candidate) && $candidate !== '' && filter_var($candidate, FILTER_VALIDATE_INT) !== false) {
             return self::boundedTimeout((int) $candidate);
