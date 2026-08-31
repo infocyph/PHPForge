@@ -369,7 +369,7 @@ jobs:
           PHPSTAN_MEMORY_LIMIT: ${{ inputs.phpstan_memory_limit }}
         run: |
           set +e
-          composer ic:release:audit
+          composer ic:release:audit > audit-results.log 2>&1
           audit_status=$?
           vendor_dir="$(composer config vendor-dir)"
           package="$(composer config name --no-plugins --no-scripts 2>/dev/null || true)"
@@ -377,15 +377,27 @@ jobs:
           elif [ -f phpstan.neon.dist ]; then phpstan_config=phpstan.neon.dist
           elif [ "$package" = infocyph/phpforge ]; then phpstan_config=resources/phpstan.neon.dist
           else phpstan_config="$vendor_dir/infocyph/phpforge/resources/phpstan.neon.dist"; fi
-          php "$vendor_dir/bin/phpstan" analyse --configuration="$phpstan_config" --memory-limit="$PHPSTAN_MEMORY_LIMIT" --no-progress --error-format=json > phpstan-results.json
+          php "$vendor_dir/bin/phpstan" analyse --configuration="$phpstan_config" --memory-limit="$PHPSTAN_MEMORY_LIMIT" --no-progress --error-format=json > phpstan-results.json 2> phpstan-results.stderr
           phpstan_status=$?
-          composer ic:phpstan:sarif -- phpstan-results.json phpstan-results.sarif
+          : > phpstan-results.log
+          if jq -e . phpstan-results.json >/dev/null 2>&1; then
+            jq -r '
+              (.errors[]? | tostring),
+              ((.files // {}) | to_entries[] | .key as $file | .value.messages[]? |
+                "\($file):\(.line // 0): \(.message)" +
+                (if (.identifier // "") != "" then " [\(.identifier)]" else "" end))
+            ' phpstan-results.json >> phpstan-results.log 2>&1
+          elif [ -s phpstan-results.json ]; then
+            cat phpstan-results.json >> phpstan-results.log
+          fi
+          if [ -s phpstan-results.stderr ]; then cat phpstan-results.stderr >> phpstan-results.log; fi
+          composer ic:phpstan:sarif -- phpstan-results.json phpstan-results.sarif > phpstan-sarif.log 2>&1
           sarif_status=$?
           if [ -f psalm.xml ]; then psalm_config=psalm.xml
           elif [ -f psalm.xml.dist ]; then psalm_config=psalm.xml.dist
           elif [ "$package" = infocyph/phpforge ]; then psalm_config=resources/psalm.xml
           else psalm_config="$vendor_dir/infocyph/phpforge/resources/psalm.xml"; fi
-          php "$vendor_dir/bin/psalm.phar" --config="$psalm_config" --security-analysis --threads=1 --no-progress --no-cache --report=psalm-results.sarif
+          php "$vendor_dir/bin/psalm.phar" --config="$psalm_config" --security-analysis --threads=1 --no-progress --no-cache --report=psalm-results.sarif > psalm-results.log 2>&1
           psalm_status=$?
           set -e
           printf 'audit_status=%d\nphpstan_status=%d\nsarif_status=%d\npsalm_status=%d\n' "$audit_status" "$phpstan_status" "$sarif_status" "$psalm_status" >> "$GITHUB_OUTPUT"
@@ -405,11 +417,17 @@ jobs:
         if: always()
         shell: bash
         run: |
+          show_failure() {
+            local label="$1"
+            local log_file="$2"
+            printf '\n%s\n' "${label} failure details"
+            if [ -s "$log_file" ]; then cat "$log_file"; else echo "No diagnostic output was produced."; fi
+          }
           failures=()
-          [ "${{ steps.analyzers.outputs.audit_status }}" = 0 ] || failures+=(audit)
-          [ "${{ steps.analyzers.outputs.phpstan_status }}" = 0 ] || failures+=(phpstan)
-          [ "${{ steps.analyzers.outputs.sarif_status }}" = 0 ] || failures+=(phpstan-sarif)
-          [ "${{ steps.analyzers.outputs.psalm_status }}" = 0 ] || failures+=(psalm)
+          if [ "${{ steps.analyzers.outputs.audit_status }}" != 0 ]; then show_failure "Composer audit" audit-results.log; failures+=(audit); fi
+          if [ "${{ steps.analyzers.outputs.phpstan_status }}" != 0 ]; then show_failure "PHPStan" phpstan-results.log; failures+=(phpstan); fi
+          if [ "${{ steps.analyzers.outputs.sarif_status }}" != 0 ]; then show_failure "PHPStan SARIF conversion" phpstan-sarif.log; failures+=(phpstan-sarif); fi
+          if [ "${{ steps.analyzers.outputs.psalm_status }}" != 0 ]; then show_failure "Psalm" psalm-results.log; failures+=(psalm); fi
           if [ "${#failures[@]}" -gt 0 ]; then echo "::error::Analysis failed: ${failures[*]}"; exit 1; fi
 
   benchmark:

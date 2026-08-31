@@ -168,7 +168,7 @@ it('passes CI flags as options to the registered Composer command', function ():
         ->not->toContain('composer ic:ci -- "${args[@]}"');
 });
 
-it('installs dependencies before one analyzer execution produces gates and sarif', function (): void {
+it('installs dependencies before one analyzer execution produces gates, sarif, and failure diagnostics', function (): void {
     $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
     $steps = $workflow['jobs']['analyze']['steps'] ?? [];
     $stepsByName = array_column($steps, null, 'name');
@@ -177,6 +177,7 @@ it('installs dependencies before one analyzer execution produces gates and sarif
     $installIndex = array_search('Install dependencies', $stepNames, true);
     $analyzerIndex = array_search('Run audit and analyzers once', $stepNames, true);
     $analyzerScript = $stepsByName['Run audit and analyzers once']['run'] ?? '';
+    $enforcementScript = $stepsByName['Enforce analyzer results']['run'] ?? '';
 
     expect($installIndex)->toBeInt()
         ->and($analyzerIndex)->toBeInt()->toBeGreaterThan($installIndex)
@@ -186,7 +187,16 @@ it('installs dependencies before one analyzer execution produces gates and sarif
         ->toBe(1)
         ->and($analyzerScript)->toContain('--threads=1')
         ->and($analyzerScript)->toContain('phpstan-results.sarif')
-        ->and($analyzerScript)->toContain('psalm-results.sarif');
+        ->and($analyzerScript)->toContain('psalm-results.sarif')
+        ->and($analyzerScript)->toContain('audit-results.log')
+        ->and($analyzerScript)->toContain('phpstan-results.log')
+        ->and($analyzerScript)->toContain('phpstan-sarif.log')
+        ->and($analyzerScript)->toContain('psalm-results.log')
+        ->and($enforcementScript)->toContain('if [ -s "$log_file" ]; then cat "$log_file"')
+        ->and($enforcementScript)->toContain('show_failure "Composer audit" audit-results.log')
+        ->and($enforcementScript)->toContain('show_failure "PHPStan" phpstan-results.log')
+        ->and($enforcementScript)->toContain('show_failure "PHPStan SARIF conversion" phpstan-sarif.log')
+        ->and($enforcementScript)->toContain('show_failure "Psalm" psalm-results.log');
 });
 
 it('resolves benchmark config from the project root or the correct PHPForge package location', function (): void {
