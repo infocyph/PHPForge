@@ -417,17 +417,67 @@ jobs:
         if: always()
         shell: bash
         run: |
-          show_failure() {
-            local label="$1"
-            local log_file="$2"
-            printf '\n%s\n' "${label} failure details"
-            if [ -s "$log_file" ]; then cat "$log_file"; else echo "No diagnostic output was produced."; fi
+          audit_status="${{ steps.analyzers.outputs.audit_status }}"
+          phpstan_status="${{ steps.analyzers.outputs.phpstan_status }}"
+          sarif_status="${{ steps.analyzers.outputs.sarif_status }}"
+          psalm_status="${{ steps.analyzers.outputs.psalm_status }}"
+
+          result_for() {
+            if [ "$1" = 0 ]; then printf 'PASS'; else printf 'FAIL'; fi
           }
+          show_log() {
+            local heading="$1"
+            local log_file="$2"
+            local command_marker="phpforge-${GITHUB_RUN_ID:-local}-${RANDOM}-${RANDOM}"
+            printf '\n%s\n' "$heading"
+            printf '%*s\n' "${#heading}" '' | tr ' ' '-'
+            if [ -s "$log_file" ]; then
+              echo "::stop-commands::$command_marker"
+              cat "$log_file"
+              echo "::$command_marker::"
+            else
+              echo "No diagnostic output was produced."
+            fi
+          }
+
+          audit_result="$(result_for "$audit_status")"
+          phpstan_result=PASS
+          if [ "$phpstan_status" != 0 ] || [ "$sarif_status" != 0 ]; then phpstan_result=FAIL; fi
+          psalm_result="$(result_for "$psalm_status")"
+
+          printf 'Analysis Summary\n%-20s %s\n%-20s %s\n%-20s %s\n%-20s %s\n%-20s %s\n' \
+            'Tool' 'Result' \
+            '--------------------' '------' \
+            'Composer audit' "$audit_result" \
+            'PHPStan' "$phpstan_result" \
+            'Psalm' "$psalm_result"
+          {
+            printf '### Analysis summary\n\n'
+            printf '| Tool | Result |\n| --- | --- |\n'
+            printf '| Composer audit | %s |\n' "$audit_result"
+            printf '| PHPStan | %s |\n' "$phpstan_result"
+            printf '| Psalm | %s |\n' "$psalm_result"
+          } >> "$GITHUB_STEP_SUMMARY"
+
           failures=()
-          if [ "${{ steps.analyzers.outputs.audit_status }}" != 0 ]; then show_failure "Composer audit" audit-results.log; failures+=(audit); fi
-          if [ "${{ steps.analyzers.outputs.phpstan_status }}" != 0 ]; then show_failure "PHPStan" phpstan-results.log; failures+=(phpstan); fi
-          if [ "${{ steps.analyzers.outputs.sarif_status }}" != 0 ]; then show_failure "PHPStan SARIF conversion" phpstan-sarif.log; failures+=(phpstan-sarif); fi
-          if [ "${{ steps.analyzers.outputs.psalm_status }}" != 0 ]; then show_failure "Psalm" psalm-results.log; failures+=(psalm); fi
+          if [ "$audit_status" != 0 ]; then
+            echo '::group::FAIL Composer audit'
+            show_log 'Composer audit diagnostics' audit-results.log
+            echo '::endgroup::'
+            failures+=(audit)
+          fi
+          if [ "$phpstan_result" = FAIL ]; then
+            echo '::group::FAIL PHPStan'
+            if [ "$phpstan_status" != 0 ]; then show_log 'Analysis diagnostics' phpstan-results.log; failures+=(phpstan); fi
+            if [ "$sarif_status" != 0 ]; then show_log 'SARIF conversion diagnostics' phpstan-sarif.log; failures+=(phpstan-sarif); fi
+            echo '::endgroup::'
+          fi
+          if [ "$psalm_status" != 0 ]; then
+            echo '::group::FAIL Psalm'
+            show_log 'Analysis diagnostics' psalm-results.log
+            echo '::endgroup::'
+            failures+=(psalm)
+          fi
           if [ "${#failures[@]}" -gt 0 ]; then echo "::error::Analysis failed: ${failures[*]}"; exit 1; fi
 
   benchmark:

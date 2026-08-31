@@ -192,11 +192,62 @@ it('installs dependencies before one analyzer execution produces gates, sarif, a
         ->and($analyzerScript)->toContain('phpstan-results.log')
         ->and($analyzerScript)->toContain('phpstan-sarif.log')
         ->and($analyzerScript)->toContain('psalm-results.log')
-        ->and($enforcementScript)->toContain('if [ -s "$log_file" ]; then cat "$log_file"')
-        ->and($enforcementScript)->toContain('show_failure "Composer audit" audit-results.log')
-        ->and($enforcementScript)->toContain('show_failure "PHPStan" phpstan-results.log')
-        ->and($enforcementScript)->toContain('show_failure "PHPStan SARIF conversion" phpstan-sarif.log')
-        ->and($enforcementScript)->toContain('show_failure "Psalm" psalm-results.log');
+        ->and($enforcementScript)->toContain('echo "::stop-commands::$command_marker"')
+        ->and($enforcementScript)->toContain("printf '| Tool | Result |\\n| --- | --- |\\n'")
+        ->and($enforcementScript)->toContain('>> "$GITHUB_STEP_SUMMARY"')
+        ->and($enforcementScript)->toContain("echo '::group::FAIL Composer audit'")
+        ->and($enforcementScript)->toContain("echo '::group::FAIL PHPStan'")
+        ->and($enforcementScript)->toContain("show_log 'Analysis diagnostics' phpstan-results.log")
+        ->and($enforcementScript)->toContain("show_log 'SARIF conversion diagnostics' phpstan-sarif.log")
+        ->and($enforcementScript)->toContain("echo '::group::FAIL Psalm'")
+        ->and($enforcementScript)->toContain("show_log 'Analysis diagnostics' psalm-results.log");
+});
+
+it('groups analyzer failures by tool and renders status tables', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $steps = $workflow['jobs']['analyze']['steps'] ?? [];
+    $stepsByName = array_column($steps, null, 'name');
+    $script = $stepsByName['Enforce analyzer results']['run'] ?? '';
+    $directory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-analysis-output-'.bin2hex(random_bytes(6));
+    $summaryPath = $directory.DIRECTORY_SEPARATOR.'summary.md';
+
+    mkdir($directory, 0755, true);
+    file_put_contents($directory.DIRECTORY_SEPARATOR.'phpstan-results.log', 'src/Example.php:12: PHPStan failure');
+    file_put_contents($directory.DIRECTORY_SEPARATOR.'psalm-results.log', 'src/Example.php:18: Psalm failure');
+
+    try {
+        $script = strtr($script, [
+            '${{ steps.analyzers.outputs.audit_status }}' => '0',
+            '${{ steps.analyzers.outputs.phpstan_status }}' => '1',
+            '${{ steps.analyzers.outputs.sarif_status }}' => '0',
+            '${{ steps.analyzers.outputs.psalm_status }}' => '1',
+        ]);
+        $process = new Process(['bash', '-c', $script], $directory, ['GITHUB_STEP_SUMMARY' => $summaryPath]);
+        $process->run();
+        $output = $process->getOutput();
+        $summary = file_get_contents($summaryPath);
+
+        expect($process->getExitCode())->toBe(1)
+            ->and($output)->toContain('Analysis Summary')
+            ->and($output)->toContain('Composer audit       PASS')
+            ->and($output)->toContain('PHPStan              FAIL')
+            ->and($output)->toContain('Psalm                FAIL')
+            ->and($output)->toContain('::group::FAIL PHPStan')
+            ->and($output)->toContain('src/Example.php:12: PHPStan failure')
+            ->and($output)->toContain('::group::FAIL Psalm')
+            ->and($output)->toContain('src/Example.php:18: Psalm failure')
+            ->and($output)->not->toContain('::group::FAIL Composer audit')
+            ->and($summary)->toContain('| Composer audit | PASS |')
+            ->and($summary)->toContain('| PHPStan | FAIL |')
+            ->and($summary)->toContain('| Psalm | FAIL |');
+    } finally {
+        foreach (glob($directory.DIRECTORY_SEPARATOR.'*') ?: [] as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+        rmdir($directory);
+    }
 });
 
 it('resolves benchmark config from the project root or the correct PHPForge package location', function (): void {
