@@ -70,6 +70,7 @@ if (!class_exists(Cli::class)) {
     require __DIR__ . '/../src/Support/QualitySummary.php';
     require __DIR__ . '/../src/Support/TaskDisplay.php';
     require __DIR__ . '/../src/Support/TaskSkipPolicy.php';
+    require __DIR__ . '/../src/Support/PhpProbeFailureFormatter.php';
     require __DIR__ . '/../src/Support/ParallelRunner.php';
     require __DIR__ . '/../src/Support/Runner.php';
     require __DIR__ . '/../src/Support/ServiceCatalog.php';

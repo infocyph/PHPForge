@@ -152,7 +152,7 @@ final class TaskCatalog
      */
     public static function probeCheckCi(): array
     {
-        return self::probeCheck();
+        return [self::probeCommand('check', ['--format=json'])];
     }
 
     /**
@@ -463,7 +463,7 @@ final class TaskCatalog
             ...($ciComments ? self::probeCheckCi() : self::probeCheck()),
             ...self::pestTasks(),
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
-            [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=summary', '.'],
+            [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=full', '.'],
             ...self::architecture(),
             ...self::staticAnalysis(),
             [Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--show-info=false', '--security-analysis', '--threads=1', '--no-progress', '--no-cache'],

@@ -147,6 +147,7 @@ final readonly class ParallelRunner
         }
 
         if ($status === 'FAIL') {
+            $stdout = PhpProbeFailureFormatter::format($entry['task'], $stdout) ?? $stdout;
             $this->output->writeln(sprintf('<info>%s</info>', $entry['heading']));
             $this->writeBuffered($stdout, false);
             $this->writeBuffered($stderr, true);
