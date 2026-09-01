@@ -135,8 +135,21 @@ it('keeps aggregate PHPProbe CI checks aligned with the configured thresholds', 
     expect($command)->toContain('check')
         ->and($command)->toContain('--config')
         ->and($command)->toContain(Paths::packageFile('resources/phpprobe.json'))
+        ->and($command)->toContain('--format=json')
         ->and($command)->not->toContain('--preset=ci')
-        ->and(TaskCatalog::probeCheckCi())->toBe(TaskCatalog::probeCheck());
+        ->and(TaskCatalog::probeCheck()[0])->not->toContain('--format=json');
+});
+
+it('uses detailed failure reports for tools whose compact modes hide findings', function (): void {
+    $suite = TaskCatalog::testAllCi();
+    $phpcs = array_values(array_filter(
+        $suite,
+        static fn(array $command): bool => basename(str_replace('\\', '/', $command[1] ?? '')) === 'phpcs',
+    ));
+
+    expect($phpcs)->toHaveCount(1)
+        ->and($phpcs[0])->toContain('--report=full')
+        ->and($phpcs[0])->not->toContain('--report=summary');
 });
 
 it('runs Psalm through the dependency-isolated PHAR binary', function (): void {

@@ -95,11 +95,11 @@ it('keeps successful task output concise', function (): void {
         ->not->toContain('(0.');
 });
 
-it('renders successful tasks only in the summary and failed tasks with details', function (): void {
+it('renders successful tasks only in the summary and every failed task with complete output', function (): void {
     $output = new BufferedOutput();
     $tasks = [
         [PHP_BINARY, '-r', 'fwrite(STDOUT, "hidden-success-detail");'],
-        [PHP_BINARY, '-r', 'fwrite(STDERR, "visible-failure-detail\\n"); exit(4);'],
+        [PHP_BINARY, '-r', 'fwrite(STDOUT, "visible-failure-stdout\\n"); fwrite(STDERR, "visible-failure-stderr\\n"); exit(4);'],
     ];
 
     $exitCode = (new ParallelRunner($output))->run([], $tasks, 2);
@@ -107,9 +107,103 @@ it('renders successful tasks only in the summary and failed tasks with details',
 
     expect($exitCode)->toBe(4)
         ->and($rendered)->not->toContain('hidden-success-detail')
-        ->toContain('visible-failure-detail')
+        ->toContain('visible-failure-stdout')
+        ->toContain('visible-failure-stderr')
         ->and(substr_count($rendered, 'PASS '))->toBe(1)
         ->and(substr_count($rendered, 'FAIL '))->toBe(2);
+});
+
+it('renders aggregate PHPProbe failures as checker-grouped details', function (): void {
+    $directory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-phpprobe-output-'.bin2hex(random_bytes(6));
+    $probe = $directory.DIRECTORY_SEPARATOR.'phpprobe';
+    mkdir($directory, 0755, true);
+    file_put_contents($probe, <<<'PHP'
+<?php
+
+$payload = [
+    'summary' => [
+        'checker' => 'check',
+        'exit_code' => 1,
+        'checks' => ['syntax' => 1, 'duplicates' => 1, 'comments' => 1],
+        'skipped' => [],
+    ],
+    'results' => [
+        'syntax' => [
+            'exit_code' => 1,
+            'stderr' => '',
+            'payload' => [
+                'files_checked' => 2,
+                'failures' => [[
+                    'file' => 'src/Broken.php',
+                    'message' => 'Parse error: unexpected token',
+                ]],
+            ],
+        ],
+        'duplicates' => [
+            'exit_code' => 1,
+            'stderr' => '',
+            'payload' => [
+                'files' => 2,
+                'duplicated_lines' => 12,
+                'duplicate_percentage' => 8.5,
+                'clones' => [[
+                    'lines' => 12,
+                    'similarity' => 0.95,
+                    'source' => 'statements',
+                    'score' => 140.2,
+                    'occurrences' => [
+                        ['file' => 'src/One.php', 'start_line' => 10, 'end_line' => 21],
+                        ['file' => 'src/Two.php', 'start_line' => 30, 'end_line' => 41],
+                    ],
+                ]],
+            ],
+        ],
+        'comments' => [
+            'exit_code' => 1,
+            'stderr' => '',
+            'payload' => [
+                'files' => 2,
+                'findings' => [[
+                    'file' => 'src/Three.php',
+                    'line' => 44,
+                    'severity' => 'error',
+                    'subtype' => 'commented_out_code_without_reason',
+                    'message' => 'Commented-out code requires a reason.',
+                    'suggestion' => 'Add a tagged reason.',
+                ]],
+            ],
+        ],
+    ],
+];
+
+echo json_encode($payload, JSON_THROW_ON_ERROR);
+exit(1);
+PHP);
+
+    try {
+        $output = new BufferedOutput();
+        $exitCode = (new ParallelRunner($output))->run([], [[PHP_BINARY, $probe, 'check', '--format=json']], 1);
+        $rendered = $output->fetch();
+
+        expect($exitCode)->toBe(1)
+            ->and($rendered)->toContain('PHPProbe check summary:')
+            ->toContain('syntax         FAIL')
+            ->toContain('duplicates     FAIL')
+            ->toContain('comments       FAIL')
+            ->toContain('FAIL Syntax')
+            ->toContain('src/Broken.php')
+            ->toContain('Parse error: unexpected token')
+            ->toContain('FAIL Duplicate Code')
+            ->toContain('src/One.php:10-21')
+            ->toContain('src/Two.php:30-41')
+            ->toContain('FAIL Comment Policy')
+            ->toContain('ERROR src/Three.php:44 [commented_out_code_without_reason]')
+            ->toContain('Commented-out code requires a reason.')
+            ->not->toContain('"results"');
+    } finally {
+        unlink($probe);
+        rmdir($directory);
+    }
 });
 
 it('defaults parallel subprocesses to XDEBUG_MODE off when unset', function (): void {
