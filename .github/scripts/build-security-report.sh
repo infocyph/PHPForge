@@ -8,7 +8,6 @@ analyze_result="${ANALYZE_RESULT:-missing}"
 benchmark_job_result="${BENCHMARK_JOB_RESULT:-missing}"
 generated_at="$(date -u +"%Y-%m-%d %H:%M UTC")"
 jobs_api_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100"
-short_sha="${GITHUB_SHA::7}"
 
 overall_state="failing"
 
@@ -459,402 +458,126 @@ printf '%s\n' \
     tools: $tools
   }' > .phpforge-report/out/security-summary.json
 
-status_label() {
+display_status() {
   case "$1" in
-    passing) echo "PASSING" ;;
-    failing) echo "FAILING" ;;
-    partial) echo "PARTIAL" ;;
-    success) echo "PASS" ;;
-    failure) echo "FAIL" ;;
-    cancelled) echo "CANCELLED" ;;
-    skipped) echo "SKIPPED" ;;
-    *) echo "${1^^}" ;;
+    passing|success) printf 'PASS' ;;
+    failing|failure) printf 'FAIL' ;;
+    partial) printf 'PARTIAL' ;;
+    cancelled) printf 'CANCELLED' ;;
+    timed_out) printf 'TIMED OUT' ;;
+    action_required) printf 'ACTION REQUIRED' ;;
+    skipped) printf 'SKIPPED' ;;
+    missing) printf 'MISSING' ;;
+    *) printf '%s' "$1" | tr '[:lower:]' '[:upper:]' ;;
   esac
 }
 
-status_class() {
-  case "$1" in
-    passing|success) echo "ok" ;;
-    failing|failure|cancelled|timed_out|action_required) echo "fail" ;;
-    partial|skipped|missing) echo "warn" ;;
-    info) echo "info" ;;
-    *) echo "warn" ;;
-  esac
-}
-
-status_fill() {
-  case "$1" in
-    passing|success) echo "#22c55e" ;;
-    failing|failure|cancelled|timed_out|action_required) echo "#f87171" ;;
-    skipped|partial) echo "#facc15" ;;
-    missing) echo "#fb923c" ;;
-    *) echo "#94a3b8" ;;
-  esac
-}
-
-xml_escape() {
-  sed \
-    -e 's/&/\&amp;/g' \
-    -e 's/</\&lt;/g' \
-    -e 's/>/\&gt;/g' \
-    -e 's/"/\&quot;/g' \
-    -e "s/'/\&apos;/g" <<< "$1"
-}
-
-combined_status() {
-  local first="$1"
-  local second="$2"
-
-  if [ "$first" = "success" ] && [ "$second" = "success" ]; then
-    echo "success"
-  elif [ "$first" = "failure" ] || [ "$second" = "failure" ]; then
-    echo "failure"
-  elif [ "$first" = "cancelled" ] || [ "$second" = "cancelled" ]; then
-    echo "cancelled"
-  elif [ "$first" = "missing" ] || [ "$second" = "missing" ]; then
-    echo "missing"
-  elif [ "$first" = "skipped" ] || [ "$second" = "skipped" ]; then
-    echo "skipped"
-  else
-    echo "partial"
-  fi
-}
-
-status_icon_svg() {
-  local status="$1"
-  local x="$2"
-  local y="$3"
-  local fill
-  local glyph
-
-  fill="$(status_fill "$status")"
-
-  if [ "$status" = "success" ]; then
-    printf '<circle cx="%s" cy="%s" r="8" fill="%s"/><path d="M%s %s l4 4 l8 -9" fill="none" stroke="#062214" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' \
-      "$x" "$y" "$fill" "$((x - 5))" "$((y - 1))"
-  else
-    case "$status" in
-      failure|cancelled|timed_out|action_required) glyph="!" ;;
-      skipped) glyph="-" ;;
-      *) glyph="?" ;;
-    esac
-
-    printf '<circle cx="%s" cy="%s" r="8" fill="%s"/><text x="%s" y="%s" text-anchor="middle" class="icon-glyph">%s</text>' \
-      "$x" "$y" "$fill" "$x" "$((y + 4))" "$glyph"
-  fi
-}
-
-matrix_cards_svg=""
-card_y=324
-
-append_matrix_line() {
-  local status="$1"
-  local label="$2"
-  local icon_x="$3"
-  local line_y="$4"
-  local escaped_label
-  local text_x
-  local text_y
-
-  escaped_label="$(xml_escape "$label")"
-  text_x=$((icon_x + 20))
-  text_y=$((line_y + 5))
-  matrix_cards_svg="${matrix_cards_svg}    $(status_icon_svg "$status" "$icon_x" "$line_y")"$'\n'
-  matrix_cards_svg="${matrix_cards_svg}    <text x=\"${text_x}\" y=\"${text_y}\" class=\"matrix-line small-text\">${escaped_label}</text>"$'\n'
-}
-
-while IFS=$'\t' read -r php_version lowest stable security; do
-  php_version="$(xml_escape "$php_version")"
-  ci_status="$(combined_status "$lowest" "$stable")"
-  php_title_y=$((card_y + 38))
-  status_line_y=$((card_y + 32))
-
-  matrix_cards_svg="${matrix_cards_svg}  <rect x=\"44\" y=\"${card_y}\" width=\"712\" height=\"62\" rx=\"12\" class=\"section-card\"/>"$'\n'
-  matrix_cards_svg="${matrix_cards_svg}  <text x=\"64\" y=\"${php_title_y}\" class=\"php-title small-text\">PHP <tspan class=\"accent\">${php_version}</tspan></text>"$'\n'
-
-  append_matrix_line "$ci_status" "CI" 178 "$status_line_y"
-  append_matrix_line "$security" "Security" 286 "$status_line_y"
-  append_matrix_line "$lowest" "Lowest" 430 "$status_line_y"
-  append_matrix_line "$stable" "Stable" 572 "$status_line_y"
-
-  card_y=$((card_y + 76))
-done < <(jq -r '.[] | [.php_version, .code_analysis_prefer_lowest, .code_analysis_prefer_stable, .security_analysis] | @tsv' <<< "$matrix_results_json")
-
-quality_title_y=$((card_y + 32))
-chip_y=$((quality_title_y + 20))
-chip_x=44
-quality_chips_svg=""
-
-append_chip() {
-  local label="$1"
-  local status="$2"
-  local width
-  local fill
-  local escaped_label
-  local dot_x
-  local dot_y
-  local text_x
-  local text_y
-
-  width=$(((${#label} * 8) + 62))
-
-  if [ $((chip_x + width)) -gt 756 ]; then
-    chip_x=44
-    chip_y=$((chip_y + 44))
-  fi
-
-  fill="$(status_fill "$status")"
-  escaped_label="$(xml_escape "$label")"
-  dot_x=$((chip_x + 22))
-  dot_y=$((chip_y + 15))
-  text_x=$((chip_x + 42))
-  text_y=$((chip_y + 20))
-  quality_chips_svg="${quality_chips_svg}  <rect x=\"${chip_x}\" y=\"${chip_y}\" width=\"${width}\" height=\"30\" rx=\"15\" class=\"chip\"/>"$'\n'
-  quality_chips_svg="${quality_chips_svg}  <circle cx=\"${dot_x}\" cy=\"${dot_y}\" r=\"8\" fill=\"${fill}\"/>"$'\n'
-  quality_chips_svg="${quality_chips_svg}  <text x=\"${text_x}\" y=\"${text_y}\" class=\"chip-text small-text\">${escaped_label}</text>"$'\n'
-  chip_x=$((chip_x + width + 14))
-}
-
-append_chip "Code Lowest" "$code_lowest_rollup"
-append_chip "Code Stable" "$code_stable_rollup"
-append_chip "Security" "$security_rollup"
-append_chip "Benchmark" "$benchmark_rollup"
-
-truncate_text() {
-  local text="$1"
-  local limit="${2:-52}"
-
-  if [ "${#text}" -le "$limit" ]; then
-    echo "$text"
-  else
-    echo "${text:0:$((limit - 3))}..."
-  fi
-}
-
-benchmark_title_y=$((chip_y + 54))
-benchmark_card_y=$((benchmark_title_y + 16))
-benchmark_chart_svg=""
-benchmark_row_count=0
-benchmark_display_rows="$(jq -r '
-  def as_num:
-    if type == "number" then .
-    elif type == "string" and test("^-?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$") then tonumber
-    else null
-    end;
-  def fmt_mode:
-    (as_num) as $n
-    | if $n != null then (((($n * 1000) | round) / 1000) | tostring) + " us"
-      elif . == null then "n/a"
-      else tostring
-      end;
-  def fmt_rsd:
-    (as_num) as $n
-    | if $n != null then "+/- " + (((($n * 100) | round) / 100) | tostring) + "%"
-      elif type == "string" and test("%$") then .
-      elif . == null then "n/a"
-      else tostring
-      end;
-  (if type == "array" then flatten else [] end)
-  | map(select(type == "object"))
-  | map(select(.subject? != null and .mode? != null))
-  | sort_by((.php_version? // "0") | split(".") | map(tonumber), (.benchmark? // ""), (.subject? // ""))
-  | group_by(.php_version? // "unknown")
-  | .[]
-  | "GROUP\t\(. [0].php_version? // "unknown")\t\(. [0].status? // "missing")",
-    (.[] | "ROW\t\(((.benchmark? // "benchmark") + "::" + (.subject? // "unknown")))\t\(.mode | fmt_mode)\t\(.rstdev | fmt_rsd)\t\(.status? // "missing")")
-' <<< "$benchmark_results_json")"
-
-if [ -z "$benchmark_display_rows" ]; then
-  benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${benchmark_card_y}\" width=\"712\" height=\"54\" rx=\"12\" class=\"section-card\"/>"$'\n'
-  benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"$((benchmark_card_y + 34))\" class=\"matrix-line small-text\">No benchmark rows detected.</text>"$'\n'
-  benchmark_row_count=1
-  benchmark_cursor_y=$((benchmark_card_y + 58))
-else
-  benchmark_cursor_y="$benchmark_card_y"
-
-  while IFS=$'\t' read -r row_type col1 col2 col3 col4; do
-    [ -z "$row_type" ] && continue
-
-    if [ "$row_type" = "GROUP" ]; then
-      bench_php="$col1"
-      bench_status="$col2"
-      benchmark_row_count=$((benchmark_row_count + 1))
-
-      benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${benchmark_cursor_y}\" width=\"712\" height=\"30\" rx=\"10\" class=\"section-card\"/>"$'\n'
-      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"$((benchmark_cursor_y + 20))\" class=\"php-title small-text\">PHP <tspan class=\"accent\">$(xml_escape "$bench_php")</tspan></text>"$'\n'
-      benchmark_chart_svg="${benchmark_chart_svg}  <circle cx=\"736\" cy=\"$((benchmark_cursor_y + 15))\" r=\"7\" fill=\"$(status_fill "$bench_status")\"/>"$'\n'
-      benchmark_cursor_y=$((benchmark_cursor_y + 34))
-
-      benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${benchmark_cursor_y}\" width=\"712\" height=\"24\" rx=\"8\" class=\"section-card\"/>"$'\n'
-      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"64\" y=\"$((benchmark_cursor_y + 16))\" class=\"matrix-line small-text\">Subject</text>"$'\n'
-      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"612\" y=\"$((benchmark_cursor_y + 16))\" text-anchor=\"end\" class=\"matrix-line small-text\">Mode</text>"$'\n'
-      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"742\" y=\"$((benchmark_cursor_y + 16))\" text-anchor=\"end\" class=\"matrix-line small-text\">RSD</text>"$'\n'
-      benchmark_cursor_y=$((benchmark_cursor_y + 28))
-      continue
-    fi
-
-    if [ "$row_type" = "ROW" ]; then
-      bench_subject="$(truncate_text "$col1" 64)"
-      bench_mode="$col2"
-      bench_rstdev="$col3"
-      bench_status="$col4"
-      benchmark_row_count=$((benchmark_row_count + 1))
-
-      benchmark_chart_svg="${benchmark_chart_svg}  <rect x=\"44\" y=\"${benchmark_cursor_y}\" width=\"712\" height=\"28\" rx=\"9\" class=\"section-card\"/>"$'\n'
-      benchmark_chart_svg="${benchmark_chart_svg}  <circle cx=\"54\" cy=\"$((benchmark_cursor_y + 14))\" r=\"4\" fill=\"$(status_fill "$bench_status")\"/>"$'\n'
-      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"66\" y=\"$((benchmark_cursor_y + 18))\" class=\"matrix-line small-text\">$(xml_escape "$bench_subject")</text>"$'\n'
-      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"612\" y=\"$((benchmark_cursor_y + 18))\" text-anchor=\"end\" class=\"matrix-line small-text\">$(xml_escape "$bench_mode")</text>"$'\n'
-      benchmark_chart_svg="${benchmark_chart_svg}  <text x=\"742\" y=\"$((benchmark_cursor_y + 18))\" text-anchor=\"end\" class=\"matrix-line small-text\">$(xml_escape "$bench_rstdev")</text>"$'\n'
-      benchmark_cursor_y=$((benchmark_cursor_y + 32))
-    fi
-  done <<< "$benchmark_display_rows"
-fi
-
-benchmark_section_height=$((benchmark_cursor_y - benchmark_card_y + 18))
-footer_y=$((benchmark_card_y + benchmark_section_height + 18))
-tools_svg=""
-tool_line=""
-tool_line_y=$((footer_y + 34))
-
-while IFS=$'\t' read -r tool_name tool_version; do
-  tool_item="$(xml_escape "${tool_name} ${tool_version}")"
-
-  if [ -z "$tool_line" ]; then
-    tool_line="$tool_item"
-  elif [ $((${#tool_line} + ${#tool_item})) -gt 86 ]; then
-    tools_svg="${tools_svg}  <text x=\"92\" y=\"${tool_line_y}\" class=\"tools-value small-text\">${tool_line}</text>"$'\n'
-    tool_line="$tool_item"
-    tool_line_y=$((tool_line_y + 22))
-  else
-    tool_line="${tool_line} &#183; ${tool_item}"
-  fi
-done < <(jq -r '.[] | [.name, .version] | @tsv' <<< "$tools_json")
-
-if [ -n "$tool_line" ]; then
-  tools_svg="${tools_svg}  <text x=\"92\" y=\"${tool_line_y}\" class=\"tools-value small-text\">${tool_line}</text>"$'\n'
-fi
-
-total_height=$((tool_line_y + 40))
-panel_height=$((total_height - 26))
-tools_label_y=$((footer_y + 34))
-repository_label="$(xml_escape "Project: ${GITHUB_REPOSITORY}")"
-run_meta="$(xml_escape "Generated: ${generated_at} | Commit: ${short_sha} | Run: #${GITHUB_RUN_NUMBER} | Worker: ${GITHUB_RUN_ID}")"
-overall_status_label="$(status_label "$overall_state")"
-
-if [ "$overall_state" = "passing" ]; then
-  security_status="Security Status: Protected"
-elif [ "$overall_state" = "partial" ]; then
-  security_status="Security Status: Partially Protected"
-else
-  security_status="Security Status: Attention Required"
-fi
-
-cat > .phpforge-report/out/security-report.svg <<SVG
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 800 ${total_height}" preserveAspectRatio="xMidYMin meet" role="img" aria-label="Security and standards report summary">
-  <defs>
-    <radialGradient id="panelGlow" cx="48%" cy="24%" r="72%">
-      <stop offset="0%" stop-color="#17345a" stop-opacity="0.72"/>
-      <stop offset="52%" stop-color="#071827" stop-opacity="0.98"/>
-      <stop offset="100%" stop-color="#030b13" stop-opacity="1"/>
-    </radialGradient>
-    <linearGradient id="shieldGradient" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#22c55e"/>
-      <stop offset="100%" stop-color="#86efac"/>
-    </linearGradient>
-    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000814" flood-opacity="0.48"/>
-    </filter>
-  </defs>
-  <style>
-    :root { max-width: 800px; height: auto; background: transparent; }
-    .panel { fill: url(#panelGlow); fill-opacity: 0.86; stroke: #385274; stroke-width: 1.1; }
-    .divider { stroke: #475569; stroke-width: 1; opacity: 0.9; }
-    .text { paint-order: stroke fill; stroke: #020617; stroke-width: 3px; stroke-linejoin: round; }
-    .small-text { paint-order: stroke fill; stroke: #020617; stroke-width: 2px; stroke-linejoin: round; }
-    .title { font: 700 26px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #ffffff; }
-    .subtitle { font: 700 18px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #22c55e; }
-    .repo { font: 700 14px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #e2e8f0; }
-    .section-title { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; letter-spacing: 2px; fill: #dbeafe; }
-    .section-card { fill: #0f172a; fill-opacity: 0.72; stroke: #334862; stroke-width: 1; }
-    .tile-label { font: 700 18px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #ffffff; }
-    .tile-value { font: 800 34px "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
-    .php-title { font: 700 19px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #ffffff; }
-    .accent { fill: #4ade80; }
-    .matrix-line { font: 16px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #ffffff; }
-    .icon-glyph { font: 800 12px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #08111f; }
-    .chip { fill: #0f172a; fill-opacity: 0.72; stroke: #334862; stroke-width: 1; }
-    .chip-text { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #ffffff; }
-    .badge { fill: #166534; fill-opacity: 0.48; stroke: #22c55e; stroke-width: 1.2; }
-    .badge-text { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #ffffff; }
-    .tools-label { font: 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #dbeafe; }
-    .tools-value { font: 700 15px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #22c55e; }
-    .meta { font: 13px "Segoe UI", "Helvetica Neue", Arial, sans-serif; fill: #dbeafe; }
-    .ok { fill: #22c55e; }
-    .warn { fill: #facc15; }
-    .fail { fill: #f87171; }
-    .critical { fill: #f87171; }
-    .high { fill: #fb923c; }
-    .medium { fill: #facc15; }
-    .low { fill: #22c55e; }
-  </style>
-  <rect x="20" y="14" width="760" height="${panel_height}" rx="16" class="panel" filter="url(#softShadow)"/>
-
-  <path d="M64 48 L92 38 L120 48 L118 80 C115 104 98 118 92 121 C86 118 69 104 66 80 Z" fill="#22c55e" fill-opacity="0.16" stroke="url(#shieldGradient)" stroke-width="2.6"/>
-  <path d="M78 79 l11 11 l22 -25" fill="none" stroke="#86efac" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="140" y="70" class="title text">Security &amp; Standards Report</text>
-  <text x="140" y="101" class="subtitle text">${security_status}</text>
-  <text x="140" y="123" class="repo small-text">${repository_label}</text>
-  <text x="140" y="143" class="meta small-text">${run_meta}</text>
-  <rect x="620" y="46" width="126" height="34" rx="17" class="badge"/>
-  <circle cx="642" cy="63" r="8" fill="#22c55e"/>
-  <path d="M638 62 l3 3 l6 -7" fill="none" stroke="#062214" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="660" y="69" class="badge-text small-text">${overall_status_label}</text>
-  <line x1="44" y1="158" x2="756" y2="158" class="divider"/>
-
-  <text x="44" y="194" class="section-title small-text">VULNERABILITY SUMMARY</text>
-  <rect x="44" y="210" width="167" height="62" rx="10" class="section-card"/>
-  <text x="62" y="249" class="tile-label small-text">Critical</text>
-  <text x="184" y="254" text-anchor="end" class="tile-value critical">0</text>
-  <rect x="226" y="210" width="167" height="62" rx="10" class="section-card"/>
-  <text x="244" y="249" class="tile-label small-text">High</text>
-  <text x="366" y="254" text-anchor="end" class="tile-value high">0</text>
-  <rect x="408" y="210" width="167" height="62" rx="10" class="section-card"/>
-  <text x="426" y="249" class="tile-label small-text">Medium</text>
-  <text x="548" y="254" text-anchor="end" class="tile-value medium">0</text>
-  <rect x="590" y="210" width="167" height="62" rx="10" class="section-card"/>
-  <text x="608" y="249" class="tile-label small-text">Low</text>
-  <text x="730" y="254" text-anchor="end" class="tile-value low">0</text>
-
-  <text x="44" y="306" class="section-title small-text">PHP MATRIX</text>
-${matrix_cards_svg}
-  <text x="44" y="${quality_title_y}" class="section-title small-text">QUALITY GATES</text>
-${quality_chips_svg}
-  <text x="44" y="${benchmark_title_y}" class="section-title small-text">BENCHMARK RESULTS</text>
-${benchmark_chart_svg}
-  <line x1="44" y1="${footer_y}" x2="756" y2="${footer_y}" class="divider"/>
-  <text x="44" y="${tools_label_y}" class="tools-label small-text">Tools:</text>
-${tools_svg}
-</svg>
-SVG
-
-python3 - <<'PY'
-import xml.etree.ElementTree as ET
-
-ET.parse(".phpforge-report/out/security-report.svg")
-PY
+tested_versions="$(jq -r 'if length > 0 then join(", ") else "none" end' <<< "$php_versions_input")"
+benchmark_entry_count="$(jq '[.[] | select(.subject != null and .mode != null)] | length' <<< "$benchmark_results_json")"
+check_entry_count="$(jq 'length' <<< "$check_results_json")"
 
 {
-  tested_versions="$(jq -r 'if length > 0 then join(", ") else "none" end' <<< "$php_versions_input")"
-  tool_versions="$(jq -r 'map("\(.name) (\(.version))") | join(", ")' <<< "$tools_json")"
-  echo "### Security SVG Report"
+  echo "### Security Report Summary"
   echo ""
-  echo "- Overall: \`${overall_state}\`"
-  echo "- Run matrix: \`${run_result}\`"
-  echo "- Analysis job: \`${analyze_result}\`"
-  echo "- Tested PHP versions: \`${tested_versions}\`"
-  echo "- Benchmark job: \`${benchmark_job_result}\` (command: ${benchmark_command})"
-  echo "- Benchmark entries: \`$(jq 'length' <<< "$benchmark_results_json")\`"
-  echo "- Check entries: \`$(jq 'length' <<< "$check_results_json")\`"
-  echo "- Tools: ${tool_versions}"
-  echo "- Artifacts: \`security-report.svg\`, \`security-summary.json\`"
+  echo "| Area | Result |"
+  echo "| --- | --- |"
+  printf '| Overall | %s |\n' "$(display_status "$overall_state")"
+  printf '| QA matrix | %s |\n' "$(display_status "$run_result")"
+  printf '| Analysis | %s |\n' "$(display_status "$analyze_result")"
+  printf '| Benchmark | %s |\n' "$(display_status "$benchmark_rollup")"
+  echo ""
+  printf 'Tested PHP versions: %s  \n' "$tested_versions"
+  printf 'Checks: %s · Benchmark entries: %s · Command: %s\n' \
+    "$check_entry_count" "$benchmark_entry_count" "$benchmark_command"
+  echo ""
+  echo "#### PHP Matrix"
+  echo ""
+  echo "| PHP | Prefer lowest | Prefer stable | Analysis |"
+  echo "| --- | --- | --- | --- |"
+
+  while IFS=$'\t' read -r php_version lowest stable security; do
+    [ -z "$php_version" ] && continue
+    printf '| %s | %s | %s | %s |\n' \
+      "$php_version" \
+      "$(display_status "$lowest")" \
+      "$(display_status "$stable")" \
+      "$(display_status "$security")"
+  done < <(jq -r '.[] | [.php_version, .code_analysis_prefer_lowest, .code_analysis_prefer_stable, .security_analysis] | @tsv' <<< "$matrix_results_json")
+
+  echo ""
+  echo "#### Benchmark Results"
+  echo ""
+
+  if [ "$benchmark_entry_count" -eq 0 ]; then
+    echo "No benchmark rows were produced."
+  else
+    while IFS= read -r benchmark_php_version; do
+      [ -z "$benchmark_php_version" ] && continue
+
+      benchmark_version_count="$(jq -r --arg php_version "$benchmark_php_version" \
+        '[.[] | select(.php_version == $php_version and .subject != null and .mode != null)] | length' \
+        <<< "$benchmark_results_json")"
+      benchmark_version_status="$(jq -r --arg php_version "$benchmark_php_version" '
+        [.[] | select(.php_version == $php_version and .subject != null and .mode != null) | .status]
+        | unique
+        | if length == 1 then .[0] else join("/") end
+      ' <<< "$benchmark_results_json")"
+
+      echo "<details>"
+      printf '<summary>PHP %s — %s benchmark result(s) — %s</summary>\n' \
+        "$benchmark_php_version" \
+        "$benchmark_version_count" \
+        "$(display_status "$benchmark_version_status")"
+      echo ""
+      echo "| Benchmark | Subject | Set | Revs | Iterations | Memory peak | Mode | RSD |"
+      echo "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |"
+
+      jq -r --arg php_version "$benchmark_php_version" '
+        def value_or_na:
+          if . == null or . == "" then "n/a" else tostring end;
+        def markdown:
+          value_or_na | gsub("\\r"; " ") | gsub("\\n"; "<br>") | gsub("\\|"; "\\|");
+        def format_mode:
+          if type == "number" then (((. * 1000) | round) / 1000 | tostring) + " μs"
+          else value_or_na
+          end;
+        def format_rsd:
+          if type == "number" then "± " + (((. * 100) | round) / 100 | tostring) + "%"
+          elif type == "string" and test("%$") then .
+          else value_or_na
+          end;
+        .[]
+        | select(.php_version == $php_version and .subject != null and .mode != null)
+        | "| \(.benchmark | markdown) | \(.subject | markdown) | \(.set | markdown) | \(.revs | markdown) | \(.its | markdown) | \(.mem_peak | markdown) | \(.mode | format_mode | markdown) | \(.rstdev | format_rsd | markdown) |"
+      ' <<< "$benchmark_results_json"
+
+      echo ""
+      echo "</details>"
+      echo ""
+    done < <(jq -r '
+      [.[] | select(.subject != null and .mode != null) | .php_version]
+      | unique
+      | sort_by(split(".") | map(tonumber))
+      | .[]
+    ' <<< "$benchmark_results_json")
+  fi
+
+  echo "#### Tool Versions"
+  echo ""
+  echo "<details>"
+  echo "<summary>Show resolved tool versions</summary>"
+  echo ""
+  echo "| Tool | Version |"
+  echo "| --- | --- |"
+
+  jq -r '
+    def markdown:
+      tostring | gsub("\\r"; " ") | gsub("\\n"; "<br>") | gsub("\\|"; "\\|");
+    .[] | "| \(.name | markdown) | \(.version | markdown) |"
+  ' <<< "$tools_json"
+
+  echo ""
+  echo "</details>"
+  echo ""
+  echo "Artifact: security-report/security-summary.json"
 } >> "$GITHUB_STEP_SUMMARY"

@@ -90,8 +90,30 @@ it('guards every PHP workflow job with the filtered matrix result', function ():
         ->toBe('Benchmark')
         ->and($benchmarkSetupSteps[0]['name'] ?? null)
         ->toBe('Setup benchmark - PHP ${{ matrix.php-version }}')
-        ->and($workflow['jobs']['svg-report']['if'] ?? null)
-        ->toContain("needs.prepare.outputs.has_supported_php_versions == 'true'");
+        ->and($workflow['jobs']['security-report']['if'] ?? null)
+        ->toContain("needs.prepare.outputs.has_supported_php_versions == 'true'")
+        ->and($workflow['jobs']['security-report']['name'] ?? null)
+        ->toBe('Security Report')
+        ->and($workflow['jobs']['svg-report'] ?? null)
+        ->toBeNull();
+});
+
+it('publishes a Markdown security report summary without an SVG artifact', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $inputs = $workflow['on']['workflow_call']['inputs'] ?? [];
+    $steps = $workflow['jobs']['security-report']['steps'] ?? [];
+    $uploadSteps = array_values(array_filter(
+        $steps,
+        static fn(mixed $step): bool => is_array($step) && ($step['uses'] ?? null) === 'actions/upload-artifact@v7',
+    ));
+
+    expect($inputs['run_svg_report']['description'] ?? null)
+        ->toContain('Legacy input name retained for compatibility')
+        ->and($uploadSteps)->toHaveCount(1)
+        ->and($uploadSteps[0]['with']['path'] ?? null)
+        ->toBe('.phpforge-report/out/security-summary.json')
+        ->and($uploadSteps[0]['with']['path'] ?? null)
+        ->not->toContain('.svg');
 });
 
 it('preserves topology-aware integration DSNs in workflow YAML', function (): void {

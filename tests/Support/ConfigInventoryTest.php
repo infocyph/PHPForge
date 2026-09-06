@@ -68,11 +68,10 @@ it('keeps forbidden-function checks active in executable PHP entrypoints', funct
         ->not->toContain('<exclude-pattern type="relative">.github/scripts/*.php</exclude-pattern>')
         ->toContain('./PHPForge/Sniffs/PHP/ForbiddenFunctionsSniff.php')
         ->and($sniff)->toBeString()
-        ->toContain("tokens[\$stackPtr]['code'] === T_EXIT")
-        ->toContain("#!/usr/bin/env php");
+        ->toContain('isAllowedExit');
 });
 
-it('allows exit only for executable PHP entrypoints', function (): void {
+it('allows only a literal zero exit status outside executable entrypoints', function (): void {
     $projectRoot = dirname(__DIR__, 2);
     $directory = $projectRoot.DIRECTORY_SEPARATOR.'.phpcs-fixture-'.uniqid('', true);
     mkdir($directory, 0755, true);
@@ -92,8 +91,13 @@ it('allows exit only for executable PHP entrypoints', function (): void {
     };
 
     try {
-        expect($check("#!/usr/bin/env php\n<?php\nexit(1);\n", 'entrypoint.php'))->toBe(0)
-            ->and($check("<?php\nexit(1);\n", 'library.php'))->not->toBe(0)
+        expect($check("<?php\nexit(0);\n", 'successful-exit.php'))->toBe(0)
+            ->and($check("<?php\nexit /* success */ ( 0 );\n", 'formatted-successful-exit.php'))->toBe(0)
+            ->and($check("<?php\nexit(1);\n", 'failed-exit.php'))->not->toBe(0)
+            ->and($check("<?php\nexit;\n", 'empty-exit.php'))->not->toBe(0)
+            ->and($check("<?php\nexit(\$status);\n", 'dynamic-exit.php'))->not->toBe(0)
+            ->and($check("#!/usr/bin/env php\n<?php\nexit(1);\n", 'failed-entrypoint.php'))->toBe(0)
+            ->and($check("#!/usr/bin/env php\n<?php\ndie(0);\n", 'die.php'))->not->toBe(0)
             ->and($check("#!/usr/bin/env php\n<?php\neval('return 1;');\n", 'unsafe-entrypoint.php'))->not->toBe(0);
     } finally {
         removeConfigInventoryTree($directory);

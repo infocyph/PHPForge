@@ -127,6 +127,7 @@ BASH);
             512,
             JSON_THROW_ON_ERROR,
         );
+        $summary = file_get_contents($summaryPath);
 
         expect($report['matrix_results'] ?? null)->toBe([
             [
@@ -155,7 +156,17 @@ BASH);
                 'code_analysis_prefer_stable' => 'success',
                 'security_analysis' => 'success',
                 'benchmark' => 'success',
-            ]);
+            ])
+            ->and($summary)->toBeString()
+            ->toContain('### Security Report Summary')
+            ->toContain('| Overall | PASS |')
+            ->toContain('| 8.4 | PASS | PASS | PASS |')
+            ->toContain('#### Benchmark Results')
+            ->toContain('<summary>PHP 8.4 — 1 benchmark result(s) — PASS</summary>')
+            ->toContain('| InterMixBench | benchDispatch | 0 | 10 | 3 | 1.000mb | 1.000μs | 0.10% |')
+            ->toContain('Artifact: security-report/security-summary.json')
+            ->not->toContain('Security SVG Report')
+            ->and(is_file($fixtureRoot.'/.phpforge-report/out/security-report.svg'))->toBeFalse();
     } finally {
         removeSecurityReportFixture($fixtureRoot);
     }

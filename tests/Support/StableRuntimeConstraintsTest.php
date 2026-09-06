@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Infocyph\PHPForge\Support\StableRuntimeConstraints;
 use Composer\Semver\Semver;
+use Infocyph\PHPForge\Support\StableRuntimeConstraints;
 
 /**
  * @param array<string, mixed> $manifest
@@ -23,10 +23,26 @@ it('requires the PHP 8.5 array helper polyfill used by analyzers on PHP 8.4', fu
         512,
         JSON_THROW_ON_ERROR,
     );
+    $lock = json_decode(
+        (string) file_get_contents(dirname(__DIR__, 2).'/composer.lock'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
     $constraint = (string) ($composer['require']['symfony/polyfill-php85'] ?? '');
+    $lockedVersion = '';
 
-    expect(Semver::satisfies('1.32.0', $constraint))->toBeFalse()
-        ->and(Semver::satisfies('1.33.0', $constraint))->toBeTrue();
+    foreach ([...$lock['packages'], ...$lock['packages-dev']] as $package) {
+        if (($package['name'] ?? '') === 'symfony/polyfill-php85') {
+            $lockedVersion = (string) ($package['version'] ?? '');
+            break;
+        }
+    }
+
+    expect($constraint)->not->toBeEmpty()
+        ->and($lockedVersion)->not->toBeEmpty()
+        ->and(Semver::satisfies('1.32.0', $constraint))->toBeFalse()
+        ->and(Semver::satisfies($lockedVersion, $constraint))->toBeTrue();
 });
 
 it('accepts stable tagged runtime ranges and platform wildcards', function (): void {
