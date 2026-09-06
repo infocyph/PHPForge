@@ -39,7 +39,7 @@ on:
         type: boolean
         default: true
       run_svg_report:
-        description: "Generate SVG security report artifacts."
+        description: "Generate the final Security Report Summary and JSON artifact. Legacy input name retained for compatibility."
         required: false
         type: boolean
         default: true
@@ -537,10 +537,10 @@ jobs:
           path: .phpforge-report/benchmark-results-php-${{ matrix.php-version }}.json
           retention-days: ${{ inputs.artifact_retention_days }}
 
-  svg-report:
+  security-report:
     needs: [prepare, run, analyze, benchmark]
     if: always() && needs.prepare.outputs.has_supported_php_versions == 'true' && inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    name: Security SVG report
+    name: Security Report
     runs-on: ubuntu-latest
     env:
       XDEBUG_MODE: off
@@ -568,7 +568,7 @@ jobs:
           pattern: benchmark-raw-php-*
           path: .phpforge-report/in/benchmark
           merge-multiple: true
-      - name: Build report
+      - name: Build security report summary
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -580,8 +580,6 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: security-report
-          path: |
-            .phpforge-report/out/security-report.svg
-            .phpforge-report/out/security-summary.json
+          path: .phpforge-report/out/security-summary.json
           retention-days: ${{ inputs.artifact_retention_days }}
           if-no-files-found: error

@@ -729,7 +729,7 @@ Common workflow inputs:
 | `phpstan_memory_limit` | `1G` | PHPStan memory limit used by workflow analysis. |
 | `quality_task_timeout_seconds` | `300` | Maximum runtime for each independent quality tool; long-running tools are identified after 60 seconds. |
 | `run_analysis` | `true` | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs. |
-| `run_svg_report` | `true` | Generates `security-report.svg` and `security-summary.json`. |
+| `run_svg_report` | `true` | Publishes the final **Security Report Summary** and uploads `security-summary.json`. The legacy input name is retained for compatibility; no SVG is generated. |
 | `fail_on_skipped_tests` | `true` | Adds `--fail-on-skipped` to workflow Pest execution. Set to `false` only when skipped tests are acceptable in CI. |
 | `run_clean_install` | `true` | Verifies a production-style `--no-dev` install and authoritative autoload. |
 | `benchmark_composer_script` | `""` | Optional Composer script that produces a representative benchmark result. |
@@ -954,7 +954,7 @@ Advanced Security still runs the audit and local analysis gates; an unavailable
 upload does not fail the job. Set `run_analysis: false` only when the entire
 dedicated analysis job should be skipped.
 
-`run_svg_report` controls the SVG reporting artifact job:
+`run_svg_report` controls the final **Security Report Summary** job. The input keeps its legacy name so existing workflow callers do not break, but PHPForge no longer generates an SVG:
 
 ```yaml
 with:
@@ -997,9 +997,9 @@ with:
 
 Set a shorter value for active development branches or a longer value for scheduled/release runs.
 
-When enabled on `main` or `master`, the workflow uploads one artifact:
+When enabled on `main` or `master`, the workflow publishes the security and benchmark tables in the GitHub Actions run summary and uploads one artifact:
 
-- `security-report` (contains `security-report.svg` and `security-summary.json`)
+- `security-report` (contains `security-summary.json`)
 
 `security-summary.json` includes:
 
@@ -1012,7 +1012,7 @@ When enabled on `main` or `master`, the workflow uploads one artifact:
 - `benchmark_job_result`
 - `tools` (tool `name`, package, resolved version)
 
-`security-report.svg` renders the same high-level status, per-version matrix check results, rollup quality gates (`Code Lowest`, `Code Stable`, `Security`, `Benchmark`), a benchmark-by-version chart with upgrade/degrade trend labels and resolved tool versions.
+The **Security Report Summary** shows the high-level status, per-version QA and analysis matrix, collapsible benchmark tables grouped by PHP version, and resolved tool versions. The JSON artifact remains the complete machine-readable report.
 
 </details>
 
@@ -1341,7 +1341,7 @@ with:
   run_analysis: false
 ```
 
-### SVG report artifact is missing
+### Security Report Summary is missing
 
 Ensure `run_svg_report: true` is present in the workflow wrapper:
 
@@ -1350,7 +1350,7 @@ with:
   run_svg_report: true
 ```
 
-Then open the workflow run and download `security-report`.
+Then open the workflow run summary to view the report. Download `security-report` when the machine-readable `security-summary.json` is needed.
 
 ### A bundled rule is too strict
 
