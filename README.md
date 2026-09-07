@@ -792,6 +792,8 @@ Image versions are maintained centrally in [`resources/runtime.php`](resources/r
 
 When `mssql` is selected, the workflow also installs Microsoft's official `msodbcsql18` host driver from `packages.microsoft.com`. The `pdo_sqlsrv` PHP extension uses that native driver to reach the SQL Server container; enabling the PHP extension alone is not sufficient. Its major version is maintained in `service_client_versions.mssql_odbc` in [`resources/runtime.php`](resources/runtime.php).
 
+The SQL Server availability-group profile starts its primary before its replica and retries a failed engine up to three times. Each SQL Server engine is capped at `2048` MB by default because [SQL Server otherwise targets 80% of host memory per instance](https://learn.microsoft.com/en-us/sql/linux/configure/environment-variables#environment-variables); local runs can override this with `PHPFORGE_MSSQL_MEMORY_LIMIT_MB`.
+
 The small SQL Server shared-volume initializer uses the Docker Official `alpine:3.24` image; it does not run a service workload. RabbitMQ clustering supplies the nodes needed for quorum queues, but applications must still declare quorum queues when message replication is required.
 
 An empty list disables integration services:

@@ -228,6 +228,21 @@ it('uses the versioned runtime manifest as the service image source of truth', f
         ->and(implode("\n", $runtime['service_images'] ?? []))->not->toContain('bitnami/');
 });
 
+it('bounds and sequences SQL Server availability-group startup', function (): void {
+    $compose = Yaml::parseFile(dirname(__DIR__, 2).'/resources/services/compose.yml');
+    $services = $compose['services'] ?? [];
+    $primary = $services['mssql-primary'] ?? [];
+    $replica = $services['mssql-replica'] ?? [];
+
+    expect($primary['environment']['MSSQL_MEMORY_LIMIT_MB'] ?? null)
+        ->toBe('${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-2048}')
+        ->and($replica['environment']['MSSQL_MEMORY_LIMIT_MB'] ?? null)
+        ->toBe('${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-2048}')
+        ->and($primary['restart'] ?? null)->toBe('on-failure:3')
+        ->and($replica['restart'] ?? null)->toBe('on-failure:3')
+        ->and($replica['depends_on']['mssql-primary']['condition'] ?? null)->toBe('service_healthy');
+});
+
 it('installs the versioned official MSSQL ODBC client only for MSSQL workflows', function (): void {
     $root = dirname(__DIR__, 2);
     $workflow = Yaml::parseFile($root.'/.github/workflows/security-standards.yml');

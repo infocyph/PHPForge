@@ -140,6 +140,18 @@ it('enables APCu for CLI when it is present in the resolved extension list', fun
         ->toBe("\${{ contains(needs.prepare.outputs.php_extensions, 'apcu') && 'apc.enable_cli=1, apcu.enable_cli=1' || '' }}");
 });
 
+it('reports container diagnostics when service startup itself fails', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $steps = $workflow['jobs']['run']['steps'] ?? [];
+    $stepsByName = array_column($steps, null, 'name');
+    $script = $stepsByName['Start selected services']['run'] ?? '';
+
+    expect($script)->toContain('if ! "${compose[@]}" up -d; then')
+        ->toContain('service_diagnostics')
+        ->toContain('"${compose[@]}" ps -a || true')
+        ->toContain('"${compose[@]}" logs --no-color --tail=100 || true');
+});
+
 it('exposes the compact service controls in the project workflow', function (): void {
     $root = dirname(__DIR__, 2);
     $workflow = Yaml::parseFile($root.'/.github/workflows/phpforge.yml');
