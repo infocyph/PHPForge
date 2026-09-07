@@ -288,9 +288,61 @@ jobs:
           service_diagnostics() {
             "${compose[@]}" ps -a || true
             "${compose[@]}" logs --no-color --tail=100 || true
+
+            for service in mssql mssql-primary mssql-replica; do
+              container_id="$("${compose[@]}" ps -aq "$service" 2>/dev/null || true)"
+              if [ -z "$container_id" ]; then continue; fi
+
+              docker inspect --format='{{.Name}} status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} image={{.Image}}' "$container_id" || true
+              errorlog="${RUNNER_TEMP:-/tmp}/${service}-errorlog"
+              if docker cp "$container_id:/var/opt/mssql/log/errorlog" "$errorlog" 2>/dev/null; then
+                printf '\n%s SQL Server errorlog\n' "$service"
+                tail -n 200 "$errorlog"
+              fi
+            done
           }
 
-          if ! "${compose[@]}" up -d; then
+          profile_selected() {
+            jq -e --arg profile "$1" 'index($profile) != null' <<< "$COMPOSE_PROFILES_JSON" >/dev/null
+          }
+
+          wait_for_compose_health() {
+            local service="$1"
+            local deadline=$((SECONDS + 180))
+            local container_id state health
+
+            while ((SECONDS < deadline)); do
+              container_id="$("${compose[@]}" ps -q "$service" 2>/dev/null || true)"
+              if [ -n "$container_id" ]; then
+                state="$(docker inspect --format='{{.State.Status}}' "$container_id" 2>/dev/null || true)"
+                health="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id" 2>/dev/null || true)"
+                if [ "$state" = running ] && [ "$health" = healthy ]; then return 0; fi
+                if [ "$state" = exited ] || [ "$state" = dead ]; then break; fi
+              fi
+              sleep 3
+            done
+
+            echo "::error::$service did not become healthy during staged startup"
+            return 1
+          }
+
+          start_mssql_first() {
+            local services=()
+            if profile_selected mssql-availability-group; then
+              services=(mssql-primary mssql-replica)
+            elif profile_selected mssql; then
+              services=(mssql)
+            else
+              return 0
+            fi
+
+            for service in "${services[@]}"; do
+              "${compose[@]}" up -d "$service" || return 1
+              wait_for_compose_health "$service" || return 1
+            done
+          }
+
+          if ! start_mssql_first || ! "${compose[@]}" up -d; then
             service_diagnostics
             exit 1
           fi
