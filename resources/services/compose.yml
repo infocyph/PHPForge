@@ -147,6 +147,7 @@ services:
       ACCEPT_EULA: Y
       MSSQL_PID: Developer
       MSSQL_SA_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
+      MSSQL_MEMORY_LIMIT_MB: ${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-2048}
     healthcheck: &mssql-health
       test: [CMD-SHELL, "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q 'SELECT 1' >/dev/null"]
       interval: 5s
@@ -167,6 +168,7 @@ services:
     hostname: mssql-primary
     ports: ["1433:1433"]
     environment: *mssql-environment
+    restart: "on-failure:3"
     depends_on:
       mssql-shared-init: {condition: service_completed_successfully}
     volumes:
@@ -180,8 +182,10 @@ services:
     hostname: mssql-replica
     ports: ["1434:1433"]
     environment: *mssql-environment
+    restart: "on-failure:3"
     depends_on:
       mssql-shared-init: {condition: service_completed_successfully}
+      mssql-primary: {condition: service_healthy}
     volumes:
       - mssql-shared:/var/opt/mssql/shared
       - ./mssql/mssql.conf:/var/opt/mssql/mssql.conf:ro

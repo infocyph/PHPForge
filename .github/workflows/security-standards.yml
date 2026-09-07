@@ -284,10 +284,19 @@ jobs:
         run: |
           compose=(docker compose -f .phpforge-workflow/resources/services/compose.yml)
           while IFS= read -r profile; do compose+=(--profile "$profile"); done < <(jq -r '.[]' <<< "$COMPOSE_PROFILES_JSON")
-          "${compose[@]}" up -d
+
+          service_diagnostics() {
+            "${compose[@]}" ps -a || true
+            "${compose[@]}" logs --no-color --tail=100 || true
+          }
+
+          if ! "${compose[@]}" up -d; then
+            service_diagnostics
+            exit 1
+          fi
+
           if ! bash .phpforge-workflow/.github/scripts/verify-and-wait-services.sh; then
-            "${compose[@]}" ps -a
-            "${compose[@]}" logs --no-color --tail=100
+            service_diagnostics
             exit 1
           fi
       - name: Validate and resolve dependencies
