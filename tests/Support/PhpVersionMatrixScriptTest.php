@@ -146,10 +146,13 @@ it('reports container diagnostics when service startup itself fails', function (
     $stepsByName = array_column($steps, null, 'name');
     $script = $stepsByName['Start selected services']['run'] ?? '';
 
-    expect($script)->toContain('if ! "${compose[@]}" up -d; then')
+    expect($script)->toContain('if ! start_mssql_first || ! "${compose[@]}" up -d; then')
         ->toContain('service_diagnostics')
         ->toContain('"${compose[@]}" ps -a || true')
-        ->toContain('"${compose[@]}" logs --no-color --tail=100 || true');
+        ->toContain('"${compose[@]}" logs --no-color --tail=100 || true')
+        ->toContain('start_mssql_first')
+        ->toContain('wait_for_compose_health')
+        ->toContain('docker cp "$container_id:/var/opt/mssql/log/errorlog"');
 });
 
 it('exposes the compact service controls in the project workflow', function (): void {

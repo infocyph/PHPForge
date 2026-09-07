@@ -140,14 +140,15 @@ services:
       retries: 40
 
   mssql:
-    image: mcr.microsoft.com/mssql/server:2025-latest
+    image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
     profiles: [mssql]
     ports: ["1433:1433"]
+    mem_limit: ${PHPFORGE_MSSQL_CONTAINER_MEMORY_LIMIT:-3840m}
     environment: &mssql-environment
       ACCEPT_EULA: Y
       MSSQL_PID: Developer
       MSSQL_SA_PASSWORD: ${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}
-      MSSQL_MEMORY_LIMIT_MB: ${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-2048}
+      MSSQL_MEMORY_LIMIT_MB: ${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-3072}
     healthcheck: &mssql-health
       test: [CMD-SHELL, "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q 'SELECT 1' >/dev/null"]
       interval: 5s
@@ -163,10 +164,11 @@ services:
     command: ["sh", "-c", "chmod 0777 /shared"]
 
   mssql-primary:
-    image: mcr.microsoft.com/mssql/server:2025-latest
+    image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
     profiles: [mssql-availability-group]
     hostname: mssql-primary
     ports: ["1433:1433"]
+    mem_limit: ${PHPFORGE_MSSQL_CONTAINER_MEMORY_LIMIT:-3840m}
     environment: *mssql-environment
     restart: "on-failure:3"
     depends_on:
@@ -177,10 +179,11 @@ services:
     healthcheck: *mssql-health
 
   mssql-replica:
-    image: mcr.microsoft.com/mssql/server:2025-latest
+    image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
     profiles: [mssql-availability-group]
     hostname: mssql-replica
     ports: ["1434:1433"]
+    mem_limit: ${PHPFORGE_MSSQL_CONTAINER_MEMORY_LIMIT:-3840m}
     environment: *mssql-environment
     restart: "on-failure:3"
     depends_on:
@@ -192,7 +195,7 @@ services:
     healthcheck: *mssql-health
 
   mssql-availability-group-init:
-    image: mcr.microsoft.com/mssql/server:2025-latest
+    image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
     profiles: [mssql-availability-group]
     environment:
       <<: *mssql-environment

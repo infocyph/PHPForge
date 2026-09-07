@@ -221,6 +221,8 @@ it('uses the versioned runtime manifest as the service image source of truth', f
 
     expect($runtime['php_versions'] ?? null)->toBe(['8.4', '8.5'])
         ->and($runtime['service_client_versions']['mssql_odbc'] ?? null)->toBe('18')
+        ->and($runtime['service_images']['mssql'] ?? null)
+        ->toBe('mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04')
         ->and(array_keys($runtime['service_images'] ?? []))->toBe(array_values(array_filter(
             ServiceCatalog::names(),
             static fn (string $service): bool => $service !== 'sqlite',
@@ -231,13 +233,22 @@ it('uses the versioned runtime manifest as the service image source of truth', f
 it('bounds and sequences SQL Server availability-group startup', function (): void {
     $compose = Yaml::parseFile(dirname(__DIR__, 2).'/resources/services/compose.yml');
     $services = $compose['services'] ?? [];
+    $standalone = $services['mssql'] ?? [];
     $primary = $services['mssql-primary'] ?? [];
     $replica = $services['mssql-replica'] ?? [];
 
-    expect($primary['environment']['MSSQL_MEMORY_LIMIT_MB'] ?? null)
-        ->toBe('${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-2048}')
+    expect($standalone['environment']['MSSQL_MEMORY_LIMIT_MB'] ?? null)
+        ->toBe('${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-3072}')
+        ->and($standalone['mem_limit'] ?? null)
+        ->toBe('${PHPFORGE_MSSQL_CONTAINER_MEMORY_LIMIT:-3840m}')
+        ->and($primary['environment']['MSSQL_MEMORY_LIMIT_MB'] ?? null)
+        ->toBe('${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-3072}')
         ->and($replica['environment']['MSSQL_MEMORY_LIMIT_MB'] ?? null)
-        ->toBe('${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-2048}')
+        ->toBe('${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-3072}')
+        ->and($primary['mem_limit'] ?? null)
+        ->toBe('${PHPFORGE_MSSQL_CONTAINER_MEMORY_LIMIT:-3840m}')
+        ->and($replica['mem_limit'] ?? null)
+        ->toBe('${PHPFORGE_MSSQL_CONTAINER_MEMORY_LIMIT:-3840m}')
         ->and($primary['restart'] ?? null)->toBe('on-failure:3')
         ->and($replica['restart'] ?? null)->toBe('on-failure:3')
         ->and($replica['depends_on']['mssql-primary']['condition'] ?? null)->toBe('service_healthy');
