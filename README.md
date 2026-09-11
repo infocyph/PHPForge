@@ -38,6 +38,7 @@ PHPForge is installed as a dev dependency in PHP libraries and packages. It prov
 | Capability | What PHPForge provides |
 | --- | --- |
 | Quality checks | One bounded-parallel command for tests, syntax, style, architecture, static analysis, security analysis and refactor checks. |
+| Suppression guard | Detects inline analyzer, linter, coverage, mutation and test skip directives before they can hide unresolved work. |
 | Automated fixes | A deterministic sequential processor for Composer Normalize, Rector, Pint and PHPCBF. |
 | CI | A reusable GitHub Actions workflow plus starter pipelines for GitLab, Bitbucket and Forgejo. |
 | Integration services | Opt-in databases, caches, messaging, search and email services with automatic PHP extension resolution and readiness checks. |
@@ -190,6 +191,7 @@ If CaptainHook was selected, hooks install automatically on the next `composer i
 | Goal | Command |
 | --- | --- |
 | Validate before a pull request | `composer ic:ci` |
+| Find inline suppressions and skipped tests | `composer ic:skipper` |
 | Show full sequential diagnostics | `composer ic:tests:details` |
 | Apply safe automated fixes | `composer ic:process` |
 | Normalize, validate and stage files | `composer ic:stage <file...>` |
@@ -219,6 +221,7 @@ PHPForge parallelizes independent tools, not duplicate copies of the same checke
 | `composer ic:test:duplicates` | Runs duplicate detection using `phpprobe.json`.                                                                                                              |
 | `composer ic:test:probe`      | Runs aggregate PHPProbe checks (syntax, duplicates, comments) using `phpprobe.json`.                                                                       |
 | `composer ic:test:comments`   | Runs comment policy checks using `phpprobe.json`.                                                                                                            |
+| `composer ic:skipper`        | Rejects inline quality suppressions and explicit PHPUnit/Pest skip, todo and focus directives.                                                             |
 | `composer ic:test:architecture` | Runs Deptrac architecture checks using `deptrac.yaml`.                                                                                                    |
 | `composer ic:test:static`     | Runs PHPStan.                                                                                                                                                  |
 | `composer ic:test:security`   | Runs Psalm security analysis.                                                                                                                                  |
@@ -228,6 +231,15 @@ PHPForge parallelizes independent tools, not duplicate copies of the same checke
 Syntax, duplicate and comment settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
 PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge comments` and `phpforge check` commands are thin gateways that pass the same config to PHPProbe.
 By default the bundled config uses PHPProbe's standard syntax and duplicate profiles with the strict comment policy. Duplicate findings remain visible, but become blocking only when duplicated lines reach 10% of the scanned code. Projects can still override individual sections in a published `phpprobe.json`.
+
+`composer ic:skipper` scans PHP, PHTML and INC files for inline bypasses used by
+PHPStan, Psalm, PHPCS, Phan, PHPMD, PhpStorm, PHPUnit, Infection and Rector. It also
+detects explicit PHPUnit skipped/incomplete tests, PHPUnit `Requires*` and
+suppression attributes, and Pest skip, todo and focus-only chains. Findings are
+grouped by tool and fail the command; directive-shaped strings and dependency,
+cache, generated-workflow and build directories are ignored. The scanner has no
+allowlist or baseline and is part of `ic:ci`, `ic:tests` and
+`ic:tests:details`.
 
 <details>
 <summary>Advanced PHPProbe CLI examples and options</summary>

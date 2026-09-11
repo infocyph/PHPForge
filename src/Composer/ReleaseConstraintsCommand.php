@@ -22,9 +22,9 @@ final class ReleaseConstraintsCommand extends Command
         $this->setDescription('Reject non-stable runtime dependency constraints before release.');
     }
 
-    // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInExtendedClassBeforeLastUsed -- Inherited command signature.
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        unset($input);
         $composerFile = Paths::projectRootPath() . DIRECTORY_SEPARATOR . 'composer.json';
         $violations = new StableRuntimeConstraints()->violations($composerFile);
 

@@ -62,6 +62,7 @@ final class TaskCatalog
             ...self::lintCheck(),
             ...self::sniff(),
             ...self::probeCheckCi(),
+            ...self::skipper(),
             ...self::architecture(),
             ...self::refactorCheck(),
             ...self::normalizeCheck(),
@@ -224,6 +225,14 @@ final class TaskCatalog
     /**
      * @return list<list<string>>
      */
+    public static function skipper(): array
+    {
+        return [[Paths::php(), Paths::bin('phpforge'), 'skipper']];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
     public static function sniff(): array
     {
         return [[Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=full', '.']];
@@ -291,6 +300,7 @@ final class TaskCatalog
             ...self::sniff(),
             ...self::duplicates(),
             ...self::comments(),
+            ...self::skipper(),
             ...self::architecture(),
             ...self::staticAnalysis(),
             ...self::security(),
@@ -464,6 +474,7 @@ final class TaskCatalog
             ...self::pestTasks(),
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=full', '.'],
+            ...self::skipper(),
             ...self::architecture(),
             ...self::staticAnalysis(),
             [Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--show-info=false', '--security-analysis', '--threads=1', '--no-progress', '--no-cache'],

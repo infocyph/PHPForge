@@ -15,6 +15,7 @@ syntax|Quality|syntax [paths...]|Check PHP syntax.
 duplicates|Quality|duplicates [options] [paths...]|Find duplicated code.
 comments|Quality|comments [options] [paths...]|Check the comment policy.
 check|Quality|check [options] [paths...]|Run aggregate PHPProbe checks.
+skipper|Quality|skipper|Reject inline quality and test skip directives.
 doctor|Configuration|doctor [--json]|Inspect setup health and integration status.
 list-config|Configuration|list-config [--json]|Show where tool configurations resolve.
 active-config|Configuration|active-config [files...] [--json] [--all]|Inspect effective tool configuration.
@@ -38,6 +39,7 @@ COMMANDS;
             'duplicates' => $this->probe('duplicates', array_slice($argv, 2)),
             'comments' => $this->probe('comments', array_slice($argv, 2)),
             'check' => $this->probe('check', array_slice($argv, 2)),
+            'skipper' => $this->skipper(),
             'active-config' => $this->activeConfig(array_slice($argv, 2)),
             'phpstan-sarif' => new PhpstanSarifConverter()->convert((string) ($argv[2] ?? ''), (string) ($argv[3] ?? 'phpstan-results.sarif')),
             'audit' => new ComposerAuditor()->run(),
@@ -259,6 +261,17 @@ COMMANDS;
         }
 
         return 1;
+    }
+
+    private function skipper(): int
+    {
+        $scanner = new SkipDirectiveScanner();
+        $scan = $scanner->scan(Paths::projectRootPath());
+        $failed = $scan['findings'] !== [] || $scan['errors'] !== [];
+
+        fwrite($failed ? STDERR : STDOUT, $scanner->format($scan));
+
+        return $failed ? 1 : 0;
     }
 
     private function suggestCommand(string $command): ?string

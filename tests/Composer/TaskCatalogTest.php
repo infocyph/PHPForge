@@ -217,6 +217,16 @@ it('includes comment policy checks in full and detailed quality suites', functio
         ->and(TaskCatalog::testDetails())->toContain($commentsTask);
 });
 
+it('includes the skip directive scanner in every aggregate quality suite', function (): void {
+    $skipper = TaskCatalog::skipper()[0];
+
+    expect($skipper)->toBe([PHP_BINARY, Paths::bin('phpforge'), 'skipper'])
+        ->and(TaskCatalog::testAll())->toContain($skipper)
+        ->and(TaskCatalog::testAllCi())->toContain($skipper)
+        ->and(TaskCatalog::ci(true))->toContain($skipper)
+        ->and(TaskCatalog::testDetails())->toContain($skipper);
+});
+
 it('pins aggregate psalm to one thread', function (): void {
     $psalm = array_values(array_filter(
         TaskCatalog::testAll(),

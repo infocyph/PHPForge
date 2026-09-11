@@ -27,7 +27,16 @@ it('renders grouped and scannable command help', function (): void {
         ->and($result->stdout)->toContain('Quality:')
         ->and($result->stdout)->toContain('Configuration:')
         ->and($result->stdout)->toContain('Utilities:')
+        ->and($result->stdout)->toContain('skipper')
         ->and($result->stdout)->toContain('phpforge active-config phpstan.neon.dist');
+});
+
+it('runs the skip directive scanner without the Composer command runtime', function (): void {
+    $result = runPhpforgeCli(['skipper']);
+
+    expect($result->exitCode)->toBe(0)
+        ->and($result->stdout)->toContain('Skip directive scan passed:')
+        ->and($result->stderr)->toBe('');
 });
 
 it('supports conventional help flags', function (string $flag): void {
