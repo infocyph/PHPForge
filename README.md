@@ -506,7 +506,7 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 ### PHPProbe checker config
 
 `phpprobe.json` configures PHPProbe syntax, duplicate-code and comment-policy checks.
-PHPProbe 0.7 is preset-first and PHPForge follows that model.
+PHPProbe 1.0 is preset-first and PHPForge follows that model. Its grouped text reports and additive JSON group summaries are supported by PHPForge's detailed failure reporting.
 
 Bundled default:
 
@@ -951,6 +951,11 @@ with:
   run_analysis: false
 ```
 
+Analyzer failures are grouped by tool. Psalm exposes its native console report;
+PHPStan keeps its first JSON result as the gate and SARIF source, then uses its
+native table formatter only after a PHPStan failure. If that diagnostic pass
+cannot produce output, PHPForge falls back to the original JSON diagnostics.
+
 SARIF publication is best-effort. A repository without GitHub code scanning or
 Advanced Security still runs the audit and local analysis gates; an unavailable
 upload does not fail the job. Set `run_analysis: false` only when the entire
@@ -1223,7 +1228,7 @@ Before:
 "require-dev": {
     "captainhook/captainhook": "^5.29.2",
     "ergebnis/composer-normalize": "^2.52",
-    "infocyph/phpprobe": "^0.7",
+    "infocyph/phpprobe": "^1.0",
     "laravel/pint": "^1.30.3",
     "pestphp/pest": "^5.0.2",
     "pestphp/pest-plugin-drift": "^5.0",

@@ -205,24 +205,27 @@ it('passes CI flags as options to the registered Composer command', function ():
         ->not->toContain('composer ic:ci -- "${args[@]}"');
 });
 
-it('installs dependencies before one analyzer execution produces gates, sarif, and failure diagnostics', function (): void {
+it('installs dependencies before analyzers produce gates, sarif, and native failure diagnostics', function (): void {
     $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
     $steps = $workflow['jobs']['analyze']['steps'] ?? [];
     $stepsByName = array_column($steps, null, 'name');
     $stepNames = array_column($steps, 'name');
 
     $installIndex = array_search('Install dependencies', $stepNames, true);
-    $analyzerIndex = array_search('Run audit and analyzers once', $stepNames, true);
-    $analyzerScript = $stepsByName['Run audit and analyzers once']['run'] ?? '';
+    $analyzerIndex = array_search('Run audit and analyzers', $stepNames, true);
+    $analyzerScript = $stepsByName['Run audit and analyzers']['run'] ?? '';
     $enforcementScript = $stepsByName['Enforce analyzer results']['run'] ?? '';
 
     expect($installIndex)->toBeInt()
         ->and($analyzerIndex)->toBeInt()->toBeGreaterThan($installIndex)
         ->and(substr_count($analyzerScript, 'bin/phpstan'))
-        ->toBe(1)
+        ->toBe(2)
         ->and(substr_count($analyzerScript, 'bin/psalm.phar'))
         ->toBe(1)
         ->and($analyzerScript)->toContain('--threads=1')
+        ->and($analyzerScript)->toContain('if [ "$phpstan_status" != 0 ]; then')
+        ->and($analyzerScript)->toContain('--no-ansi --error-format=table')
+        ->and($analyzerScript)->toContain('if [ ! -s phpstan-results.log ]; then')
         ->and($analyzerScript)->toContain('phpstan-results.sarif')
         ->and($analyzerScript)->toContain('psalm-results.sarif')
         ->and($analyzerScript)->toContain('audit-results.log')

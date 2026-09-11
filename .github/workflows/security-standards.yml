@@ -423,7 +423,7 @@ jobs:
           coverage: none
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress ${{ inputs.composer_flags }}
-      - name: Run audit and analyzers once
+      - name: Run audit and analyzers
         id: analyzers
         shell: bash
         env:
@@ -441,17 +441,24 @@ jobs:
           php "$vendor_dir/bin/phpstan" analyse --configuration="$phpstan_config" --memory-limit="$PHPSTAN_MEMORY_LIMIT" --no-progress --error-format=json > phpstan-results.json 2> phpstan-results.stderr
           phpstan_status=$?
           : > phpstan-results.log
-          if jq -e . phpstan-results.json >/dev/null 2>&1; then
-            jq -r '
-              (.errors[]? | tostring),
-              ((.files // {}) | to_entries[] | .key as $file | .value.messages[]? |
-                "\($file):\(.line // 0): \(.message)" +
-                (if (.identifier // "") != "" then " [\(.identifier)]" else "" end))
-            ' phpstan-results.json >> phpstan-results.log 2>&1
-          elif [ -s phpstan-results.json ]; then
-            cat phpstan-results.json >> phpstan-results.log
+          if [ "$phpstan_status" != 0 ]; then
+            if php "$vendor_dir/bin/phpstan" analyse --configuration="$phpstan_config" --memory-limit="$PHPSTAN_MEMORY_LIMIT" --no-progress --no-ansi --error-format=table > phpstan-results.log 2>&1; then
+              : > phpstan-results.log
+            fi
           fi
-          if [ -s phpstan-results.stderr ]; then cat phpstan-results.stderr >> phpstan-results.log; fi
+          if [ ! -s phpstan-results.log ]; then
+            if jq -e . phpstan-results.json >/dev/null 2>&1; then
+              jq -r '
+                (.errors[]? | tostring),
+                ((.files // {}) | to_entries[] | .key as $file | .value.messages[]? |
+                  "\($file):\(.line // 0): \(.message)" +
+                  (if (.identifier // "") != "" then " [\(.identifier)]" else "" end))
+              ' phpstan-results.json >> phpstan-results.log 2>&1
+            elif [ -s phpstan-results.json ]; then
+              cat phpstan-results.json >> phpstan-results.log
+            fi
+            if [ -s phpstan-results.stderr ]; then cat phpstan-results.stderr >> phpstan-results.log; fi
+          fi
           composer ic:phpstan:sarif -- phpstan-results.json phpstan-results.sarif > phpstan-sarif.log 2>&1
           sarif_status=$?
           if [ -f psalm.xml ]; then psalm_config=psalm.xml
