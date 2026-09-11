@@ -103,6 +103,7 @@
         "ic:services:down": "@php bin/phpforge services:down",
         "ic:services:status": "@php bin/phpforge services:status",
         "ic:services:up": "@php bin/phpforge services:up",
+        "ic:skipper": "@php bin/phpforge skipper",
         "ic:soak:worker": "@php bin/phpforge soak:worker",
         "ic:stage": "@php bin/phpforge stage",
         "ic:test:architecture": "@php bin/run-task.php test:architecture",

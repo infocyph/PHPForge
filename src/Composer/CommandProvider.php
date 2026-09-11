@@ -17,6 +17,7 @@ quality|ic:test:sniff|Run PHP_CodeSniffer.|sniff
 quality|ic:test:duplicates|Detect duplicated PHP code.|duplicates
 quality|ic:test:probe|Run all PHPProbe checks (syntax, duplicates, comments).|probeCheck
 quality|ic:test:comments|Run PHPProbe comment policy checks.|comments
+quality|ic:skipper|Reject inline quality and test skip directives.|skipper
 quality|ic:test:architecture|Run Deptrac architecture checks.|architecture
 quality|ic:test:static|Run PHPStan.|staticAnalysis
 quality|ic:test:security|Run Psalm security analysis.|security

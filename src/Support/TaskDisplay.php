@@ -163,6 +163,7 @@ final class TaskDisplay
         return match (true) {
             in_array($tool, ['phpprobe', 'phpforge'], true) && isset(self::PROBE_TITLES[$subcommand]) => self::PROBE_TITLES[$subcommand],
             $tool === 'phpforge' && $subcommand === 'audit' => 'Composer Audit',
+            $tool === 'phpforge' && $subcommand === 'skipper' => 'Skip Directive Scanner',
             $tool === 'composer' && $subcommand === 'validate' => 'Composer Validate',
             $tool === 'composer' && $subcommand === 'normalize' => 'Composer Normalize',
             $tool === 'pest' => 'Pest',

@@ -24,6 +24,11 @@ it('formats aggregate PHPProbe checks with a friendly title', function (): void 
         ->toBe('PHPProbe Checks');
 });
 
+it('formats the skip directive scanner with a friendly title', function (): void {
+    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpforge', 'skipper']))
+        ->toBe('Skip Directive Scanner');
+});
+
 it('formats phpprobe checker tasks with friendly titles', function (): void {
     expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'syntax']))
         ->toBe('Checking Syntax')
