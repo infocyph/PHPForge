@@ -199,6 +199,26 @@ it('uses the complete aggregate CI suite for the parallel CI alias', function ()
     expect(TaskCatalog::testParallelCi())->toBe(TaskCatalog::testAllCi());
 });
 
+it('keeps aggregate quality summaries in the requested order', function (): void {
+    $labels = array_map(
+        static fn(array $task): string => explode(' (Config:', TaskDisplay::heading($task), 2)[0],
+        TaskCatalog::testAllCi(),
+    );
+
+    expect($labels)->toBe([
+        'Skip Directive Scanner',
+        'Composer Normalize',
+        'PHPProbe',
+        'Pest',
+        'Pint',
+        'PHPCS',
+        'Deptrac',
+        'PHPStan',
+        'Psalm',
+        'Rector',
+    ]);
+});
+
 it('runs one non-nested pest process in aggregate suites', function (): void {
     $pestCommands = array_values(array_filter(
         TaskCatalog::testAll(),

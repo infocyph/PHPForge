@@ -21,7 +21,7 @@ it('formats comment checks with a friendly title', function (): void {
 
 it('formats aggregate PHPProbe checks with a friendly title', function (): void {
     expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpforge', 'check']))
-        ->toBe('PHPProbe Checks');
+        ->toBe('PHPProbe');
 });
 
 it('formats the skip directive scanner with a friendly title', function (): void {
@@ -35,7 +35,7 @@ it('formats phpprobe checker tasks with friendly titles', function (): void {
         ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'duplicates']))
         ->toBe('Duplicate Code')
         ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'check']))
-        ->toBe('PHPProbe Checks')
+        ->toBe('PHPProbe')
         ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'comments']))
         ->toBe('Comment Policy');
 });
