@@ -106,39 +106,18 @@ final class SkipDirectiveScanner
             return sprintf('Skip directive scan passed: %d PHP file(s) checked.%s', $scan['files'], PHP_EOL);
         }
 
+        $groupedFindings = $this->groupedFindings($scan['findings']);
         $lines = [
-            sprintf(
-                'Skip directive scan failed: %d finding(s) in %d PHP file(s).',
-                count($scan['findings']),
-                $scan['files'],
-            ),
+            ...$this->summaryLines($scan['files'], $groupedFindings, count($scan['errors'])),
+            '',
+            'Failure details',
+            '===============',
+            ...$this->findingDetailLines($groupedFindings),
+            ...$this->scannerErrorLines($scan['errors']),
         ];
-        $activeTool = null;
-
-        foreach ($scan['findings'] as $finding) {
-            if ($finding['tool'] !== $activeTool) {
-                $activeTool = $finding['tool'];
-                $lines[] = '';
-                $lines[] = $activeTool;
-                $lines[] = str_repeat('-', strlen($activeTool));
-            }
-
-            $lines[] = sprintf('  %s:%d  %s', $finding['file'], $finding['line'], $finding['directive']);
-        }
-
-        if ($scan['errors'] !== []) {
-            $lines[] = '';
-            $lines[] = 'Scanner errors';
-            $lines[] = '--------------';
-
-            foreach ($scan['errors'] as $error) {
-                $lines[] = '  ' . $error;
-            }
-        }
 
         if ($scan['findings'] !== []) {
-            $lines[] = '';
-            $lines[] = 'Resolve the underlying issue and remove each skip directive.';
+            $lines = [...$lines, '', 'Resolution', '----------', 'Resolve the underlying issue and remove each skip directive.'];
         }
 
         return implode(PHP_EOL, $lines) . PHP_EOL;
@@ -163,7 +142,9 @@ final class SkipDirectiveScanner
             ];
         }
 
+        $configuration = SkipDirectiveConfiguration::load($resolvedRoot);
         [$files, $errors] = $this->phpFiles($resolvedRoot);
+        $errors = [...$configuration->errors(), ...$errors];
         $findings = [];
 
         foreach ($files as $file) {
@@ -176,7 +157,13 @@ final class SkipDirectiveScanner
             }
 
             $relativeFile = $this->relativePath($resolvedRoot, $file);
-            $findings = [...$findings, ...$this->fileFindings($relativeFile, $contents)];
+            $findings = [
+                ...$findings,
+                ...$configuration->includedFindings(
+                    $relativeFile,
+                    $this->fileFindings($relativeFile, $contents, $configuration->extraCommentRules()),
+                ),
+            ];
         }
 
         usort(
@@ -222,13 +209,14 @@ final class SkipDirectiveScanner
     }
 
     /**
+     * @param list<array{tool: string, pattern: string}> $extraRules
      * @return list<array{file: string, line: int, tool: string, directive: string}>
      */
-    private function commentFindings(string $file, string $comment, int $startLine): array
+    private function commentFindings(string $file, string $comment, int $startLine, array $extraRules): array
     {
         $findings = [];
 
-        foreach (self::COMMENT_RULES as $rule) {
+        foreach ([...self::COMMENT_RULES, ...$extraRules] as $rule) {
             $matches = [];
 
             if (preg_match_all($rule['pattern'], $comment, $matches, PREG_OFFSET_CAPTURE) !== false) {
@@ -244,15 +232,16 @@ final class SkipDirectiveScanner
 
     /**
      * @param list<array{int, string, int}|string> $tokens
+     * @param list<array{tool: string, pattern: string}> $extraRules
      * @return list<array{file: string, line: int, tool: string, directive: string}>
      */
-    private function commentTokenFindings(string $file, array $tokens): array
+    private function commentTokenFindings(string $file, array $tokens, array $extraRules): array
     {
         $findings = [];
 
         foreach ($tokens as $token) {
             if (is_array($token) && ($token[0] === T_COMMENT || $token[0] === T_DOC_COMMENT)) {
-                $findings = [...$findings, ...$this->commentFindings($file, $token[1], $token[2])];
+                $findings = [...$findings, ...$this->commentFindings($file, $token[1], $token[2], $extraRules)];
             }
         }
 
@@ -301,14 +290,15 @@ final class SkipDirectiveScanner
     }
 
     /**
+     * @param list<array{tool: string, pattern: string}> $extraRules
      * @return list<array{file: string, line: int, tool: string, directive: string}>
      */
-    private function fileFindings(string $file, string $contents): array
+    private function fileFindings(string $file, string $contents, array $extraRules): array
     {
         $tokens = token_get_all($contents);
 
         return [
-            ...$this->commentTokenFindings($file, $tokens),
+            ...$this->commentTokenFindings($file, $tokens, $extraRules),
             ...$this->attributeFindings($file, $tokens),
             ...$this->executableFindings($file, $this->significantTokens($tokens)),
         ];
@@ -325,6 +315,41 @@ final class SkipDirectiveScanner
             'tool' => $tool,
             'directive' => $directive,
         ];
+    }
+
+    /**
+     * @param array<string, list<array{file: string, line: int, tool: string, directive: string}>> $groups
+     * @return list<string>
+     */
+    private function findingDetailLines(array $groups): array
+    {
+        $lines = [];
+
+        foreach ($groups as $tool => $findings) {
+            $title = 'FAIL ' . $tool;
+            $lines = [...$lines, '', $title, str_repeat('-', strlen($title)), sprintf('Found %d skip directive finding(s):', count($findings))];
+
+            foreach ($findings as $index => $finding) {
+                $lines[] = sprintf('  %d. %s:%d [%s]', $index + 1, $finding['file'], $finding['line'], $finding['directive']);
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * @param list<array{file: string, line: int, tool: string, directive: string}> $findings
+     * @return array<string, list<array{file: string, line: int, tool: string, directive: string}>>
+     */
+    private function groupedFindings(array $findings): array
+    {
+        $groups = [];
+
+        foreach ($findings as $finding) {
+            $groups[$finding['tool']][] = $finding;
+        }
+
+        return $groups;
     }
 
     private function isNameToken(int $id): bool
@@ -480,6 +505,26 @@ final class SkipDirectiveScanner
     }
 
     /**
+     * @param list<string> $errors
+     * @return list<string>
+     */
+    private function scannerErrorLines(array $errors): array
+    {
+        if ($errors === []) {
+            return [];
+        }
+
+        $title = 'FAIL Scanner';
+        $lines = ['', $title, str_repeat('-', strlen($title)), sprintf('Found %d scanner error(s):', count($errors))];
+
+        foreach ($errors as $index => $error) {
+            $lines[] = sprintf('  %d. %s', $index + 1, $error);
+        }
+
+        return $lines;
+    }
+
+    /**
      * @param list<array{int, string, int}|string> $tokens
      * @return list<array{id: int|null, text: string, line: int}>
      */
@@ -506,5 +551,34 @@ final class SkipDirectiveScanner
         }
 
         return $significant;
+    }
+
+    /**
+     * @param array<string, list<array{file: string, line: int, tool: string, directive: string}>> $groups
+     * @return list<string>
+     */
+    private function summaryLines(int $files, array $groups, int $errorCount): array
+    {
+        $toolWidth = 12;
+
+        foreach (array_keys($groups) as $tool) {
+            $toolWidth = max($toolWidth, strlen($tool));
+        }
+
+        $lines = [
+            'Skip directive scan summary:',
+            sprintf('  Files checked:  %d', $files),
+            sprintf('  Findings:       %d', array_sum(array_map(count(...), $groups))),
+            sprintf('  Scanner errors: %d', $errorCount),
+            '',
+            sprintf('  %-' . $toolWidth . 's  %8s', 'Tool', 'Findings'),
+            sprintf('  %s  %s', str_repeat('-', $toolWidth), '--------'),
+        ];
+
+        foreach ($groups as $tool => $findings) {
+            $lines[] = sprintf('  %-' . $toolWidth . 's  %8d', $tool, count($findings));
+        }
+
+        return $lines;
     }
 }

@@ -47,7 +47,7 @@
 - `composer ic:test:duplicates` - duplicate code detection.
 - `composer ic:test:probe` - run aggregate PHPProbe checks (syntax, duplicates, comments).
 - `composer ic:test:comments` - comment policy checks via PHPProbe.
-- `composer ic:skipper` - reject inline quality suppressions and explicit PHPUnit/Pest skip, todo and focus directives.
+- `composer ic:skipper` - reject inline quality suppressions (including PHPProbe) and explicit PHPUnit/Pest skip, todo and focus directives while honoring active per-tool path exclusions.
 - `composer ic:test:architecture` - Deptrac architecture checks.
 - `composer ic:test:static` - PHPStan analysis.
 - `composer ic:test:security` - Psalm security analysis.
