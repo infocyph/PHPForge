@@ -58,14 +58,14 @@ final class TaskCatalog
         }
 
         return [
+            ...self::skipper(),
+            ...self::normalizeCheck(),
+            ...self::probeCheckCi(),
             ...self::testCode(),
             ...self::lintCheck(),
             ...self::sniff(),
-            ...self::probeCheckCi(),
-            ...self::skipper(),
             ...self::architecture(),
             ...self::refactorCheck(),
-            ...self::normalizeCheck(),
         ];
     }
 
@@ -294,18 +294,18 @@ final class TaskCatalog
     public static function testDetails(): array
     {
         return [
+            ...self::skipper(),
+            ...self::normalizeCheck(),
             ...self::syntax(),
+            ...self::duplicates(),
+            ...self::comments(),
             ...self::testCode(),
             ...self::lintCheck(),
             ...self::sniff(),
-            ...self::duplicates(),
-            ...self::comments(),
-            ...self::skipper(),
             ...self::architecture(),
             ...self::staticAnalysis(),
             ...self::security(),
             ...self::refactorCheck(),
-            ...self::normalizeCheck(),
         ];
     }
 
@@ -470,16 +470,16 @@ final class TaskCatalog
     private static function fullTestSuite(bool $ciComments): array
     {
         return [
+            ...self::skipper(),
+            ...self::normalizeCheck(),
             ...($ciComments ? self::probeCheckCi() : self::probeCheck()),
             ...self::pestTasks(),
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=full', '.'],
-            ...self::skipper(),
             ...self::architecture(),
             ...self::staticAnalysis(),
             [Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--show-info=false', '--security-analysis', '--threads=1', '--no-progress', '--no-cache'],
             ...self::refactorCheck(),
-            ...self::normalizeCheck(),
         ];
     }
 
