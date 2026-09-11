@@ -113,7 +113,7 @@ it('renders successful tasks only in the summary and every failed task with comp
         ->and(substr_count($rendered, 'FAIL '))->toBe(2);
 });
 
-it('renders aggregate PHPProbe failures as checker-grouped details', function (): void {
+it('renders PHPProbe 1.0 aggregate failures with additive input groups', function (): void {
     $directory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-phpprobe-output-'.bin2hex(random_bytes(6));
     $probe = $directory.DIRECTORY_SEPARATOR.'phpprobe';
     mkdir($directory, 0755, true);
@@ -133,6 +133,11 @@ $payload = [
             'stderr' => '',
             'payload' => [
                 'files_checked' => 2,
+                'groups' => [[
+                    'name' => 'src',
+                    'files_checked' => 2,
+                    'failures' => 1,
+                ]],
                 'failures' => [[
                     'file' => 'src/Broken.php',
                     'message' => 'Parse error: unexpected token',
@@ -144,6 +149,12 @@ $payload = [
             'stderr' => '',
             'payload' => [
                 'files' => 2,
+                'groups' => [[
+                    'name' => 'src',
+                    'files' => 2,
+                    'clone_groups' => 1,
+                    'occurrences' => 2,
+                ]],
                 'duplicated_lines' => 12,
                 'duplicate_percentage' => 8.5,
                 'clones' => [[
@@ -163,6 +174,11 @@ $payload = [
             'stderr' => '',
             'payload' => [
                 'files' => 2,
+                'groups' => [[
+                    'name' => 'src',
+                    'files' => 2,
+                    'findings' => 1,
+                ]],
                 'findings' => [[
                     'file' => 'src/Three.php',
                     'line' => 44,

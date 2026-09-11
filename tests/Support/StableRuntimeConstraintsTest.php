@@ -45,6 +45,20 @@ it('requires the PHP 8.5 array helper polyfill used by analyzers on PHP 8.4', fu
         ->and(Semver::satisfies($lockedVersion, $constraint))->toBeTrue();
 });
 
+it('requires PHPProbe 1.0 or newer within the current major version', function (): void {
+    $composer = json_decode(
+        (string) file_get_contents(dirname(__DIR__, 2).'/composer.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+    $constraint = (string) ($composer['require']['infocyph/phpprobe'] ?? '');
+
+    expect($constraint)->not->toBeEmpty()
+        ->and(Semver::satisfies('0.9.0', $constraint))->toBeFalse()
+        ->and(Semver::satisfies('1.0.0', $constraint))->toBeTrue();
+});
+
 it('accepts stable tagged runtime ranges and platform wildcards', function (): void {
     $path = writePhpforgeComposerManifest([
         'require' => [
