@@ -233,7 +233,7 @@ PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`,
 By default the bundled config uses PHPProbe's standard syntax and duplicate profiles with the strict comment policy. Duplicate findings remain visible, but become blocking only when duplicated lines reach 10% of the scanned code. Projects can still override individual sections in a published `phpprobe.json`.
 
 `composer ic:skipper` scans PHP, PHTML and INC files for inline bypasses used by
-PHPProbe, PHPStan, Psalm, PHPCS/PHPCBF, Phan, PHPMD, PhpStorm, PHPUnit, Infection and Rector. It also
+PHPProbe, PHPStan, Psalm, PHPCS/PHPCBF, PHPBench, Phan, PHPMD, PhpStorm, PHPUnit, Infection and Rector. It also
 detects explicit PHPUnit skipped/incomplete tests, PHPUnit `Requires*` and
 suppression attributes, and Pest skip, todo and focus-only chains. Findings are
 grouped by tool and fail the command; directive-shaped strings and dependency,

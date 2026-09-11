@@ -57,6 +57,12 @@ $escaped = $input;
 /** @noRector */
 function ignored(): void {}
 
+/** @Skip */
+function skippedLegacyBenchmark(): void {}
+
+#[PhpBench\Attributes\Skip]
+function skippedBenchmark(): void {}
+
 #[PHPUnit\Framework\Attributes\RequiresPhpExtension('redis')]
 function conditionalTest(): void {}
 
@@ -86,6 +92,7 @@ PHP);
             ->and($scan['files'])->toBe(1)
             ->and($tools)->toBe([
                 'Infection',
+                'PHPBench',
                 'PHPCS',
                 'PHPMD',
                 'PHPProbe',
@@ -99,6 +106,8 @@ PHP);
             ])
             ->and($directives)->toContain('@phpstan-ignore-next-line')
             ->toContain('@phpprobe-ignore')
+            ->toContain('@Skip')
+            ->toContain('#[Skip]')
             ->toContain('@psalm-suppress')
             ->toContain('phpcs:disable')
             ->toContain('#[RequiresPhpExtension]')

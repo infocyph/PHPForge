@@ -6,10 +6,32 @@ namespace Infocyph\PHPForge\Support;
 
 final class SkipDirectiveScanner
 {
+    private const array ATTRIBUTE_TOOLS = [
+        'codecoverageignore' => 'PHPUnit',
+        'coversnothing' => 'PHPUnit',
+        'doesnotperformassertions' => 'PHPUnit',
+        'ignoredeprecations' => 'PHPUnit',
+        'ignorephpunitdeprecations' => 'PHPUnit',
+        'ignorephpunitwarnings' => 'PHPUnit',
+        'requiresenvironmentvariable' => 'PHPUnit',
+        'requiresfunction' => 'PHPUnit',
+        'requiresmethod' => 'PHPUnit',
+        'requiresoperatingsystem' => 'PHPUnit',
+        'requiresoperatingsystemfamily' => 'PHPUnit',
+        'requiresphp' => 'PHPUnit',
+        'requiresphpextension' => 'PHPUnit',
+        'requiresphpunit' => 'PHPUnit',
+        'requiresphpunitextension' => 'PHPUnit',
+        'requiressetting' => 'PHPUnit',
+        'skip' => 'PHPBench',
+        'withouterrorhandler' => 'PHPUnit',
+    ];
+
     private const array COMMENT_RULES = [
         ['tool' => 'PHPStan', 'pattern' => '/@phpstan-ignore(?:-next-line|-line)?\b/i'],
         ['tool' => 'Psalm', 'pattern' => '/@psalm-(?:suppress|api|assert-untainted|taint-escape|ignore-(?:nullable-return|falsable-return|variable-property|variable-method))\b/i'],
         ['tool' => 'PHPCS', 'pattern' => '/(?:\bphpcs:(?:ignoreFile|ignore|disable|set)\b|@codingStandards(?:IgnoreFile|IgnoreStart|IgnoreLine|ChangeSetting)\b)/i'],
+        ['tool' => 'PHPBench', 'pattern' => '/@Skip\b/'],
         ['tool' => 'Phan', 'pattern' => '/@phan-(?:file-suppress|suppress(?:-next-line|-current-line)?)\b/i'],
         ['tool' => 'PHPMD', 'pattern' => '/@SuppressWarnings\b/i'],
         ['tool' => 'PhpStorm', 'pattern' => '/@noinspection\b/i'],
@@ -71,26 +93,6 @@ final class SkipDirectiveScanner
         'inc' => true,
         'php' => true,
         'phtml' => true,
-    ];
-
-    private const array PHPUNIT_ATTRIBUTES = [
-        'codecoverageignore' => true,
-        'coversnothing' => true,
-        'doesnotperformassertions' => true,
-        'ignoredeprecations' => true,
-        'ignorephpunitdeprecations' => true,
-        'ignorephpunitwarnings' => true,
-        'requiresenvironmentvariable' => true,
-        'requiresfunction' => true,
-        'requiresmethod' => true,
-        'requiresoperatingsystem' => true,
-        'requiresoperatingsystemfamily' => true,
-        'requiresphp' => true,
-        'requiresphpextension' => true,
-        'requiresphpunit' => true,
-        'requiresphpunitextension' => true,
-        'requiressetting' => true,
-        'withouterrorhandler' => true,
     ];
 
     /**
@@ -180,6 +182,24 @@ final class SkipDirectiveScanner
     }
 
     /**
+     * @param array{int, string, int}|string $token
+     * @return array{file: string, line: int, tool: string, directive: string}|null
+     */
+    private function attributeFinding(string $file, array|string $token, int $depth): ?array
+    {
+        if ($depth === 0 || !is_array($token) || !$this->isNameToken($token[0])) {
+            return null;
+        }
+
+        $attribute = $this->baseName($token[1]);
+        $tool = self::ATTRIBUTE_TOOLS[strtolower($attribute)] ?? null;
+
+        return is_string($tool)
+            ? $this->finding($file, $token[2], $tool, '#[' . $attribute . ']')
+            : null;
+    }
+
+    /**
      * @param list<array{int, string, int}|string> $tokens
      * @return list<array{file: string, line: int, tool: string, directive: string}>
      */
@@ -189,7 +209,7 @@ final class SkipDirectiveScanner
         $attributeDepth = 0;
 
         foreach ($tokens as $token) {
-            $finding = $this->phpunitAttributeFinding($file, $token, $attributeDepth);
+            $finding = $this->attributeFinding($file, $token, $attributeDepth);
 
             if (is_array($finding)) {
                 $findings[] = $finding;
@@ -442,23 +462,6 @@ final class SkipDirectiveScanner
         sort($files, SORT_STRING);
 
         return [$files, $errors];
-    }
-
-    /**
-     * @param array{int, string, int}|string $token
-     * @return array{file: string, line: int, tool: string, directive: string}|null
-     */
-    private function phpunitAttributeFinding(string $file, array|string $token, int $depth): ?array
-    {
-        if ($depth === 0 || !is_array($token) || !$this->isNameToken($token[0])) {
-            return null;
-        }
-
-        $attribute = $this->baseName($token[1]);
-
-        return isset(self::PHPUNIT_ATTRIBUTES[strtolower($attribute)])
-            ? $this->finding($file, $token[2], 'PHPUnit', '#[' . $attribute . ']')
-            : null;
     }
 
     private function relativePath(string $root, string $file): string
