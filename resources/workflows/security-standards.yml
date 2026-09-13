@@ -12,6 +12,10 @@ jobs:
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     with:
+      run_qa: true
+      run_analysis: true
+      upload_sarif: true
+      run_benchmark: true
       fail_on_skipped_tests: true
       integration_services: '[]'
       service_topologies: '{}'

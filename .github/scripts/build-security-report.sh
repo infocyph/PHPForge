@@ -6,14 +6,21 @@ mkdir -p .phpforge-report/out
 run_result="${RUN_RESULT:-missing}"
 analyze_result="${ANALYZE_RESULT:-missing}"
 benchmark_job_result="${BENCHMARK_JOB_RESULT:-missing}"
+run_qa_enabled="${RUN_QA_ENABLED:-true}"
+run_analysis_enabled="${RUN_ANALYSIS_ENABLED:-true}"
+run_benchmark_enabled="${RUN_BENCHMARK_ENABLED:-true}"
 generated_at="$(date -u +"%Y-%m-%d %H:%M UTC")"
 jobs_api_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100"
 
 overall_state="failing"
 
-if [ "$run_result" = "success" ] && [ "$analyze_result" = "success" ]; then
+if [ "$run_qa_enabled" != "true" ] && [ "$run_analysis_enabled" != "true" ]; then
+  overall_state="skipped"
+elif { [ "$run_qa_enabled" != "true" ] || [ "$run_result" = "success" ]; } \
+  && { [ "$run_analysis_enabled" != "true" ] || [ "$analyze_result" = "success" ]; }; then
   overall_state="passing"
-elif [ "$run_result" = "success" ] && [ "$analyze_result" = "skipped" ]; then
+elif { [ "$run_qa_enabled" != "true" ] || [ "$run_result" = "success" ]; } \
+  && [ "$analyze_result" = "skipped" ]; then
   overall_state="partial"
 fi
 
@@ -49,6 +56,14 @@ while IFS= read -r php_version; do
   code_analysis_prefer_lowest="$(job_conclusion "QA - PHP ${php_version} - prefer-lowest")"
   code_analysis_prefer_stable="$(job_conclusion "QA - PHP ${php_version} - prefer-stable")"
   security_analysis="$(job_conclusion "Analysis - PHP ${php_version}")"
+
+  if [ "$run_result" = "skipped" ] && [ "$code_analysis_prefer_lowest" = "missing" ]; then
+    code_analysis_prefer_lowest="skipped"
+  fi
+
+  if [ "$run_result" = "skipped" ] && [ "$code_analysis_prefer_stable" = "missing" ]; then
+    code_analysis_prefer_stable="skipped"
+  fi
 
   if [ "$analyze_result" = "skipped" ] && [ "$security_analysis" = "missing" ]; then
     security_analysis="skipped"
@@ -427,6 +442,9 @@ printf '%s\n' \
   --arg run_result "$run_result" \
   --arg analyze_result "$analyze_result" \
   --arg benchmark_job_result "$benchmark_job_result" \
+  --arg run_qa_enabled "$run_qa_enabled" \
+  --arg run_analysis_enabled "$run_analysis_enabled" \
+  --arg run_benchmark_enabled "$run_benchmark_enabled" \
   --arg benchmark_command "$benchmark_command" \
   --arg code_lowest_rollup "$code_lowest_rollup" \
   --arg code_stable_rollup "$code_stable_rollup" \
@@ -444,6 +462,11 @@ printf '%s\n' \
     run_result: $run_result,
     analyze_result: $analyze_result,
     benchmark_job_result: $benchmark_job_result,
+    enabled: {
+      qa: ($run_qa_enabled == "true"),
+      analysis: ($run_analysis_enabled == "true"),
+      benchmark: ($run_benchmark_enabled == "true")
+    },
     tested_php_versions: $tested_php_versions,
     matrix_results: $matrix_results,
     check_results: $check_results,
