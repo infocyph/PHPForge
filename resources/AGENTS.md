@@ -36,7 +36,7 @@
 - `composer ic:version` - print PHPForge/PHP/runtime path metadata.
 - `composer ic:phpstan:sarif input.json output.sarif` - convert PHPStan JSON to SARIF 2.1.0.
 
-- `composer ic:tests` - run the full quality suite.
+- `composer ic:tests` - run the full quality suite; PHPProbe syntax, reference, duplicate and comment detectors are separate parallel tasks.
 - `composer ic:tests:all` - alias of `ic:tests`.
 - `composer ic:tests:parallel` - alias of the bounded-parallel `ic:tests` suite.
 - `composer ic:tests:details` - run the detailed (non-parallel shortcut) quality checks.
@@ -45,7 +45,8 @@
 - `composer ic:test:lint` - run Pint in check mode.
 - `composer ic:test:sniff` - run PHPCS checks.
 - `composer ic:test:duplicates` - duplicate code detection.
-- `composer ic:test:probe` - run aggregate PHPProbe checks (syntax, duplicates, comments).
+- `composer ic:test:references` - detect broken class-like references, PSR-4 mismatches and missing required PHP extensions.
+- `composer ic:test:probe` - run aggregate PHPProbe checks (syntax, references, duplicates, comments).
 - `composer ic:test:comments` - comment policy checks via PHPProbe.
 - `composer ic:skipper` - reject inline quality suppressions (including PHPProbe) and explicit PHPUnit/Pest skip, todo and focus directives while honoring active per-tool path exclusions.
 - `composer ic:test:architecture` - Deptrac architecture checks.

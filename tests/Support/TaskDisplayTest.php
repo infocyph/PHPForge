@@ -14,6 +14,11 @@ it('formats duplicate checks with a friendly title', function (): void {
         ->toBe('Duplicate Code');
 });
 
+it('formats reference integrity checks with a friendly title', function (): void {
+    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpforge', 'reference']))
+        ->toBe('Reference Integrity');
+});
+
 it('formats comment checks with a friendly title', function (): void {
     expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpforge', 'comments']))
         ->toBe('Comment Policy');
@@ -32,6 +37,8 @@ it('formats the skip directive scanner with a friendly title', function (): void
 it('formats phpprobe checker tasks with friendly titles', function (): void {
     expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'syntax']))
         ->toBe('Checking Syntax')
+        ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'reference']))
+        ->toBe('Reference Integrity')
         ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'duplicates']))
         ->toBe('Duplicate Code')
         ->and(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/phpprobe', 'check']))

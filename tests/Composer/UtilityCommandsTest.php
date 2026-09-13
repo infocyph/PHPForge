@@ -74,6 +74,7 @@ it('exposes root diagnostic Composer scripts', function (): void {
         ->and($composer['scripts']['ic:commit-message'] ?? null)->toBe('@php bin/phpforge commit-message')
         ->and($composer['scripts']['ic:hooks'] ?? null)->toBe('@php bin/run-task.php hooks')
         ->and($composer['scripts']['ic:skipper'] ?? null)->toBe('@php bin/phpforge skipper')
+        ->and($composer['scripts']['ic:test:references'] ?? null)->toBe('@php bin/run-task.php test:references')
         ->and($composer['scripts']['ic:stage'] ?? null)->toBe('@php bin/phpforge stage');
 });
 

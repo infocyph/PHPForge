@@ -60,7 +60,7 @@ final class TaskCatalog
         return [
             ...self::skipper(),
             ...self::normalizeCheck(),
-            ...self::probeCheckCi(),
+            ...self::probeTasks(true),
             ...self::testCode(),
             ...self::lintCheck(),
             ...self::sniff(),
@@ -188,6 +188,14 @@ final class TaskCatalog
     /**
      * @return list<list<string>>
      */
+    public static function references(): array
+    {
+        return [self::probeCommand('reference')];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
     public static function releaseAudit(): array
     {
         return [[Paths::php(), Paths::bin('phpforge'), 'audit']];
@@ -297,6 +305,7 @@ final class TaskCatalog
             ...self::skipper(),
             ...self::normalizeCheck(),
             ...self::syntax(),
+            ...self::references(),
             ...self::duplicates(),
             ...self::comments(),
             ...self::testCode(),
@@ -472,7 +481,7 @@ final class TaskCatalog
         return [
             ...self::skipper(),
             ...self::normalizeCheck(),
-            ...($ciComments ? self::probeCheckCi() : self::probeCheck()),
+            ...self::probeTasks($ciComments),
             ...self::pestTasks(),
             [Paths::php(), Paths::bin('pint'), '--test', '--config', Paths::config('pint.json')],
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=full', '.'],
@@ -581,6 +590,19 @@ final class TaskCatalog
     private static function probeCommand(string $subcommand, array $extraArgs = []): array
     {
         return [Paths::php(), Paths::bin('phpprobe'), $subcommand, '--config', Paths::config('phpprobe.json'), ...$extraArgs];
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    private static function probeTasks(bool $ciComments): array
+    {
+        return [
+            ...self::syntax(),
+            ...self::references(),
+            ...self::duplicates(),
+            ...($ciComments ? self::commentsCi() : self::comments()),
+        ];
     }
 
     private static function psalmConfig(): string

@@ -11,6 +11,7 @@ final class TaskDisplay
      */
     private const array PROBE_TITLES = [
         'syntax' => 'Checking Syntax',
+        'reference' => 'Reference Integrity',
         'duplicates' => 'Duplicate Code',
         'check' => 'PHPProbe',
         'comments' => 'Comment Policy',

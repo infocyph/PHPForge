@@ -56,7 +56,7 @@ PHPForge is installed as a dev dependency in PHP libraries and packages. It prov
 | Pest                        | Test execution                                      |
 | Laravel Pint                | Code style checks and fixes                         |
 | PHP_CodeSniffer / PHPCBF    | Semantic sniffing and fixable sniff repairs         |
-| PHPProbe                    | Git-aware PHP syntax, duplicate-code and comment-policy checks |
+| PHPProbe                    | Git-aware PHP syntax, reference-integrity, duplicate-code and comment-policy checks |
 | Deptrac                     | Architecture boundary checks                        |
 | PHPStan                     | Static analysis and cognitive complexity            |
 | Psalm                       | Security and taint analysis                         |
@@ -206,7 +206,7 @@ Use focused `composer ic:test:*` commands while developing. Use `composer ic:ci`
 
 ### Test commands
 
-PHPForge parallelizes independent tools, not duplicate copies of the same checker. Source-mutating processors remain sequential. Started parallel peers are allowed to finish, successful output stays concise, failures retain bounded diagnostics, and summaries follow declaration order.
+PHPForge parallelizes independent tools and independently runnable detectors, not duplicate copies of the same check. PHPProbe syntax, reference, duplicate and comment detectors each run in their own process. Source-mutating processors remain sequential. Started parallel peers are allowed to finish, successful output stays concise, failures retain bounded diagnostics, and summaries follow declaration order.
 
 | Command                         | Purpose                                                                                                                                                        |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -219,7 +219,8 @@ PHPForge parallelizes independent tools, not duplicate copies of the same checke
 | `composer ic:test:lint`       | Runs Pint in check mode.                                                                                                                                       |
 | `composer ic:test:sniff`      | Runs PHPCS with a full report against the project root and bundled/project excludes.                                                                           |
 | `composer ic:test:duplicates` | Runs duplicate detection using `phpprobe.json`.                                                                                                              |
-| `composer ic:test:probe`      | Runs aggregate PHPProbe checks (syntax, duplicates, comments) using `phpprobe.json`.                                                                       |
+| `composer ic:test:references` | Detects broken class-like references, Composer PSR-4 mismatches and missing required PHP extensions.                                                        |
+| `composer ic:test:probe`      | Runs aggregate PHPProbe checks (syntax, references, duplicates, comments) using `phpprobe.json`.                                                           |
 | `composer ic:test:comments`   | Runs comment policy checks using `phpprobe.json`.                                                                                                            |
 | `composer ic:skipper`        | Rejects inline quality suppressions and explicit PHPUnit/Pest skip, todo and focus directives.                                                             |
 | `composer ic:test:architecture` | Runs Deptrac architecture checks using `deptrac.yaml`.                                                                                                    |
@@ -228,8 +229,8 @@ PHPForge parallelizes independent tools, not duplicate copies of the same checke
 | `composer ic:test:refactor`   | Runs Rector in dry-run mode.                                                                                                                                   |
 | `composer ic:test:bench`      | Runs PHPBench aggregate benchmarks when the project has a `benchmarks/` directory; otherwise skips them.                                                     |
 
-Syntax, duplicate and comment settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
-PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge duplicates`, `phpforge comments` and `phpforge check` commands are thin gateways that pass the same config to PHPProbe.
+Syntax, reference, duplicate and comment settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
+PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge reference`, `phpforge duplicates`, `phpforge comments` and `phpforge check` commands are thin gateways that pass the same config to PHPProbe.
 By default the bundled config uses PHPProbe's standard syntax and duplicate profiles with the strict comment policy. Duplicate findings remain visible, but become blocking only when duplicated lines reach 10% of the scanned code. Projects can still override individual sections in a published `phpprobe.json`.
 
 `composer ic:skipper` scans PHP, PHTML and INC files for inline bypasses used by
@@ -251,6 +252,7 @@ Use the lower-level binary for custom scans; CLI paths override configured paths
 
 ```bash
 php vendor/bin/phpprobe syntax --config=phpprobe.json --exclude=storage
+php vendor/bin/phpprobe reference --config=phpprobe.json src tests
 php vendor/bin/phpprobe check --config=phpprobe.json
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --min-lines=5 --min-tokens=70
 php vendor/bin/phpprobe duplicates --config=phpprobe.json --mode=audit --near-miss --json --exclude=tests
@@ -264,9 +266,10 @@ Useful checker options:
 
 | Option                      | Applies To         | Purpose                                                                 |
 | --------------------------- | ------------------ | ----------------------------------------------------------------------- |
-| `--config=FILE`           | Syntax, duplicates, comments, check | Reads checker settings from a custom `phpprobe.json` file.       |
-| `--preset=NAME`           | Syntax, duplicates, comments, check | Applies a runtime preset (`default`, `standard`, `ci`, `strict`). |
-| `--exclude=PATH`          | Syntax, duplicates, comments | Excludes one path; repeat it for multiple one-off exclusions.           |
+| `--config=FILE`           | Syntax, references, duplicates, comments, check | Reads checker settings from a custom `phpprobe.json` file.       |
+| `--preset=NAME`           | Syntax, references, duplicates, comments, check | Applies a runtime preset (`default`, `standard`, `ci`, `strict`). |
+| `--exclude=PATH`          | Syntax, references, duplicates, comments | Excludes one path; repeat it for multiple one-off exclusions.           |
+| `--composer=FILE`         | References | Selects the Composer metadata used for PSR-4 and installed-symbol resolution.                        |
 | `--exact`                 | Duplicates         | Disables variable/literal normalization.                                |
 | `--fuzzy`                 | Duplicates         | Also normalizes identifiers and calls for renamed-code scans.           |
 | `--mode=audit`            | Duplicates         | Enables statement-window matching in addition to token matching.        |
@@ -520,14 +523,19 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 
 ### PHPProbe checker config
 
-`phpprobe.json` configures PHPProbe syntax, duplicate-code and comment-policy checks.
-PHPProbe 1.0 is preset-first and PHPForge follows that model. Its grouped text reports and additive JSON group summaries are supported by PHPForge's detailed failure reporting.
+`phpprobe.json` configures PHPProbe syntax, reference-integrity, duplicate-code and comment-policy checks.
+PHPProbe 1.1.1 is preset-first and PHPForge follows that model. Its reference checker validates class-like symbols, Composer PSR-4 declaration paths and required `ext-*` packages. Grouped text reports and additive JSON group summaries are supported by PHPForge's detailed failure reporting.
 
 Bundled default:
 
 ```json
 {
   "preset": "standard",
+  "reference": {
+    "exclude": [
+      "resources"
+    ]
+  },
   "duplicates": {
     "fail_on": "error",
     "error_duplicate_percentage": 10
@@ -538,7 +546,7 @@ Bundled default:
 }
 ```
 
-You can still add section overrides (`syntax`, `duplicates`, `comments`, `commented_out_code`) when a project needs custom thresholds or exclusions.
+You can still add section overrides (`syntax`, `reference`, `duplicates`, `comments`, `commented_out_code`) when a project needs custom paths, thresholds or exclusions. The bundled reference profile excludes `resources/`, which commonly contains executable configuration/templates rather than Composer-owned application symbols. Remove that exclusion in a published config when those files are part of the project's reference surface. The `reference.composer` option selects the Composer metadata file and defaults to `composer.json`.
 
 Presets for `phpprobe.json` publishing:
 
@@ -871,7 +879,7 @@ with:
 ```
 
 Normal workflow workers run `composer ic:ci`, which delegates to the same bounded parallel runner as `ic:tests:parallel`.
-The aggregate CI path uses `phpprobe check --preset=ci`, while the focused comment command uses `phpprobe comments --ci`, so comment-policy output stays error-focused in workflow logs.
+The parallel suites launch PHPProbe's syntax, reference, duplicate and comment detectors as four independent processes with the same resolved project or bundled config. The focused comment process uses `phpprobe comments --ci`, so comment-policy output stays error-focused in workflow logs. `composer ic:test:probe` remains available when an explicit single-process aggregate PHPProbe run is useful.
 When the matrix entry is `prefer-lowest`, PHPForge still runs `composer ic:ci --prefer-lowest`, skipping heavyweight PHPStan and Psalm checks for that dependency edge.
 
 `php_extensions` is passed to `shivammathur/setup-php`:
@@ -1243,7 +1251,7 @@ Before:
 "require-dev": {
     "captainhook/captainhook": "^5.29.2",
     "ergebnis/composer-normalize": "^2.52",
-    "infocyph/phpprobe": "^1.0",
+    "infocyph/phpprobe": "^1.1.1",
     "laravel/pint": "^1.30.3",
     "pestphp/pest": "^5.0.2",
     "pestphp/pest-plugin-drift": "^5.0",
@@ -1295,6 +1303,7 @@ Replace commands:
 | `composer test:lint`                          | `composer ic:test:lint`         |
 | `composer test:sniff`                         | `composer ic:test:sniff`        |
 | `composer test:duplicates`                    | `composer ic:test:duplicates`   |
+| `composer test:references`                    | `composer ic:test:references`   |
 | `composer test:static`                        | `composer ic:test:static`       |
 | `composer test:security`                      | `composer ic:test:security`     |
 | `composer test:refactor`                      | `composer ic:test:refactor`     |
@@ -1320,6 +1329,7 @@ PHPForge provides those through:
 
 ```bash
 composer ic:test:syntax
+composer ic:test:references
 composer ic:test:duplicates
 composer ic:release:audit
 composer ic:phpstan:sarif phpstan-results.json phpstan-results.sarif
