@@ -301,7 +301,7 @@ final readonly class ParallelRunner
     {
         $stdout = '';
         $stderr = '';
-        $process = new Process($task, getcwd() ?: null, $this->taskEnvironment());
+        $process = new Process($task, getcwd() ?: null, TaskEnvironment::for($task));
         $process->setTimeout(null);
         $process->run(function (string $type, string $buffer) use (&$stdout, &$stderr): void {
             if ($type === Process::ERR) {
@@ -339,7 +339,7 @@ final readonly class ParallelRunner
         $stderrBytes = 0;
         $stdoutTruncated = false;
         $stderrTruncated = false;
-        $process = new Process($task, getcwd() ?: null, $this->taskEnvironment());
+        $process = new Process($task, getcwd() ?: null, TaskEnvironment::for($task));
         $process->setTimeout(self::timeoutFrom(null));
         $process->disableOutput();
         $process->start(function (string $type, string $buffer) use (
@@ -384,20 +384,6 @@ final readonly class ParallelRunner
         return $truncated
             ? $contents . PHP_EOL . sprintf('[output truncated after %d bytes]', self::MAX_OUTPUT_BYTES) . PHP_EOL
             : $contents;
-    }
-
-    /**
-     * @return array<string, string>|null
-     */
-    private function taskEnvironment(): ?array
-    {
-        $xdebugMode = getenv('XDEBUG_MODE');
-
-        if (is_string($xdebugMode) && $xdebugMode !== '') {
-            return null;
-        }
-
-        return ['XDEBUG_MODE' => 'off'];
     }
 
     private function writeBuffered(string $buffer, bool $error): void

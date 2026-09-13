@@ -169,7 +169,13 @@ it('runs Psalm through the dependency-isolated PHAR binary', function (): void {
     ));
 
     expect(basename(str_replace('\\', '/', $security[1])))->toBe('psalm.phar')
-        ->and($suitePsalm)->toHaveCount(1);
+        ->and($security)->toContain('--output-format=console')
+        ->and($suitePsalm)->toHaveCount(1)
+        ->and($suitePsalm[0])->toContain('--output-format=console');
+});
+
+it('forces native Deptrac table diagnostics in every environment', function (): void {
+    expect(TaskCatalog::architecture()[0])->toContain('--formatter=table');
 });
 
 it('runs aggregated PHPProbe checks with the PHPProbe checker config', function (): void {
