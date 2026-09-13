@@ -113,7 +113,7 @@ it('renders successful tasks only in the summary and every failed task with comp
         ->and(substr_count($rendered, 'FAIL '))->toBe(2);
 });
 
-it('renders PHPProbe 1.0 aggregate failures with additive input groups', function (): void {
+it('renders PHPProbe 1.1 aggregate failures with reference integrity details', function (): void {
     $directory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-phpprobe-output-'.bin2hex(random_bytes(6));
     $probe = $directory.DIRECTORY_SEPARATOR.'phpprobe';
     mkdir($directory, 0755, true);
@@ -124,7 +124,7 @@ $payload = [
     'summary' => [
         'checker' => 'check',
         'exit_code' => 1,
-        'checks' => ['syntax' => 1, 'duplicates' => 1, 'comments' => 1],
+        'checks' => ['syntax' => 1, 'reference' => 1, 'duplicates' => 1, 'comments' => 1],
         'skipped' => [],
     ],
     'results' => [
@@ -141,6 +141,28 @@ $payload = [
                 'failures' => [[
                     'file' => 'src/Broken.php',
                     'message' => 'Parse error: unexpected token',
+                ]],
+            ],
+        ],
+        'reference' => [
+            'exit_code' => 1,
+            'stderr' => '',
+            'payload' => [
+                'files_checked' => 2,
+                'symbols_indexed' => 8,
+                'references_checked' => 12,
+                'extensions_checked' => 1,
+                'extensions_missing' => 0,
+                'findings' => [[
+                    'file' => 'src/Service.php',
+                    'line' => 12,
+                    'type' => 'unknown_fqcn',
+                    'severity' => 'error',
+                    'symbol' => 'App\\Contracts\\PaymantGateway',
+                    'message' => 'Unknown parameter type App\\Contracts\\PaymantGateway.',
+                    'confidence' => 'certain',
+                    'suggestion' => 'Replace it with App\\Contracts\\PaymentGateway.',
+                    'candidates' => [],
                 ]],
             ],
         ],
@@ -204,11 +226,16 @@ PHP);
         expect($exitCode)->toBe(1)
             ->and($rendered)->toContain('PHPProbe check summary:')
             ->toContain('syntax         FAIL')
+            ->toContain('reference      FAIL')
             ->toContain('duplicates     FAIL')
             ->toContain('comments       FAIL')
             ->toContain('FAIL Syntax')
             ->toContain('src/Broken.php')
             ->toContain('Parse error: unexpected token')
+            ->toContain('FAIL Reference Integrity')
+            ->toContain('ERROR src/Service.php:12 [unknown_fqcn; confidence=CERTAIN]')
+            ->toContain('Unknown parameter type App\\Contracts\\PaymantGateway.')
+            ->toContain('Replace it with App\\Contracts\\PaymentGateway.')
             ->toContain('FAIL Duplicate Code')
             ->toContain('src/One.php:10-21')
             ->toContain('src/Two.php:30-41')

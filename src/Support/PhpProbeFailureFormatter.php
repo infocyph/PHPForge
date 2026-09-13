@@ -125,6 +125,7 @@ final class PhpProbeFailureFormatter
             $payload = ArrayShape::stringKeyed($result['payload'] ?? null);
             $lines = match ($checker) {
                 'syntax' => self::syntaxDetails($payload),
+                'reference' => self::referenceDetails($payload),
                 'duplicates' => self::duplicateDetails($payload),
                 'comments' => self::commentDetails($payload),
                 default => self::unknownDetails($payload),
@@ -137,6 +138,7 @@ final class PhpProbeFailureFormatter
 
             $title = match ($checker) {
                 'syntax' => 'Syntax',
+                'reference' => 'Reference Integrity',
                 'duplicates' => 'Duplicate Code',
                 'comments' => 'Comment Policy',
                 default => ucfirst($checker),
@@ -169,6 +171,44 @@ final class PhpProbeFailureFormatter
     }
 
     /**
+     * @param array<string, mixed> $payload
+     * @return list<string>
+     */
+    private static function referenceDetails(array $payload): array
+    {
+        $findings = self::list($payload['findings'] ?? null);
+        $lines = [sprintf(
+            'Found %d reference integrity finding(s) across %d PHP file(s):',
+            count($findings),
+            self::integer($payload['files_checked'] ?? null),
+        )];
+
+        foreach ($findings as $finding) {
+            $finding = ArrayShape::stringKeyed($finding);
+            $file = self::text($finding['file'] ?? null, 'unknown file');
+            $line = self::integer($finding['line'] ?? null, 1);
+            $type = self::text($finding['type'] ?? null, 'unknown_reference');
+            $message = self::text($finding['message'] ?? null, 'Reference integrity finding.');
+            $symbol = self::text($finding['symbol'] ?? null);
+            $confidence = strtoupper(self::text($finding['confidence'] ?? null, 'unknown'));
+            $lines[] = sprintf('  ERROR %s:%d [%s; confidence=%s]', $file, $line, $type, $confidence);
+            $lines[] = self::indent($message, 4);
+
+            if ($symbol !== '') {
+                $lines[] = self::indent('Reference: ' . $symbol, 4);
+            }
+
+            $suggestion = self::text($finding['suggestion'] ?? null);
+
+            if ($suggestion !== '') {
+                $lines[] = self::indent('Suggestion: ' . $suggestion, 4);
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
      * @param array<string, mixed> $summary
      * @return list<string>
      */
@@ -178,7 +218,7 @@ final class PhpProbeFailureFormatter
         $skipped = array_fill_keys(array_filter(self::list($summary['skipped'] ?? null), is_string(...)), true);
         $lines = ['PHPProbe check summary:', sprintf('  %-14s %s', 'Checker', 'Result'), sprintf('  %-14s %s', '--------------', '------')];
 
-        foreach (['syntax', 'duplicates', 'comments'] as $checker) {
+        foreach (['syntax', 'reference', 'duplicates', 'comments'] as $checker) {
             if (array_key_exists($checker, $skipped)) {
                 $result = 'SKIP';
             } elseif (array_key_exists($checker, $checks)) {

@@ -1,5 +1,10 @@
 {
   "preset": "standard",
+  "reference": {
+    "exclude": [
+      "resources"
+    ]
+  },
   "duplicates": {
     "fail_on": "error",
     "error_duplicate_percentage": 10

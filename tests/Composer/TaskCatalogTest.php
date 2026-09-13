@@ -120,6 +120,15 @@ it('runs comment policy checks with the PHPProbe checker config', function (): v
         ->and($command)->toContain(Paths::packageFile('resources/phpprobe.json'));
 });
 
+it('runs reference integrity checks with the PHPProbe checker config', function (): void {
+    $command = TaskCatalog::references()[0];
+
+    expect(basename(str_replace('\\', '/', $command[1])))->toBe('phpprobe')
+        ->and($command)->toContain('reference')
+        ->and($command)->toContain('--config')
+        ->and($command)->toContain(Paths::packageFile('resources/phpprobe.json'));
+});
+
 it('runs CI comment policy checks with error-focused output', function (): void {
     $command = TaskCatalog::commentsCi()[0];
 
@@ -208,7 +217,10 @@ it('keeps aggregate quality summaries in the requested order', function (): void
     expect($labels)->toBe([
         'Skip Directive Scanner',
         'Composer Normalize',
-        'PHPProbe',
+        'Checking Syntax',
+        'Reference Integrity',
+        'Duplicate Code',
+        'Comment Policy',
         'Pest',
         'Pint',
         'PHPCS',
@@ -230,11 +242,38 @@ it('runs one non-nested pest process in aggregate suites', function (): void {
         ->and(implode(' ', $pestCommands[0]))->not->toContain('--processes=');
 });
 
-it('includes comment policy checks in full and detailed quality suites', function (): void {
+it('includes PHPProbe reference and comment checks in quality suites', function (): void {
+    $syntaxTask = TaskCatalog::syntax()[0];
+    $duplicatesTask = TaskCatalog::duplicates()[0];
     $commentsTask = TaskCatalog::comments()[0];
+    $referencesTask = TaskCatalog::references()[0];
+    $suite = TaskCatalog::testAll();
 
-    expect(TaskCatalog::testAll())->toContain(TaskCatalog::probeCheck()[0])
+    expect($suite)->toContain($syntaxTask)
+        ->and($suite)->toContain($referencesTask)
+        ->and($suite)->toContain($duplicatesTask)
+        ->and($suite)->toContain($commentsTask)
+        ->and($suite)->not->toContain(TaskCatalog::probeCheck()[0])
+        ->and(TaskCatalog::testDetails())->toContain($referencesTask)
         ->and(TaskCatalog::testDetails())->toContain($commentsTask);
+});
+
+it('runs every PHPProbe detector in its own process in aggregate CI suites', function (): void {
+    $probeCommands = array_values(array_filter(
+        TaskCatalog::testAllCi(),
+        static fn(array $command): bool => basename(str_replace('\\', '/', $command[1] ?? '')) === 'phpprobe',
+    ));
+    $preferLowestProbeCommands = array_values(array_filter(
+        TaskCatalog::ci(true),
+        static fn(array $command): bool => basename(str_replace('\\', '/', $command[1] ?? '')) === 'phpprobe',
+    ));
+
+    expect(array_column($probeCommands, 2))->toBe(['syntax', 'reference', 'duplicates', 'comments'])
+        ->and($probeCommands)->toHaveCount(4)
+        ->and($probeCommands[3])->toContain('--ci')
+        ->and(array_column($preferLowestProbeCommands, 2))->toBe(['syntax', 'reference', 'duplicates', 'comments'])
+        ->and($preferLowestProbeCommands)->toHaveCount(4)
+        ->and($preferLowestProbeCommands[3])->toContain('--ci');
 });
 
 it('includes the skip directive scanner in every aggregate quality suite', function (): void {

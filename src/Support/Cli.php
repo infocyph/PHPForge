@@ -12,6 +12,7 @@ final class Cli
     private const string COMMAND_ROWS = <<<'COMMANDS'
 ci|Quality|ci [--prefer-lowest] [--without-analysis]|Run the CI quality suite.
 syntax|Quality|syntax [paths...]|Check PHP syntax.
+reference|Quality|reference [options] [paths...]|Check PHP reference integrity.
 duplicates|Quality|duplicates [options] [paths...]|Find duplicated code.
 comments|Quality|comments [options] [paths...]|Check the comment policy.
 check|Quality|check [options] [paths...]|Run aggregate PHPProbe checks.
@@ -36,6 +37,7 @@ COMMANDS;
         return match ($command) {
             'ci' => $this->ci(array_slice($argv, 2)),
             'syntax' => $this->probe('syntax', array_slice($argv, 2)),
+            'reference' => $this->probe('reference', array_slice($argv, 2)),
             'duplicates' => $this->probe('duplicates', array_slice($argv, 2)),
             'comments' => $this->probe('comments', array_slice($argv, 2)),
             'check' => $this->probe('check', array_slice($argv, 2)),

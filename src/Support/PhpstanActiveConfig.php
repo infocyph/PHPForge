@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Infocyph\PHPForge\Support;
 
 use Infocyph\PHPForge\Composer\TaskCatalog;
-use PHPStan\DependencyInjection\ContainerFactory;
 
 final class PhpstanActiveConfig
 {
@@ -164,18 +163,28 @@ final class PhpstanActiveConfig
      */
     private function phpstanParameters(string $configPath): array
     {
-        $factory = new ContainerFactory(Paths::projectRootPath());
-        $container = $factory->create($this->phpstanTempDir(), [$configPath], []);
-        $parameters = $container->getParameters();
+        $result = new ProcRunner()->run([
+            Paths::php(),
+            Paths::bin('phpstan'),
+            'dump-parameters',
+            '--configuration=' . $configPath,
+            '--memory-limit=' . $this->phpstanMemoryLimit(),
+            '--json',
+            '--no-interaction',
+        ]);
+
+        if (!$result instanceof ProcessResult || $result->exitCode !== 0) {
+            $message = $result instanceof ProcessResult ? trim($result->stderr) : '';
+
+            throw new \RuntimeException($message !== '' ? $message : 'Unable to inspect PHPStan parameters.');
+        }
+
+        try {
+            $parameters = json_decode($result->stdout, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            throw new \RuntimeException('PHPStan returned invalid parameter JSON.', previous: $exception);
+        }
 
         return ArrayShape::stringKeyed($parameters);
-    }
-
-    private function phpstanTempDir(): string
-    {
-        return rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
-            . DIRECTORY_SEPARATOR
-            . 'phpforge-phpstan-'
-            . md5(strtolower(Paths::projectRootPath()));
     }
 }

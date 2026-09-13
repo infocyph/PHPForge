@@ -15,7 +15,8 @@ quality|ic:test:code|Run Pest tests.|testCode
 quality|ic:test:lint|Run Pint in check mode.|lintCheck
 quality|ic:test:sniff|Run PHP_CodeSniffer.|sniff
 quality|ic:test:duplicates|Detect duplicated PHP code.|duplicates
-quality|ic:test:probe|Run all PHPProbe checks (syntax, duplicates, comments).|probeCheck
+quality|ic:test:references|Detect broken PHP references and PSR-4 mismatches.|references
+quality|ic:test:probe|Run all PHPProbe checks (syntax, references, duplicates, comments).|probeCheck
 quality|ic:test:comments|Run PHPProbe comment policy checks.|comments
 quality|ic:skipper|Reject inline quality and test skip directives.|skipper
 quality|ic:test:architecture|Run Deptrac architecture checks.|architecture
