@@ -23,3 +23,4 @@ vendor
 d2utmp*
 tmp
 /graphify-out
+.deptrac.cache

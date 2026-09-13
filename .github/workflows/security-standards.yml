@@ -456,7 +456,7 @@ jobs:
           phpstan_status=$?
           : > phpstan-results.log
           if [ "$phpstan_status" != 0 ]; then
-            if php "$vendor_dir/bin/phpstan" analyse --configuration="$phpstan_config" --memory-limit="$PHPSTAN_MEMORY_LIMIT" --no-progress --no-ansi --error-format=table > phpstan-results.log 2>&1; then
+            if env -u GITHUB_ACTIONS php "$vendor_dir/bin/phpstan" analyse --configuration="$phpstan_config" --memory-limit="$PHPSTAN_MEMORY_LIMIT" --no-progress --no-ansi --error-format=table > phpstan-results.log 2>&1; then
               : > phpstan-results.log
             fi
           fi
@@ -479,7 +479,7 @@ jobs:
           elif [ -f psalm.xml.dist ]; then psalm_config=psalm.xml.dist
           elif [ "$package" = infocyph/phpforge ]; then psalm_config=resources/psalm.xml
           else psalm_config="$vendor_dir/infocyph/phpforge/resources/psalm.xml"; fi
-          php "$vendor_dir/bin/psalm.phar" --config="$psalm_config" --security-analysis --threads=1 --no-progress --no-cache --report=psalm-results.sarif > psalm-results.log 2>&1
+          php "$vendor_dir/bin/psalm.phar" --config="$psalm_config" --security-analysis --threads=1 --no-progress --no-cache --output-format=console --report=psalm-results.sarif > psalm-results.log 2>&1
           psalm_status=$?
           set -e
           printf 'audit_status=%d\nphpstan_status=%d\nsarif_status=%d\npsalm_status=%d\n' "$audit_status" "$phpstan_status" "$sarif_status" "$psalm_status" >> "$GITHUB_OUTPUT"

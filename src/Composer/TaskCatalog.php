@@ -15,7 +15,7 @@ final class TaskCatalog
      */
     public static function architecture(): array
     {
-        return [[Paths::php(), Paths::bin('deptrac'), '--no-cache', 'analyse', '--config-file=' . Paths::config('deptrac.yaml'), '--no-progress']];
+        return [[Paths::php(), Paths::bin('deptrac'), '--no-cache', 'analyse', '--config-file=' . Paths::config('deptrac.yaml'), '--no-progress', '--formatter=table']];
     }
 
     /**
@@ -227,7 +227,7 @@ final class TaskCatalog
      */
     public static function security(): array
     {
-        return [[Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--security-analysis', '--threads=' . self::psalmThreads(), '--no-cache']];
+        return [[Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--security-analysis', '--threads=' . self::psalmThreads(), '--no-cache', '--output-format=console']];
     }
 
     /**
@@ -487,7 +487,7 @@ final class TaskCatalog
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=full', '.'],
             ...self::architecture(),
             ...self::staticAnalysis(),
-            [Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--show-info=false', '--security-analysis', '--threads=1', '--no-progress', '--no-cache'],
+            [Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--show-info=false', '--security-analysis', '--threads=1', '--no-progress', '--no-cache', '--output-format=console'],
             ...self::refactorCheck(),
         ];
     }
