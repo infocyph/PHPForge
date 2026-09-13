@@ -724,6 +724,10 @@ jobs:
       actions: read
       contents: read
     with:
+      run_qa: true
+      run_analysis: true
+      upload_sarif: true
+      run_benchmark: true
       fail_on_skipped_tests: true
       integration_services: '[]'
       service_topologies: '{}'
@@ -737,7 +741,10 @@ Common workflow inputs:
 | `dependency_versions` | `["prefer-lowest","prefer-stable"]` | The project needs only one Composer dependency mode. |
 | `integration_services` | `[]` | Tests require one or more catalog services. |
 | `service_topologies` | `{}` | A selected service needs a supported replica, replica-set, availability-group, or cluster mode. |
-| `run_analysis` | `true` | Set to `false` only when the dedicated PHPStan/Psalm and SARIF job should be disabled. |
+| `run_qa` | `true` | Set to `false` to skip the QA matrix. |
+| `run_analysis` | `true` | Set to `false` to skip Composer audit, PHPStan and Psalm. |
+| `upload_sarif` | `true` | Set to `false` to keep analysis but skip GitHub code-scanning uploads. |
+| `run_benchmark` | `true` | Set to `false` to skip the benchmark matrix. |
 | `fail_on_skipped_tests` | `true` | Fails workflow QA when Pest reports any skipped test. |
 
 <details>
@@ -751,7 +758,10 @@ Common workflow inputs:
 | `composer_flags` | `""` | Extra flags appended to Composer install/update commands. |
 | `phpstan_memory_limit` | `1G` | PHPStan memory limit used by workflow analysis. |
 | `quality_task_timeout_seconds` | `300` | Maximum runtime for each independent quality tool; long-running tools are identified after 60 seconds. |
-| `run_analysis` | `true` | Runs SARIF upload jobs for PHPStan and Psalm. Set to `false` for CI-only runs. |
+| `run_qa` | `true` | Runs the PHP and dependency-version QA matrix. |
+| `run_analysis` | `true` | Runs the dedicated Composer audit, PHPStan and Psalm matrix. |
+| `upload_sarif` | `true` | Uploads generated PHPStan and Psalm SARIF files to GitHub code scanning when analysis runs. |
+| `run_benchmark` | `true` | Runs the benchmark matrix; projects without a benchmark directory or command report a skipped benchmark workload. |
 | `run_svg_report` | `true` | Publishes the final **Security Report Summary** and uploads `security-summary.json`. The legacy input name is retained for compatibility; no SVG is generated. |
 | `fail_on_skipped_tests` | `true` | Adds `--fail-on-skipped` to workflow Pest execution. Set to `false` only when skipped tests are acceptable in CI. |
 | `run_clean_install` | `true` | Verifies a production-style `--no-dev` install and authoritative autoload. |
@@ -966,12 +976,15 @@ Database and key-value replica modes verify real replicated data visibility befo
 <details>
 <summary>Analysis, clean install, benchmark, and report inputs</summary>
 
-`run_analysis` controls the dedicated Composer audit, PHPStan, Psalm and SARIF
-analysis job:
+The default-on execution switches independently control the three workload
+matrices and GitHub code-scanning publication:
 
 ```yaml
 with:
-  run_analysis: false
+  run_qa: true
+  run_analysis: true
+  upload_sarif: true
+  run_benchmark: true
 ```
 
 Analyzer failures are grouped by tool. Psalm exposes its native console report;
@@ -979,10 +992,12 @@ PHPStan keeps its first JSON result as the gate and SARIF source, then uses its
 native table formatter only after a PHPStan failure. If that diagnostic pass
 cannot produce output, PHPForge falls back to the original JSON diagnostics.
 
-SARIF publication is best-effort. A repository without GitHub code scanning or
-Advanced Security still runs the audit and local analysis gates; an unavailable
-upload does not fail the job. Set `run_analysis: false` only when the entire
-dedicated analysis job should be skipped.
+Set `upload_sarif: false` to retain Composer audit, PHPStan and Psalm as blocking
+analysis gates without publishing their SARIF files. SARIF publication remains
+best-effort when enabled: unavailable GitHub code scanning does not fail the
+analysis job. Set `run_analysis: false` only when those analysis gates should not
+run at all. QA always excludes PHPStan and Psalm because the analysis matrix owns
+them; this prevents duplicated analyzer execution.
 
 `run_svg_report` controls the final **Security Report Summary** job. The input keeps its legacy name so existing workflow callers do not break, but PHPForge no longer generates an SVG:
 
@@ -1061,6 +1076,7 @@ jobs:
       php_versions: '["8.4","8.5"]'
       dependency_versions: '["prefer-stable"]'
       run_analysis: false
+      run_benchmark: false
       run_svg_report: true
 ```
 
@@ -1080,7 +1096,7 @@ jobs:
       run_analysis: true
 ```
 
-Project with extensions and no SARIF upload:
+Project with extensions and analysis but no SARIF upload:
 
 ```yaml
 jobs:
@@ -1090,7 +1106,8 @@ jobs:
       php_versions: '["8.4","8.5"]'
       php_extensions: "mbstring, intl, pdo_mysql"
       composer_flags: "--ignore-platform-req=ext-redis"
-      run_analysis: false
+      run_analysis: true
+      upload_sarif: false
       run_svg_report: true
 ```
 
@@ -1365,12 +1382,11 @@ composer ic:hooks
 
 SARIF upload is non-blocking when GitHub code scanning or Advanced Security is
 unavailable. The Composer audit and local PHPStan/Psalm gates still determine
-the analysis job result. Use `run_analysis: false` only to disable that entire
-job:
+the analysis job result. Disable only publication while retaining those gates:
 
 ```yaml
 with:
-  run_analysis: false
+  upload_sarif: false
 ```
 
 ### Security Report Summary is missing

@@ -33,8 +33,23 @@ on:
         required: false
         type: number
         default: 300
+      run_qa:
+        description: "Run the QA matrix."
+        required: false
+        type: boolean
+        default: true
       run_analysis:
-        description: "Run the dedicated analyzer/SARIF job."
+        description: "Run the dedicated Composer audit, PHPStan, and Psalm job."
+        required: false
+        type: boolean
+        default: true
+      upload_sarif:
+        description: "Upload PHPStan and Psalm SARIF results to GitHub code scanning."
+        required: false
+        type: boolean
+        default: true
+      run_benchmark:
+        description: "Run the benchmark matrix."
         required: false
         type: boolean
         default: true
@@ -170,7 +185,7 @@ jobs:
 
   run:
     needs: prepare
-    if: needs.prepare.outputs.has_supported_php_versions == 'true'
+    if: inputs.run_qa && needs.prepare.outputs.has_supported_php_versions == 'true'
     name: QA - PHP ${{ matrix.php-version }} - ${{ matrix.dependency-version }}
     runs-on: ubuntu-latest
     strategy:
@@ -365,10 +380,9 @@ jobs:
           IC_PEST_FAIL_ON_SKIPPED: ${{ inputs.fail_on_skipped_tests }}
           IC_TEST_TASK_TIMEOUT: ${{ inputs.quality_task_timeout_seconds }}
         run: |
-          args=()
+          args=(--without-analysis)
           if [ "${{ matrix.dependency-version }}" = "prefer-lowest" ]; then args+=(--prefer-lowest); fi
-          if [ "${{ inputs.run_analysis }}" = "true" ]; then args+=(--without-analysis); fi
-          if [ "${#args[@]}" -eq 0 ]; then composer ic:ci; else composer ic:ci "${args[@]}"; fi
+          composer ic:ci "${args[@]}"
       - name: Stop selected services
         if: always() && needs.prepare.outputs.has_external_services == 'true'
         shell: bash
@@ -470,13 +484,13 @@ jobs:
           set -e
           printf 'audit_status=%d\nphpstan_status=%d\nsarif_status=%d\npsalm_status=%d\n' "$audit_status" "$phpstan_status" "$sarif_status" "$psalm_status" >> "$GITHUB_OUTPUT"
       - name: Upload PHPStan SARIF
-        if: always() && hashFiles('phpstan-results.sarif') != ''
+        if: always() && inputs.upload_sarif && hashFiles('phpstan-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: phpstan-results.sarif
           category: phpstan-${{ matrix.php-version }}
       - name: Upload Psalm SARIF
-        if: always() && hashFiles('psalm-results.sarif') != ''
+        if: always() && inputs.upload_sarif && hashFiles('psalm-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: psalm-results.sarif
@@ -550,7 +564,7 @@ jobs:
 
   benchmark:
     needs: prepare
-    if: needs.prepare.outputs.has_supported_php_versions == 'true' && (inputs.benchmark_composer_script != '' || inputs.benchmark_result_file != '' || (inputs.run_svg_report && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')))
+    if: inputs.run_benchmark && needs.prepare.outputs.has_supported_php_versions == 'true'
     name: Benchmark
     runs-on: ubuntu-latest
     strategy:
@@ -632,6 +646,7 @@ jobs:
           sparse-checkout: .github/scripts/build-security-report.sh
           sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v8
+        if: inputs.run_benchmark
         with:
           pattern: benchmark-raw-php-*
           path: .phpforge-report/in/benchmark
@@ -643,6 +658,9 @@ jobs:
           RUN_RESULT: ${{ needs.run.result }}
           ANALYZE_RESULT: ${{ needs.analyze.result }}
           BENCHMARK_JOB_RESULT: ${{ needs.benchmark.result }}
+          RUN_QA_ENABLED: ${{ inputs.run_qa }}
+          RUN_ANALYSIS_ENABLED: ${{ inputs.run_analysis }}
+          RUN_BENCHMARK_ENABLED: ${{ inputs.run_benchmark }}
           PHP_VERSIONS_INPUT: ${{ needs.prepare.outputs.php_versions }}
         run: bash .phpforge-workflow/.github/scripts/build-security-report.sh
       - uses: actions/upload-artifact@v7

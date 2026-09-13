@@ -155,11 +155,15 @@ it('reports container diagnostics when service startup itself fails', function (
         ->toContain('docker cp "$container_id:/var/opt/mssql/log/errorlog"');
 });
 
-it('exposes the compact service controls in the project workflow', function (): void {
+it('exposes the default-on workflow controls and compact service controls', function (): void {
     $root = dirname(__DIR__, 2);
     $workflow = Yaml::parseFile($root.'/.github/workflows/phpforge.yml');
     $template = Yaml::parseFile($root.'/resources/workflows/security-standards.yml');
     $expected = [
+        'run_qa' => true,
+        'run_analysis' => true,
+        'upload_sarif' => true,
+        'run_benchmark' => true,
         'fail_on_skipped_tests' => true,
         'integration_services' => '[]',
         'service_topologies' => '{}',
@@ -167,6 +171,27 @@ it('exposes the compact service controls in the project workflow', function (): 
 
     expect($workflow['jobs']['security-standards']['with'] ?? null)->toBe($expected)
         ->and($template['jobs']['phpforge']['with'] ?? null)->toBe($expected);
+});
+
+it('keeps QA analysis benchmarks and SARIF publication independently switchable', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $inputs = $workflow['on']['workflow_call']['inputs'] ?? [];
+    $analysisSteps = $workflow['jobs']['analyze']['steps'] ?? [];
+    $sarifSteps = array_values(array_filter(
+        $analysisSteps,
+        static fn(mixed $step): bool => is_array($step) && ($step['uses'] ?? null) === 'github/codeql-action/upload-sarif@v4',
+    ));
+
+    expect($inputs['run_qa']['default'] ?? null)->toBeTrue()
+        ->and($inputs['run_analysis']['default'] ?? null)->toBeTrue()
+        ->and($inputs['upload_sarif']['default'] ?? null)->toBeTrue()
+        ->and($inputs['run_benchmark']['default'] ?? null)->toBeTrue()
+        ->and($workflow['jobs']['run']['if'] ?? null)->toContain('inputs.run_qa')
+        ->and($workflow['jobs']['analyze']['if'] ?? null)->toContain('inputs.run_analysis')
+        ->and($workflow['jobs']['benchmark']['if'] ?? null)->toContain('inputs.run_benchmark')
+        ->and($sarifSteps)->toHaveCount(2)
+        ->and($sarifSteps[0]['if'] ?? null)->toContain('inputs.upload_sarif')
+        ->and($sarifSteps[1]['if'] ?? null)->toContain('inputs.upload_sarif');
 });
 
 it('fails workflow Pest runs when tests are skipped by default', function (): void {
@@ -199,9 +224,10 @@ it('passes CI flags as options to the registered Composer command', function ():
     $stepsByName = array_column($steps, null, 'name');
     $script = $stepsByName['Run quality suite once']['run'] ?? '';
 
-    expect($script)->toContain('args+=(--prefer-lowest)')
-        ->toContain('args+=(--without-analysis)')
+    expect($script)->toContain('args=(--without-analysis)')
+        ->toContain('args+=(--prefer-lowest)')
         ->toContain('composer ic:ci "${args[@]}"')
+        ->not->toContain('${{ inputs.run_analysis }}')
         ->not->toContain('composer ic:ci -- "${args[@]}"');
 });
 

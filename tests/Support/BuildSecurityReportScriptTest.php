@@ -142,6 +142,10 @@ BASH);
                 'code_analysis_prefer_stable' => 'success',
                 'security_analysis' => 'success',
             ],
+        ])->and($report['enabled'] ?? null)->toBe([
+            'qa' => true,
+            'analysis' => true,
+            'benchmark' => true,
         ])->and(array_column($report['check_results'] ?? [], 'source_job'))->toBe([
             'QA - PHP 8.4 - prefer-lowest',
             'QA - PHP 8.4 - prefer-stable',
