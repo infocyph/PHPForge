@@ -140,6 +140,18 @@ it('enables APCu for CLI when it is present in the resolved extension list', fun
         ->toBe("\${{ contains(needs.prepare.outputs.php_extensions, 'apcu') && 'apc.enable_cli=1, apcu.enable_cli=1' || '' }}");
 });
 
+it('derives automatic extension installation only from Composer requirements', function (): void {
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $steps = $workflow['jobs']['prepare']['steps'] ?? [];
+    $stepsByName = array_column($steps, null, 'name');
+    $script = $stepsByName['Resolve service profiles and PHP extensions']['run'] ?? '';
+
+    expect($script)
+        ->toContain('foreach (["require", "require-dev"] as $section)')
+        ->not->toContain('foreach (["require", "require-dev", "suggest"] as $section)')
+        ->and($script)->toContain('${composer_extensions},${EXTRA_EXTENSIONS}');
+});
+
 it('reports container diagnostics when service startup itself fails', function (): void {
     $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
     $steps = $workflow['jobs']['run']['steps'] ?? [];
