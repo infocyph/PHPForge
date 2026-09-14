@@ -173,7 +173,7 @@ jobs:
           composer_extensions="$(php -r '
           $composer = json_decode((string) file_get_contents("composer.json"), true, 512, JSON_THROW_ON_ERROR);
           $extensions = [];
-          foreach (["require", "require-dev", "suggest"] as $section) {
+          foreach (["require", "require-dev"] as $section) {
               foreach (array_keys($composer[$section] ?? []) as $package) {
                   if (str_starts_with($package, "ext-")) $extensions[] = substr($package, 4);
               }
