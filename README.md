@@ -21,6 +21,7 @@ PHPForge is installed as a dev dependency in PHP libraries and packages. It prov
   - [Verify the setup](#verify-the-setup)
 - [Daily workflow](#daily-workflow)
 - [Command reference](#command-reference)
+- [Project knowledge](#project-knowledge)
 - [Benchmarking](#benchmarking)
 - [Utility commands](#utility-commands)
 - [Configuration](#configuration)
@@ -45,6 +46,7 @@ PHPForge is installed as a dev dependency in PHP libraries and packages. It prov
 | Benchmarks | PHPBench commands, a workload-neutral result contract, regression comparison and worker soak testing. |
 | Release safety | Composer validation, dependency constraint checks, advisory auditing and a production-style clean-install gate. |
 | Project automation | CaptainHook integration, diagnostics, configuration publishing and community templates. |
+| Project knowledge | Deterministic PHP structure from PHPProbe plus searchable, bounded content indexing for other text files used by PHP projects. |
 
 <details>
 <summary>Included tooling</summary>
@@ -56,7 +58,7 @@ PHPForge is installed as a dev dependency in PHP libraries and packages. It prov
 | Pest                        | Test execution                                      |
 | Laravel Pint                | Code style checks and fixes                         |
 | PHP_CodeSniffer / PHPCBF    | Semantic sniffing and fixable sniff repairs         |
-| PHPProbe                    | Git-aware PHP syntax, reference-integrity, duplicate-code and comment-policy checks |
+| PHPProbe                    | Git-aware PHP syntax, reference-integrity, duplicate-code, comment-policy and deterministic code-graph extraction |
 | Deptrac                     | Architecture boundary checks                        |
 | PHPStan                     | Static analysis and cognitive complexity            |
 | Psalm                       | Security and taint analysis                         |
@@ -199,6 +201,7 @@ If CaptainHook was selected, hooks install automatically on the next `composer i
 | Run benchmarks | `composer ic:benchmark` |
 | Run the release gate | `composer ic:release:guard` |
 | Inspect configuration problems | `composer ic:doctor` |
+| Build or query project knowledge | `composer ic:kb:build`, then `composer ic:kb:query -- "Service"` |
 
 Use focused `composer ic:test:*` commands while developing. Use `composer ic:ci` before opening a pull request; it is the same validation path used by the generated workflow and bundled pre-commit hook.
 
@@ -324,6 +327,113 @@ Useful checker options:
 | `composer ic:release:audit` | Runs Composer audit. Security advisories fail; abandoned packages warn. |
 | `composer ic:release:constraints` | Rejects development branches, aliases, commit references, pre-stable flags and non-stable minimum stability in runtime requirements. |
 | `composer ic:release:guard` | Runs Composer validation, stable runtime constraints, audit and the full test suite. |
+
+## Project knowledge
+
+Build a local, versioned knowledge index explicitly:
+
+```bash
+composer ic:kb:build
+composer ic:kb:query -- "what calls Service::run?"
+```
+
+Knowledge queries follow a deterministic retrieval pipeline: lexical seed
+ranking, intent/relation filtering, depth-aware traversal, relevance reranking,
+token-budgeted context assembly and explicit safety caps. Breadth-first search
+at depth 2 is the default; use depth-first search when tracing a particular
+dependency chain:
+
+```bash
+composer ic:kb:query -- "describe the command architecture" --context=architecture --depth=3
+composer ic:kb:query -- "what calls Service::run?" --context=calls --direction=incoming
+composer ic:kb:query -- "trace Service to Repository" --dfs --depth=6 --budget=8000
+composer ic:kb:query -- "trait hierarchy" --context=inheritance --relation=uses_trait
+```
+
+| Query option | Meaning |
+| --- | --- |
+| `--depth=N` | Traverse 0–12 relationships from each seed; default `2`. |
+| `--context=PROFILE` | Use `auto`, `all`, `architecture`, `calls`, `inheritance` or `content` relation context. |
+| `--relation=NAME` | Restrict traversal to extracted relations; repeat it or pass a comma-separated list. |
+| `--direction=MODE` | Traverse `both`, `incoming` or `outgoing` edges. |
+| `--dfs` | Trace depth-first; breadth-first traversal is the default. |
+| `--budget=N` | Approximate context-token budget; default `4000`, while `0` requests the safety maximum. |
+| `--limit=N` | Maximum lexical seeds; `0` requests the safety maximum. |
+
+Every result includes traversal paths and the communities, god nodes and
+cross-community bridges reached by the selected slice. JSON output also reports
+estimated tokens, whether a safety boundary truncated retrieval and the exact
+reason. The emergency ceilings are intentionally much higher than the former
+one-hop/250-edge implementation: depth 12, 2,000 seeds, 100,000 approximate
+tokens, 10,000 context nodes and 50,000 context edges.
+
+The default output directory is `phpforge/`. An unchanged file fingerprint
+reuses the index; `--force` rebuilds it. Each build publishes this bundle:
+
+| Resource | Purpose |
+| --- | --- |
+| `knowledge.json` | Canonical searchable nodes, edges and bounded content. |
+| `manifest.json` | Indexed-file inventory, hashes, categories and extractor versions. |
+| `analysis.json` | Deterministic communities, cohesion, god nodes, cross-community bridges, graph health, suggested questions and aggregate statistics. |
+| `GRAPH_REPORT.md` | Human- and agent-readable coverage, community, god-node and connection report. |
+| `graph.html` | Self-contained interactive graph explorer with community coloring and type/community filtering. |
+
+Pass paths to narrow the build or choose another `knowledge.json` location; the
+companion resources are written beside it:
+
+```bash
+composer ic:kb:build -- src tests resources --output=build/knowledge.json
+composer ic:kb:query -- "service topology" --graph=build/knowledge.json --context=architecture --depth=3 --json
+```
+
+PHPProbe 1.2 is the authoritative PHP extractor. It provides declarations,
+signatures and extracted relationships such as calls, inheritance, interface
+implementation, trait use and instantiation. PHPForge adds bounded UTF-8 content
+chunks for relevant non-PHP project files, including HTML/templates, CSS,
+JavaScript/TypeScript, JSON/YAML/XML/TOML/INI, Markdown/text, SQL, Docker files,
+shell scripts and CI workflows. Those files are content-indexed, not presented
+as having PHP-quality AST relationships. Binary and recognized sensitive files
+such as environment files, credentials, API auth files and private keys are
+skipped; files larger than 2 MB are reported as unsupported.
+
+Every build reports structural, content-indexed, skipped and unsupported counts.
+The artifact bundle keeps extracted facts separate from optional model
+interpretation, and the output is removed by `composer ic:clean`. Add `/phpforge`
+to the consuming project's `.gitignore` when using the default output.
+
+<details>
+<summary>Optional local or vendor AI explanation</summary>
+
+Querying is deterministic and model-free by default. `--explain` sends only the
+retrieved, token-budgeted graph slice to the default local Ollama endpoint. PHPForge
+uses the first currently running model, or the first installed model when none is
+loaded. When no usable local model is available and `GEMINI_API_KEY` is set, it
+automatically falls back to Gemini. Any Ollama chat-capable model can be used;
+select `--provider=ollama` to require local-only explanation:
+
+```bash
+composer ic:kb:query -- "how is configuration resolved?" --explain
+OLLAMA_MODEL=my-model:latest composer ic:kb:query -- "how is configuration resolved?" --explain
+composer ic:kb:query -- "how is configuration resolved?" --provider=ollama
+```
+
+Select Gemini explicitly when repository policy permits sending the retrieved
+slice to a vendor API:
+
+```bash
+GEMINI_API_KEY=... composer ic:kb:query -- \
+  "how is configuration resolved?" \
+  --provider=gemini
+```
+
+Model output must be structured JSON, is always labelled `INFERRED`, and may cite
+only node IDs present in the retrieved slice. If Ollama or Gemini is unavailable,
+the deterministic query still succeeds and reports that only the explanation was
+skipped. Sensitive files are not indexed, but ordinary indexed code metadata and
+text chunks can still be confidential; remote use must therefore remain an
+explicit project decision.
+
+</details>
 
 ## Benchmarking
 
@@ -483,6 +593,8 @@ Use the `composer ic:*` commands in consuming packages. PHPForge does not requir
 | `composer ic:publish-community-templates`           | Alias of `composer ic:community`.                                                                              |
 | `composer ic:publish-community-templates --force`   | Alias of `composer ic:community --force`.                                                                      |
 | `composer ic:clean`                                 | Removes known PHPForge output files and cache directories.                                                     |
+| `composer ic:kb:build [paths...]`                   | Builds or reuses the knowledge, manifest, analysis, Markdown report and HTML explorer under `phpforge/`.       |
+| `composer ic:kb:query -- <question> [options]`      | Retrieves a depth-aware, filtered graph slice with architectural context; `--explain` prefers Ollama and falls back to Gemini. |
 | `composer ic:stage <file...>`                       | Normalizes Composer files, checks selected changed PHP files for syntax errors, then stages them. Composer files changed by normalization are included automatically. |
 | `composer ic:commit-message <message-file>`         | Populates an empty Git commit-message file from the staged diff with Gemini; normally invoked by CaptainHook. |
 | `composer ic:version`                               | Shows PHPForge, PHP, PHP binary and vendor-dir information.                                                   |
@@ -524,7 +636,7 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 ### PHPProbe checker config
 
 `phpprobe.json` configures PHPProbe syntax, reference-integrity, duplicate-code and comment-policy checks.
-PHPProbe 1.1.1 is preset-first and PHPForge follows that model. Its reference checker validates class-like symbols, Composer PSR-4 declaration paths and required `ext-*` packages. Grouped text reports and additive JSON group summaries are supported by PHPForge's detailed failure reporting.
+PHPProbe 1.2 is preset-first and PHPForge follows that model. Its reference checker validates class-like symbols, Composer PSR-4 declaration paths and required `ext-*` packages. Its graph extractor supplies PHPForge's deterministic PHP knowledge layer. Grouped text reports and additive JSON group summaries are supported by PHPForge's detailed failure reporting.
 
 Bundled default:
 
@@ -631,8 +743,11 @@ composer ic:publish-config psalm.xml --force
 | `IC_PHPSTAN_MEMORY_LIMIT`   | `1G`    | Controls PHPStan memory limit.                                                                           |
 | `IC_PSALM_THREADS`          | `1`     | Controls Psalm thread count.                                                                             |
 | `IC_HOOKS_STRICT`           | `1`     | Fails Composer when automatic CaptainHook install fails. Set to `0` for best-effort hook installation.   |
-| `GEMINI_API_KEY`            | unset   | Enables AI commit-message generation in the `prepare-commit-msg` hook.                                   |
+| `GEMINI_API_KEY`            | unset   | Enables AI commit messages, explicit Gemini explanations and fallback when Ollama is unavailable.        |
 | `GEMINI_MODEL`              | `gemini-flash-lite-latest` | Selects the Gemini model used for commit-message generation.                     |
+| `PHPFORGE_KNOWLEDGE_GEMINI_MODEL` | `gemini-flash-lite-latest` | Selects the Gemini model used for knowledge explanations.               |
+| `OLLAMA_HOST`               | `http://127.0.0.1:11434` | Selects the Ollama endpoint used by `ic:kb:query --explain`.                       |
+| `OLLAMA_MODEL`              | auto-discovered | Overrides the running or installed Ollama model selected for knowledge explanations.          |
 | `GITX_SYS_INSTRUCTION_B64`  | bundled prompt | Overrides the bundled `gitx` commit-message instruction with base64-encoded text.                   |
 
 Example:
@@ -1268,7 +1383,7 @@ Before:
 "require-dev": {
     "captainhook/captainhook": "^5.29.2",
     "ergebnis/composer-normalize": "^2.52",
-    "infocyph/phpprobe": "^1.1.1",
+    "infocyph/phpprobe": "^1.2",
     "laravel/pint": "^1.30.3",
     "pestphp/pest": "^5.0.2",
     "pestphp/pest-plugin-drift": "^5.0",

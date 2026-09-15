@@ -75,6 +75,16 @@ if (!class_exists(Cli::class)) {
     require __DIR__ . '/../src/Support/Runner.php';
     require __DIR__ . '/../src/Support/ServiceCatalog.php';
     require __DIR__ . '/../src/Support/GeminiCommitMessageGenerator.php';
+    require __DIR__ . '/../src/Support/KnowledgeGraphFacts.php';
+    require __DIR__ . '/../src/Support/KnowledgeGraphTopology.php';
+    require __DIR__ . '/../src/Support/KnowledgeGraphInsights.php';
+    require __DIR__ . '/../src/Support/KnowledgeGraphAnalyzer.php';
+    require __DIR__ . '/../src/Support/KnowledgeArtifacts.php';
+    require __DIR__ . '/../src/Support/KnowledgeBase.php';
+    require __DIR__ . '/../src/Support/KnowledgeFileCatalog.php';
+    require __DIR__ . '/../src/Support/KnowledgeQuery.php';
+    require __DIR__ . '/../src/Support/KnowledgeExplainer.php';
+    require __DIR__ . '/../src/Support/KnowledgeCli.php';
     require __DIR__ . '/../src/Composer/TaskCatalog.php';
     require __DIR__ . '/../src/Composer/BenchmarkCommand.php';
     require __DIR__ . '/../src/Composer/WorkerSoakCommand.php';
