@@ -10,7 +10,9 @@
         "testing",
         "static-analysis",
         "refactoring",
-        "benchmark"
+        "benchmark",
+        "code-graph",
+        "code-knowledge"
     ],
     "authors": [
         {
@@ -28,7 +30,7 @@
         "captainhook/captainhook": "^5.29.2",
         "deptrac/deptrac": "^4.7.1",
         "ergebnis/composer-normalize": "^2.52",
-        "infocyph/phpprobe": "^1.1.1",
+        "infocyph/phpprobe": "^1.2",
         "laravel/pint": "^1.30.5",
         "pestphp/pest": "^5.1.4",
         "pestphp/pest-plugin-drift": "^5.0",
@@ -84,6 +86,8 @@
         "ic:commit-message": "@php bin/phpforge commit-message",
         "ic:doctor": "@php bin/phpforge doctor",
         "ic:hooks": "@php bin/run-task.php hooks",
+        "ic:kb:build": "@php bin/phpforge kb:build",
+        "ic:kb:query": "@php bin/phpforge kb:query",
         "ic:list-config": "@php bin/phpforge list-config",
         "ic:phpstan:sarif": "@php bin/phpforge phpstan-sarif",
         "ic:process": [

@@ -17,6 +17,8 @@ duplicates|Quality|duplicates [options] [paths...]|Find duplicated code.
 comments|Quality|comments [options] [paths...]|Check the comment policy.
 check|Quality|check [options] [paths...]|Run aggregate PHPProbe checks.
 skipper|Quality|skipper|Reject inline quality and test skip directives.
+kb:build|Knowledge|kb:build [options] [paths...]|Build or reuse the deterministic project knowledge base.
+kb:query|Knowledge|kb:query <question> [options]|Query a bounded project subgraph and optionally explain it.
 doctor|Configuration|doctor [--json]|Inspect setup health and integration status.
 list-config|Configuration|list-config [--json]|Show where tool configurations resolve.
 active-config|Configuration|active-config [files...] [--json] [--all]|Inspect effective tool configuration.
@@ -25,7 +27,7 @@ release-constraints|Utilities|release-constraints|Reject non-stable runtime depe
 phpstan-sarif|Utilities|phpstan-sarif <input.json> [output.sarif]|Convert PHPStan JSON output to SARIF.
 COMMANDS;
 
-    private const array GROUPS = ['Quality', 'Configuration', 'Utilities'];
+    private const array GROUPS = ['Quality', 'Knowledge', 'Configuration', 'Utilities'];
 
     /**
      * @param list<string> $argv
@@ -42,6 +44,8 @@ COMMANDS;
             'comments' => $this->probe('comments', array_slice($argv, 2)),
             'check' => $this->probe('check', array_slice($argv, 2)),
             'skipper' => $this->skipper(),
+            'kb:build' => new KnowledgeCli()->build(array_slice($argv, 2)),
+            'kb:query' => new KnowledgeCli()->query(array_slice($argv, 2)),
             'active-config' => $this->activeConfig(array_slice($argv, 2)),
             'phpstan-sarif' => new PhpstanSarifConverter()->convert((string) ($argv[2] ?? ''), (string) ($argv[3] ?? 'phpstan-results.sarif')),
             'audit' => new ComposerAuditor()->run(),
@@ -208,6 +212,8 @@ COMMANDS;
         $lines[] = 'Examples:';
         $lines[] = '  phpforge doctor';
         $lines[] = '  phpforge ci';
+        $lines[] = '  phpforge kb:build src tests';
+        $lines[] = '  phpforge kb:query "what calls Service::run?" --explain';
         $lines[] = '  phpforge active-config phpstan.neon.dist --parameter=cognitive_complexity';
         $lines[] = '';
         $lines[] = 'Run "composer list ic" to see the complete Composer command catalog.';

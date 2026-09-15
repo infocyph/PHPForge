@@ -71,6 +71,8 @@ it('exposes root diagnostic Composer scripts', function (): void {
     expect(is_array($composer))->toBeTrue()
         ->and($composer['scripts']['ic:doctor'] ?? null)->toBe('@php bin/phpforge doctor')
         ->and($composer['scripts']['ic:list-config'] ?? null)->toBe('@php bin/phpforge list-config')
+        ->and($composer['scripts']['ic:kb:build'] ?? null)->toBe('@php bin/phpforge kb:build')
+        ->and($composer['scripts']['ic:kb:query'] ?? null)->toBe('@php bin/phpforge kb:query')
         ->and($composer['scripts']['ic:commit-message'] ?? null)->toBe('@php bin/phpforge commit-message')
         ->and($composer['scripts']['ic:hooks'] ?? null)->toBe('@php bin/run-task.php hooks')
         ->and($composer['scripts']['ic:skipper'] ?? null)->toBe('@php bin/phpforge skipper')
@@ -172,14 +174,17 @@ it('removes known tool outputs via clean command', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-utility-clean-'.uniqid('', true);
     $cacheDir = $projectRoot.DIRECTORY_SEPARATOR.'.phpunit.cache';
+    $knowledgeDir = $projectRoot.DIRECTORY_SEPARATOR.'phpforge';
     $sarifFile = $projectRoot.DIRECTORY_SEPARATOR.'phpstan-results.sarif';
     $psalmSarifFile = $projectRoot.DIRECTORY_SEPARATOR.'psalm-results.sarif';
 
     mkdir($cacheDir, 0755, true);
+    mkdir($knowledgeDir, 0755, true);
     file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
     file_put_contents($cacheDir.DIRECTORY_SEPARATOR.'cache.txt', 'cache');
     file_put_contents($sarifFile, '{}');
     file_put_contents($psalmSarifFile, '{}');
+    file_put_contents($knowledgeDir.DIRECTORY_SEPARATOR.'knowledge.json', '{}');
 
     chdir($projectRoot);
 
@@ -190,6 +195,7 @@ it('removes known tool outputs via clean command', function (): void {
             ->and(is_dir($cacheDir))->toBeFalse()
             ->and(is_file($sarifFile))->toBeFalse()
             ->and(is_file($psalmSarifFile))->toBeFalse()
+            ->and(is_dir($knowledgeDir))->toBeFalse()
             ->and($result['output'])->toContain('Clean complete');
     } finally {
         if (is_string($originalCwd)) {

@@ -26,9 +26,11 @@ it('renders grouped and scannable command help', function (): void {
         ->and($result->stdout)->toContain('PHPForge')
         ->and($result->stdout)->toContain('Quality:')
         ->and($result->stdout)->toContain('Configuration:')
+        ->and($result->stdout)->toContain('Knowledge:')
         ->and($result->stdout)->toContain('Utilities:')
         ->and($result->stdout)->toContain('reference [options] [paths...]')
         ->and($result->stdout)->toContain('skipper')
+        ->and($result->stdout)->toContain('kb:build')
         ->and($result->stdout)->toContain('phpforge active-config phpstan.neon.dist');
 });
 

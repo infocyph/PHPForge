@@ -57,6 +57,8 @@ COMMANDS;
             new CleanCommand(),
             new StageCommand(),
             new CommitMessageCommand(),
+            new KnowledgeCommand('build'),
+            new KnowledgeCommand('query'),
             new VersionCommand(),
             new BenchmarkCommand('validate', 'ic:benchmark:validate'),
             new BenchmarkCommand('compare', 'ic:benchmark:compare'),

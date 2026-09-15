@@ -14,6 +14,8 @@ final class CleanCommand extends Command
     private const array PATHS = [
         '.phpunit.cache',
         '.psalm-cache',
+        'phpforge',
+        'phpforge-out',
         'phpstan-results.json',
         'phpstan-results.sarif',
         'psalm-results.sarif',
