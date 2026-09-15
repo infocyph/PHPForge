@@ -185,6 +185,21 @@ it('exposes the default-on workflow controls and compact service controls', func
         ->and($template['jobs']['phpforge']['with'] ?? null)->toBe($expected);
 });
 
+it('cancels superseded push and pull request workflow runs', function (): void {
+    $root = dirname(__DIR__, 2);
+    $reusableWorkflow = Yaml::parseFile($root.'/.github/workflows/security-standards.yml');
+    $projectWorkflow = Yaml::parseFile($root.'/.github/workflows/phpforge.yml');
+    $template = Yaml::parseFile($root.'/resources/workflows/security-standards.yml');
+    $expected = [
+        'group' => '${{ github.workflow_ref }}-${{ github.event_name }}',
+        'cancel-in-progress' => true,
+    ];
+
+    expect($reusableWorkflow['concurrency'] ?? null)->toBe($expected)
+        ->and($projectWorkflow['concurrency'] ?? null)->toBeNull()
+        ->and($template['concurrency'] ?? null)->toBeNull();
+});
+
 it('keeps QA analysis benchmarks and SARIF publication independently switchable', function (): void {
     $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
     $inputs = $workflow['on']['workflow_call']['inputs'] ?? [];
