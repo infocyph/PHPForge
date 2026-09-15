@@ -118,6 +118,10 @@ on:
         type: number
         default: 61
 
+concurrency:
+  group: ${{ github.workflow_ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
 jobs:
   prepare:
     name: Prepare CI matrix and services

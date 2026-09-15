@@ -191,13 +191,13 @@ it('cancels superseded push and pull request workflow runs', function (): void {
     $projectWorkflow = Yaml::parseFile($root.'/.github/workflows/phpforge.yml');
     $template = Yaml::parseFile($root.'/resources/workflows/security-standards.yml');
     $expected = [
-        'group' => '${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}',
+        'group' => '${{ github.workflow_ref }}-${{ github.event_name }}',
         'cancel-in-progress' => true,
     ];
 
-    expect($reusableWorkflow['concurrency'] ?? null)->toBeNull()
-        ->and($projectWorkflow['concurrency'] ?? null)->toBe($expected)
-        ->and($template['concurrency'] ?? null)->toBe($expected);
+    expect($reusableWorkflow['concurrency'] ?? null)->toBe($expected)
+        ->and($projectWorkflow['concurrency'] ?? null)->toBeNull()
+        ->and($template['concurrency'] ?? null)->toBeNull();
 });
 
 it('keeps QA analysis benchmarks and SARIF publication independently switchable', function (): void {
