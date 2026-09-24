@@ -86,7 +86,7 @@ final class KnowledgeBase
             'extractors' => [
                 [
                     'name' => 'PHPProbe',
-                    'version' => InstalledVersions::getPrettyVersion('infocyph/phpprobe') ?? '1.2',
+                    'version' => InstalledVersions::getPrettyVersion('infocyph/phpprobe') ?? '1.3',
                     'capability' => 'php-ast',
                 ],
                 ['name' => 'PHPForge', 'version' => '1', 'capability' => 'bounded-text-content'],
