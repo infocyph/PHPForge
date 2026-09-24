@@ -113,7 +113,7 @@ it('renders successful tasks only in the summary and every failed task with comp
         ->and(substr_count($rendered, 'FAIL '))->toBe(2);
 });
 
-it('renders PHPProbe 1.2 aggregate failures with reference integrity details', function (): void {
+it('renders PHPProbe 1.3 aggregate failures with reference integrity details', function (): void {
     $directory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-phpprobe-output-'.bin2hex(random_bytes(6));
     $probe = $directory.DIRECTORY_SEPARATOR.'phpprobe';
     mkdir($directory, 0755, true);

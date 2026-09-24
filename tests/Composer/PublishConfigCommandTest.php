@@ -15,6 +15,7 @@ it('ships strict comment policy without tightening unrelated PHPProbe detectors'
             'exclude' => ['resources'],
         ],
         'duplicates' => [
+            'max_clone_groups' => 100000,
             'fail_on' => 'error',
             'error_duplicate_percentage' => 10,
         ],
