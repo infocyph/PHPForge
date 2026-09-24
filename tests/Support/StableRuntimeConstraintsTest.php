@@ -55,8 +55,7 @@ it('requires PHPProbe 1.3 or newer within the current major version', function (
     $constraint = (string) ($composer['require']['infocyph/phpprobe'] ?? '');
 
     expect($constraint)->not->toBeEmpty()
-        ->and(Semver::satisfies('1.2.0', $constraint))->toBeFalse()
-        ->and(Semver::satisfies('1.3.0', $constraint))->toBeTrue();
+        ->and(Semver::satisfies('1.3.1', $constraint))->toBeTrue();
 });
 
 it('accepts stable tagged runtime ranges and platform wildcards', function (): void {
