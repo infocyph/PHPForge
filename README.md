@@ -234,7 +234,7 @@ PHPForge parallelizes independent tools and independently runnable detectors, no
 
 Syntax, reference, duplicate and comment settings live in `phpprobe.json`, with the bundled default used when a project-local file is not present.
 PHPForge delegates these checks to `vendor/bin/phpprobe`; the `phpforge syntax`, `phpforge reference`, `phpforge duplicates`, `phpforge comments` and `phpforge check` commands are thin gateways that pass the same config to PHPProbe.
-By default the bundled config uses PHPProbe's standard syntax and duplicate profiles with the strict comment policy. Duplicate findings remain visible, but become blocking only when duplicated lines reach 10% of the scanned code. Projects can still override individual sections in a published `phpprobe.json`.
+By default the bundled config uses PHPProbe's standard syntax and duplicate profiles with the strict comment policy. Duplicate output is capped at 100,000 clone groups per run; after reported clones are fixed, the next fresh run naturally exposes later remaining groups. Duplicate findings remain visible, but become blocking only when duplicated lines reach 10% of the scanned code. Projects can still override individual sections in a published `phpprobe.json`.
 
 `composer ic:skipper` scans PHP, PHTML and INC files for inline bypasses used by
 PHPProbe, PHPStan, Psalm, PHPCS/PHPCBF, PHPBench, Phan, PHPMD, PhpStorm, PHPUnit, Infection and Rector. It also
@@ -281,6 +281,7 @@ Useful checker options:
 | `--min-tokens=N`          | Duplicates         | Sets the token fingerprint window size.                                 |
 | `--min-statements=N`      | Duplicates         | Sets the structural statement window size for audit matching.           |
 | `--min-similarity=0.85`   | Duplicates         | Sets the near-miss similarity threshold.                                |
+| `--max-clone-groups=N`     | Duplicates         | Caps clone groups returned by one run; maximum/default is 100,000.      |
 | `--baseline=FILE`         | Duplicates, comments | Suppresses known clone groups or comment findings.                    |
 | `--write-baseline[=FILE]` | Duplicates, comments | Writes duplicate-clone or comment baselines and exits successfully.   |
 | `--strict`                | Comments           | Escalates commented-out-code policy severities.                         |
