@@ -386,7 +386,7 @@ composer ic:kb:build -- src tests resources --output=build/knowledge.json
 composer ic:kb:query -- "service topology" --graph=build/knowledge.json --context=architecture --depth=3 --json
 ```
 
-PHPProbe 1.2 is the authoritative PHP extractor. It provides declarations,
+PHPProbe 1.3 is the authoritative PHP extractor. It provides declarations,
 signatures and extracted relationships such as calls, inheritance, interface
 implementation, trait use and instantiation. PHPForge adds bounded UTF-8 content
 chunks for relevant non-PHP project files, including HTML/templates, CSS,
@@ -1383,7 +1383,7 @@ Before:
 "require-dev": {
     "captainhook/captainhook": "^5.29.2",
     "ergebnis/composer-normalize": "^2.52",
-    "infocyph/phpprobe": "^1.2",
+    "infocyph/phpprobe": "^1.3",
     "laravel/pint": "^1.30.3",
     "pestphp/pest": "^5.0.2",
     "pestphp/pest-plugin-drift": "^5.0",
