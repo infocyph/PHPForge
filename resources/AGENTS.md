@@ -26,7 +26,7 @@
 - `composer ic:list-config` - list discovered config files and where each one is resolved from.
 - `composer ic:active-config [file...]` - show the active configs for supported tools, with optional file filtering and parameter lookup. Pass filenames directly like `phpcs.xml.dist`; if using a leading `--` token, use Composer's separator first: `composer ic:active-config -- --phpcs.xml.dist`.
 - `composer ic:publish-config [file...]` - copy bundled config file(s) into the project (`--all` and `--force` supported).
-- `composer ic:init` - concise project bootstrap for CaptainHook, the GitHub workflow, and selected integration services/topologies.
+- `composer ic:init` - concise project bootstrap for CaptainHook, the GitHub QA/tag-release workflow wrapper, and selected integration services/topologies.
 - `composer ic:community` - copy generic `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, issue forms/config, and PR template files.
 - `composer ic:publish-community-templates` - alias of `composer ic:community`.
 - `composer ic:hooks` - install/update enabled CaptainHook hooks.

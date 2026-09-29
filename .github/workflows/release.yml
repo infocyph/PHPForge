@@ -1,0 +1,64 @@
+name: "Copilot Release"
+
+on:
+  workflow_call:
+    inputs:
+      copilot_model:
+        description: "Optional Copilot model; defaults to the CLI's selected model."
+        type: string
+        required: false
+        default: ""
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        description: "Fine-grained personal access token with Copilot Requests permission."
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: phpforge-release-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout tagged library
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout release tooling
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .phpforge-release
+          persist-credentials: false
+          sparse-checkout: |
+            .github/scripts/create-release.sh
+            resources/release-notes-instructions.md
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install Copilot CLI
+        shell: bash
+        run: npm install --global @github/copilot
+
+      - name: Generate notes and create release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          COPILOT_MODEL: ${{ inputs.copilot_model }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_INSTRUCTIONS_FILE: ${{ github.workspace }}/.phpforge-release/resources/release-notes-instructions.md
+        run: bash .phpforge-release/.github/scripts/create-release.sh

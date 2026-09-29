@@ -137,3 +137,44 @@ it('does not persist service selections during init', function (): void {
         rmdir($projectRoot);
     }
 });
+
+it('pins QA and release workflows to the selected PHPForge ref', function (): void {
+    $contents = file_get_contents(dirname(__DIR__, 2) . '/resources/workflows/security-standards.yml');
+    $updated = WorkflowWrapper::update($contents, 'v3.0.0', [
+        'integration_services' => "'[]'",
+        'service_topologies' => "'{}'",
+    ]);
+
+    expect($updated)->toContain('security-standards.yml@v3.0.0', 'release.yml@v3.0.0')
+        ->and($updated)->not->toContain('@main');
+});
+
+it('keeps release instructions in the referenced PHPForge workflow source', function (): void {
+    $originalCwd = getcwd();
+    $projectRoot = sys_get_temp_dir() . '/phpforge-release-init-' . uniqid('', true);
+    mkdir($projectRoot, 0755, true);
+    file_put_contents($projectRoot . '/composer.json', '{"name":"example/library"}');
+    chdir($projectRoot);
+
+    try {
+        $command = new InitCommand();
+        $method = new ReflectionMethod(InitCommand::class, 'execute');
+        $input = new ArrayInput(['--workflow' => true, '--workflow-ref' => 'v3.0.0'], $command->getDefinition());
+        $input->setInteractive(false);
+        $output = new BufferedOutput();
+
+        expect($method->invoke($command, $input, $output))->toBe(0)
+            ->and(file_get_contents($projectRoot . '/.github/workflows/security-standards.yml'))->toContain('release.yml@v3.0.0')
+            ->and(is_file($projectRoot . '/.github/release-notes-instructions.md'))->toBeFalse();
+    } finally {
+        if (is_string($originalCwd)) {
+            chdir($originalCwd);
+        }
+
+        unlink($projectRoot . '/.github/workflows/security-standards.yml');
+        rmdir($projectRoot . '/.github/workflows');
+        rmdir($projectRoot . '/.github');
+        unlink($projectRoot . '/composer.json');
+        rmdir($projectRoot);
+    }
+});
