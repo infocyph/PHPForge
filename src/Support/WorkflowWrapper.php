@@ -120,7 +120,7 @@ final class WorkflowWrapper
      */
     private static function replaceWorkflowRef(array &$lines, string $workflowRef): void
     {
-        $workflowUsesPattern = '/^(\s*uses:\s*infocyph\/phpforge\/\.github\/workflows\/security-standards\.yml)@([^\s#]+)(\s*(?:#.*)?)$/';
+        $workflowUsesPattern = '/^(\s*uses:\s*infocyph\/phpforge\/\.github\/workflows\/(?:security-standards|release)\.yml)@([^\s#]+)(\s*(?:#.*)?)$/';
 
         foreach ($lines as $index => $line) {
             if (preg_match($workflowUsesPattern, $line, $matches) === 1) {

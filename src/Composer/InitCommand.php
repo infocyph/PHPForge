@@ -29,7 +29,7 @@ final class InitCommand extends Command
     {
         $this
             ->setDescription('Set up PHPForge hooks, CI, and selected integration services.')
-            ->addOption('workflow', null, InputOption::VALUE_NONE, 'Copy the Security & Standards GitHub Actions workflow wrapper.')
+            ->addOption('workflow', null, InputOption::VALUE_NONE, 'Copy the GitHub Actions QA and tag-release workflow wrapper.')
             ->addOption('workflow-ref', null, InputOption::VALUE_REQUIRED, 'PHPForge Git ref used by generated workflow wrappers.', 'main')
             ->addOption('captainhook', null, InputOption::VALUE_NONE, 'Create the CaptainHook pre-commit configuration and install hooks.')
             ->addOption('services', null, InputOption::VALUE_REQUIRED, 'JSON string array of integration services.', '[]')

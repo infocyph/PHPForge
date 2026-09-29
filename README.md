@@ -155,7 +155,7 @@ The quickest route is:
 composer ic:init --workflow --workflow-ref=main
 ```
 
-This creates `.github/workflows/security-standards.yml`, a small wrapper around PHPForge's reusable workflow. Commit and push that file to enable pull-request, branch and scheduled checks. See [GitHub Actions](#github-actions) for the generated YAML, all inputs, permissions and examples.
+This creates `.github/workflows/security-standards.yml`, a small wrapper around PHPForge's reusable QA and release workflows. Commit that file to enable pull-request, branch, scheduled and tag checks. See [GitHub Actions](#github-actions) for the generated YAML, all inputs, permissions and examples.
 
 ### Select integration services
 
@@ -829,16 +829,14 @@ on:
     - cron: "0 0 * * 0"
   push:
     branches: [ "main", "master" ]
+    tags: [ "v*", "[0-9]*" ]
   pull_request:
     branches: [ "main", "master", "develop", "development" ]
 
 jobs:
   phpforge:
+    if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/')
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
     with:
       run_qa: true
       run_analysis: true
@@ -847,7 +845,64 @@ jobs:
       fail_on_skipped_tests: true
       integration_services: '[]'
       service_topologies: '{}'
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    uses: infocyph/phpforge/.github/workflows/release.yml@main
+    permissions:
+      contents: write
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 ```
+
+#### Copilot tag releases
+
+The generated wrapper reserves pushed version tags (`v*` and `[0-9]*`) for
+its `release` job and skips the regular PHPForge QA job for those events. The
+release job calls PHPForge's reusable
+[release workflow](.github/workflows/release.yml) to generate notes with GitHub
+Copilot CLI and publish a GitHub Release for the existing tag. Tags must be
+versions such as `v1.2.3`, `1.2`, or `v1.2.3-rc.1`.
+
+Set up each consuming repository:
+
+1. Run `composer ic:init --workflow --workflow-ref=main` and commit the generated
+   wrapper. Existing wrappers need the tag trigger and release job shown above;
+   `--force` regenerates the wrapper, so preserve any project-specific changes
+   before using it.
+2. Create a fine-grained personal access token for an account with Copilot access
+   and the **Copilot Requests** account permission. Add it as the Actions secret
+   `COPILOT_GITHUB_TOKEN`. Organization-provided Copilot also requires the CLI
+   policy to be enabled. See [GitHub's authentication instructions](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli#authenticating-with-a-personal-access-token).
+3. Push a version tag. Use a PHPForge ref containing the release workflow;
+   `--workflow-ref` pins both reusable workflows to the same ref.
+
+Notes use the full non-merge commit history, file summary and actual diff against
+the nearest reachable version tag. Stable releases exclude prerelease tags from
+baseline selection; prereleases can compare against an earlier prerelease. A
+first release includes the entire history and the initial tree diff. Unrelated
+branch tags and non-version tags are excluded. Diff and history are never
+silently truncated; if the Copilot request exceeds its supported context or fails,
+the job fails without publishing a release.
+
+The [bundled instructions](resources/release-notes-instructions.md) provide PHP
+library categories and compatibility guidance. The reusable workflow checks them
+out from the same PHPForge revision as the release script, so consuming
+repositories do not copy or maintain an instruction file. The optional
+`copilot_model` input selects a model. Copilot runs in an isolated temporary
+directory with shell, file, URL and memory tool permissions denied and built-in
+MCP servers disabled. The workflow's publishing token is removed from Copilot's
+environment.
+
+Reruns preserve an existing release. Missing credentials, API errors, Copilot
+failures and empty notes fail the job. Multiline notes are passed using
+`--notes-file`, and a comparison link is appended when a previous tag exists.
+Prerelease tags are published with `--prerelease --latest=false`; stable releases
+use GitHub's automatic latest-release selection.
 
 Common workflow inputs:
 
