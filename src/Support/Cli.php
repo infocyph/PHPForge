@@ -102,7 +102,7 @@ COMMANDS;
         $files = [];
 
         foreach ($args as $index => $arg) {
-            if ($arg === '--json' || $arg === '--all') {
+            if (in_array($arg, ['--json', '--all', '--parameter'], true)) {
                 continue;
             }
 
@@ -110,11 +110,7 @@ COMMANDS;
                 continue;
             }
 
-            if ($arg === '--parameter') {
-                continue;
-            }
-
-            if ($index > 0 && $args[$index - 1] === '--parameter') {
+            if (($args[$index - 1] ?? null) === '--parameter') {
                 continue;
             }
 

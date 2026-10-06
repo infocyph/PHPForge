@@ -41,7 +41,7 @@ final class BenchmarkResultValidator
      */
     private function environmentErrors(mixed $value): array
     {
-        if (!is_array($value) || array_is_list($value)) {
+        if (!$this->isObject($value)) {
             return ['environment must be an object.'];
         }
 
@@ -137,6 +137,12 @@ final class BenchmarkResultValidator
         return $number !== null && $number >= 0;
     }
 
+    /** @phpstan-assert-if-true array<mixed> $value */
+    private function isObject(mixed $value): bool
+    {
+        return is_array($value) && !array_is_list($value);
+    }
+
     private function isOptionalNonNegativeNumber(mixed $value): bool
     {
         return $value === null || $this->isNonNegativeNumber($value);
@@ -147,7 +153,7 @@ final class BenchmarkResultValidator
      */
     private function latencyErrors(string $path, mixed $value): array
     {
-        if (!is_array($value) || array_is_list($value)) {
+        if (!$this->isObject($value)) {
             return [$path . ' must be an object.'];
         }
 
@@ -244,10 +250,8 @@ final class BenchmarkResultValidator
     {
         $errors = [];
 
-        foreach ($fields as $field) {
-            if (!array_key_exists($field, $data)) {
-                $errors[] = sprintf('%s.%s is required.', $path, $field);
-            }
+        foreach (array_diff($fields, array_keys($data)) as $field) {
+            $errors[] = sprintf('%s.%s is required.', $path, $field);
         }
 
         return $errors;
@@ -274,7 +278,7 @@ final class BenchmarkResultValidator
      */
     private function resourceGroupErrors(string $path, mixed $value, array $fields): array
     {
-        if (!is_array($value) || array_is_list($value)) {
+        if (!$this->isObject($value)) {
             return [$path . ' must be an object.'];
         }
 
@@ -295,7 +299,7 @@ final class BenchmarkResultValidator
      */
     private function resultErrors(string $path, mixed $value): array
     {
-        if (!is_array($value) || array_is_list($value)) {
+        if (!$this->isObject($value)) {
             return [$path . ' must be an object.'];
         }
 
@@ -319,7 +323,7 @@ final class BenchmarkResultValidator
      */
     private function stabilityErrors(string $path, mixed $value): array
     {
-        if (!is_array($value) || array_is_list($value)) {
+        if (!$this->isObject($value)) {
             return [$path . ' must be an object.'];
         }
 
@@ -343,7 +347,7 @@ final class BenchmarkResultValidator
      */
     private function workloadErrors(string $path, mixed $value, array &$seen): array
     {
-        if (!is_array($value) || array_is_list($value)) {
+        if (!$this->isObject($value)) {
             return [$path . ' must be an object.'];
         }
 

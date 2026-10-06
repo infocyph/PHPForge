@@ -127,7 +127,11 @@ final class Runner
 
         return [
             'heading' => $heading,
-            'status' => $process->isSuccessful() ? 'PASS' : ($isSkipped ? 'SKIP' : 'FAIL'),
+            'status' => match (true) {
+                $process->isSuccessful() => 'PASS',
+                $isSkipped => 'SKIP',
+                default => 'FAIL',
+            },
             'exit_code' => $process->isSuccessful() || $isSkipped ? 0 : ($process->getExitCode() ?? 1),
         ];
     }

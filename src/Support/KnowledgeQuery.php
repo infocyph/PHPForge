@@ -383,10 +383,8 @@ final class KnowledgeQuery
             'architecture' => ['architecture', 'architectural', 'community', 'coupling', 'dependencies', 'dependency', 'design', 'layer', 'module', 'structure', 'topology'],
             'content' => ['content', 'documentation', 'readme', 'text'],
         ] as $candidate => $needles) {
-            foreach ($needles as $needle) {
-                if (isset($terms[$needle])) {
-                    return $candidate;
-                }
+            if (array_intersect_key($terms, array_fill_keys($needles, true)) !== []) {
+                return $candidate;
             }
         }
 

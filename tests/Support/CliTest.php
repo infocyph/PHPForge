@@ -67,3 +67,17 @@ it('checks stable runtime constraints without the Composer command runtime', fun
         ->and($result->stdout)->toContain('Stable runtime constraint guard passed.')
         ->and($result->stderr)->toBe('');
 });
+
+it('consumes active config parameter values regardless of option order', function (array $arguments): void {
+    $result = runPhpforgeCli(['active-config', ...$arguments]);
+    $configs = json_decode($result->stdout, true, 512, JSON_THROW_ON_ERROR);
+
+    expect($result->exitCode)->toBe(0)
+        ->and($result->stderr)->toBe('')
+        ->and($configs)->toHaveCount(1)
+        ->and($configs[0]['config_file'])->toBe('phpstan.neon.dist')
+        ->and($configs[0]['value'])->toBe(['class' => 80, 'function' => 12]);
+})->with([
+    'parameter first' => [['--parameter', 'cognitive_complexity', '--json', 'phpstan.neon.dist']],
+    'parameter last' => [['--json', '--phpstan.neon.dist', '--parameter', 'cognitive_complexity']],
+]);

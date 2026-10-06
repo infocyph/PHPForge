@@ -243,6 +243,28 @@ PHP);
     }
 });
 
+it('keeps detecting skips through nested calls without treating unrelated methods as test skips', function (): void {
+    $root = skipDirectiveScannerRoot();
+    file_put_contents($root.DIRECTORY_SEPARATOR.'src'.DIRECTORY_SEPARATOR.'Nested.php', <<<'PHP'
+<?php
+
+test('nested', fn () => strlen(trim('value')))->with([['value' => ')']])->skip();
+it('pending', function () { return trim('('); })->with(fn () => [1])->todo();
+$service->todo();
+$service->with([1])->skip();
+PHP);
+
+    try {
+        $scan = (new SkipDirectiveScanner())->scan($root);
+
+        expect($scan['errors'])->toBe([])
+            ->and(array_column($scan['findings'], 'directive'))->toBe(['->skip()', '->todo()'])
+            ->and(array_column($scan['findings'], 'line'))->toBe([3, 4]);
+    } finally {
+        removeSkipDirectiveScannerTree($root);
+    }
+});
+
 it('groups actionable findings by tool and fails closed for an unreadable root', function (): void {
     $scanner = new SkipDirectiveScanner();
     $output = $scanner->format([

@@ -239,11 +239,13 @@ final class SkipDirectiveScanner
         foreach ([...self::COMMENT_RULES, ...$extraRules] as $rule) {
             $matches = [];
 
-            if (preg_match_all($rule['pattern'], $comment, $matches, PREG_OFFSET_CAPTURE) !== false) {
-                foreach ($matches[0] as [$directive, $offset]) {
-                    $line = $startLine + substr_count(substr($comment, 0, $offset), "\n");
-                    $findings[] = $this->finding($file, $line, $rule['tool'], $directive);
-                }
+            if (preg_match_all($rule['pattern'], $comment, $matches, PREG_OFFSET_CAPTURE) === false) {
+                continue;
+            }
+
+            foreach ($matches[0] as [$directive, $offset]) {
+                $line = $startLine + substr_count(substr($comment, 0, $offset), "\n");
+                $findings[] = $this->finding($file, $line, $rule['tool'], $directive);
             }
         }
 
@@ -260,12 +262,43 @@ final class SkipDirectiveScanner
         $findings = [];
 
         foreach ($tokens as $token) {
-            if (is_array($token) && ($token[0] === T_COMMENT || $token[0] === T_DOC_COMMENT)) {
+            if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
                 $findings = [...$findings, ...$this->commentFindings($file, $token[1], $token[2], $extraRules)];
             }
         }
 
         return $findings;
+    }
+
+    /**
+     * @param list<array{id: int|null, text: string, line: int}> $tokens
+     * @return array{file: string, line: int, tool: string, directive: string}|null
+     */
+    private function executableFinding(string $file, array $tokens, int $index): ?array
+    {
+        $token = $tokens[$index];
+        $name = strtolower($token['text']);
+        $previous = $tokens[$index - 1]['text'] ?? null;
+
+        if ($name === 'todo' && !in_array($previous, ['->', '?->', '::', 'function'], true)) {
+            return $this->finding($file, $token['line'], 'Pest', 'todo()');
+        }
+
+        if (in_array($name, ['marktestskipped', 'marktestincomplete'], true)) {
+            return $this->finding($file, $token['line'], 'PHPUnit', $token['text'] . '()');
+        }
+
+        if (!isset(self::PEST_SKIP_METHODS[$name]) || $previous !== '->') {
+            return null;
+        }
+
+        $rootCall = $this->rootCallBeforeOperator($tokens, $index - 1);
+
+        if (is_string($rootCall) && isset(self::PEST_ROOT_CALLS[$rootCall])) {
+            return $this->finding($file, $token['line'], 'Pest', '->' . $token['text'] . '()');
+        }
+
+        return null;
     }
 
     /**
@@ -281,28 +314,10 @@ final class SkipDirectiveScanner
                 continue;
             }
 
-            $name = strtolower($token['text']);
+            $finding = $this->executableFinding($file, $tokens, $index);
 
-            if ($name === 'todo' && !in_array(($tokens[$index - 1]['text'] ?? null), ['->', '?->', '::', 'function'], true)) {
-                $findings[] = $this->finding($file, $token['line'], 'Pest', 'todo()');
-
-                continue;
-            }
-
-            if ($name === 'marktestskipped' || $name === 'marktestincomplete') {
-                $findings[] = $this->finding($file, $token['line'], 'PHPUnit', $token['text'] . '()');
-
-                continue;
-            }
-
-            if (!isset(self::PEST_SKIP_METHODS[$name]) || ($tokens[$index - 1]['text'] ?? null) !== '->') {
-                continue;
-            }
-
-            $rootCall = $this->rootCallBeforeOperator($tokens, $index - 1);
-
-            if (is_string($rootCall) && isset(self::PEST_ROOT_CALLS[$rootCall])) {
-                $findings[] = $this->finding($file, $token['line'], 'Pest', '->' . $token['text'] . '()');
+            if ($finding !== null) {
+                $findings[] = $finding;
             }
         }
 
@@ -374,10 +389,7 @@ final class SkipDirectiveScanner
 
     private function isNameToken(int $id): bool
     {
-        return $id === T_STRING
-            || $id === T_NAME_FULLY_QUALIFIED
-            || $id === T_NAME_QUALIFIED
-            || $id === T_NAME_RELATIVE;
+        return in_array($id, [T_STRING, T_NAME_FULLY_QUALIFIED, T_NAME_QUALIFIED, T_NAME_RELATIVE], true);
     }
 
     /**
@@ -388,14 +400,15 @@ final class SkipDirectiveScanner
         $depth = 0;
 
         for ($index = $closeIndex; $index >= 0; $index--) {
-            if ($tokens[$index]['text'] === ')') {
-                $depth++;
-            } elseif ($tokens[$index]['text'] === '(') {
-                $depth--;
+            $text = $tokens[$index]['text'];
+            $depth += match ($text) {
+                ')' => 1,
+                '(' => -1,
+                default => 0,
+            };
 
-                if ($depth === 0) {
-                    return $index;
-                }
+            if ($depth === 0 && $text === '(') {
+                return $index;
             }
         }
 
@@ -492,7 +505,7 @@ final class SkipDirectiveScanner
         $nameIndex = $openIndex - 1;
         $nameToken = $tokens[$nameIndex] ?? null;
 
-        if (!is_array($nameToken) || ($nameToken['id'] ?? null) !== T_STRING) {
+        if (($nameToken['id'] ?? null) !== T_STRING) {
             return null;
         }
 
