@@ -59,19 +59,9 @@ final readonly class KnowledgeExplainer
     {
         $allowed = [];
 
-        foreach (['matches', 'context_nodes'] as $section) {
-            $items = $query[$section] ?? [];
-
-            if (!is_array($items)) {
-                continue;
-            }
-
-            foreach ($items as $item) {
-                $node = $section === 'matches' && is_array($item) ? ($item['node'] ?? null) : $item;
-
-                if (is_array($node) && is_string($node['id'] ?? null)) {
-                    $allowed[$node['id']] = true;
-                }
+        foreach ($this->evidenceNodes($query) as $node) {
+            if (is_array($node) && is_string($node['id'] ?? null)) {
+                $allowed[$node['id']] = true;
             }
         }
 
@@ -158,6 +148,25 @@ final readonly class KnowledgeExplainer
         $value = getenv($name);
 
         return is_string($value) && trim($value) !== '' ? trim($value) : null;
+    }
+
+    /**
+     * @param array<string, mixed> $query
+     * @return \Generator<mixed>
+     */
+    private function evidenceNodes(array $query): \Generator
+    {
+        foreach (['matches', 'context_nodes'] as $section) {
+            $items = $query[$section] ?? [];
+
+            if (!is_array($items)) {
+                continue;
+            }
+
+            foreach ($items as $item) {
+                yield $section === 'matches' && is_array($item) ? ($item['node'] ?? null) : $item;
+            }
+        }
     }
 
     private function gemini(string $context, ?string $model): string

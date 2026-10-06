@@ -228,9 +228,11 @@ final readonly class KnowledgeCli
             $arg = $args[$index];
 
             if (in_array($arg, ['--json', '--explain', '--dfs'], true)) {
-                $options['json'] = $options['json'] || $arg === '--json';
-                $options['explain'] = $options['explain'] || $arg === '--explain';
-                $options['mode'] = $arg === '--dfs' ? 'dfs' : $options['mode'];
+                $options = match ($arg) {
+                    '--json' => [...$options, 'json' => true],
+                    '--explain' => [...$options, 'explain' => true],
+                    default => [...$options, 'mode' => 'dfs'],
+                };
 
                 continue;
             }

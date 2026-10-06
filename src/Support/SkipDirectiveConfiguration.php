@@ -247,17 +247,9 @@ final class SkipDirectiveConfiguration
     private function neonExcludePaths(string $contents): array
     {
         $patterns = [];
-        $baseIndent = null;
+        [$lines, $baseIndent] = $this->neonExcludeSection(preg_split('/\R/', $contents) ?: []);
 
-        foreach (preg_split('/\R/', $contents) ?: [] as $line) {
-            if ($baseIndent === null) {
-                if (preg_match('/^(\s*)excludePaths\s*:/', $line, $matches) === 1) {
-                    $baseIndent = strlen($matches[1]);
-                }
-
-                continue;
-            }
-
+        foreach ($lines as $line) {
             if (trim($line) === '' || str_starts_with(ltrim($line), '#')) {
                 continue;
             }
@@ -276,6 +268,21 @@ final class SkipDirectiveConfiguration
         return array_values(array_unique($patterns));
     }
 
+    /**
+     * @param list<string> $lines
+     * @return array{list<string>, int}
+     */
+    private function neonExcludeSection(array $lines): array
+    {
+        foreach ($lines as $index => $line) {
+            if (preg_match('/^(\s*)excludePaths\s*:/', $line, $matches) === 1) {
+                return [array_slice($lines, $index + 1), strlen($matches[1])];
+            }
+        }
+
+        return [[], 0];
+    }
+
     private function pathMatches(string $relativePath, string $configuredPattern): bool
     {
         $relative = ltrim(str_replace('\\', '/', $relativePath), '/');
@@ -288,20 +295,12 @@ final class SkipDirectiveConfiguration
         }
 
         $candidates = str_starts_with($pattern, '/') ? [$absolute] : [$relative, '/' . $relative, $absolute];
+        $normalizedPattern = str_starts_with($pattern, './') ? substr($pattern, 2) : $pattern;
 
-        foreach ($candidates as $candidate) {
-            $normalizedPattern = str_starts_with($pattern, './') ? substr($pattern, 2) : $pattern;
-
-            if ($candidate === $normalizedPattern || str_starts_with($candidate, $normalizedPattern . '/')) {
-                return true;
-            }
-
-            if (strpbrk($normalizedPattern, '*?[') !== false && fnmatch($normalizedPattern, $candidate)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($candidates, static fn(string $candidate): bool
+            => $candidate === $normalizedPattern
+            || str_starts_with($candidate, $normalizedPattern . '/')
+            || (strpbrk($normalizedPattern, '*?[') !== false && fnmatch($normalizedPattern, $candidate)));
     }
 
     /**
@@ -340,10 +339,10 @@ final class SkipDirectiveConfiguration
 
             if ($text === ')') {
                 $parenthesisDepth--;
+            }
 
-                if ($parenthesisDepth === 0) {
-                    break;
-                }
+            if ($parenthesisDepth === 0) {
+                break;
             }
 
             $callTokens[] = $token;

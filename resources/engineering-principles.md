@@ -675,7 +675,6 @@ Use the following default limits:
 cognitive_complexity:
     class: 80
     function: 12
-    dependency_tree: 120
 ```
 
 - Treat cognitive complexity as a maintainability guard, not a runtime-performance target.
@@ -701,7 +700,7 @@ cognitive_complexity:
   - the exclusion is an established project policy,
   - and the exclusion is not being added merely to make a current finding pass.
 - Do not relabel, move or regenerate hand-written code to obtain a generated-code exclusion.
-- Configure dependency-tree analysis against relevant project root types instead of applying it blindly to every class.
+- The pinned `tomasvotruba/cognitive-complexity` 1.3.0 extension supports only class and function limits; do not configure `dependency_tree` or `dependency_tree_types` under `cognitive_complexity`.
 
 ### Structural Simplification, Type Budget And Call-Hop Reduction
 

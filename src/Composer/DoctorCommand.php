@@ -381,20 +381,10 @@ final class DoctorCommand extends Command
         $warningCount = count($diagnostics['workflow']['warnings'])
             + ($diagnostics['runtime']['valid'] ? 0 : 1)
             + count($diagnostics['service_catalog_warnings']);
-        $hasMissingConfig = false;
+        $missingConfigs = array_filter($diagnostics['configs'], static fn(array $config): bool => $config['source'] === 'missing');
+        $disabledPlugins = array_filter($diagnostics['plugins'], static fn(bool $enabled): bool => !$enabled);
 
-        foreach ($diagnostics['configs'] as $config) {
-            if ($config['source'] === 'missing') {
-                $warningCount++;
-                $hasMissingConfig = true;
-            }
-        }
-
-        foreach ($diagnostics['plugins'] as $enabled) {
-            $warningCount += $enabled ? 0 : 1;
-        }
-
-        return [$warningCount, $hasMissingConfig];
+        return [$warningCount + count($missingConfigs) + count($disabledPlugins), $missingConfigs !== []];
     }
 
     /** @return WorkflowDiagnostics */

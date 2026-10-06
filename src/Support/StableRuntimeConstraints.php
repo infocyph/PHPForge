@@ -37,11 +37,27 @@ final class StableRuntimeConstraints
             );
         }
 
-        $requirements = $data['require'] ?? [];
+        return [...$violations, ...$this->requirementViolations($data['require'] ?? [])];
+    }
+
+    private function isPlatformRequirement(string $package): bool
+    {
+        return $package === 'php'
+            || $package === 'composer-plugin-api'
+            || $package === 'composer-runtime-api'
+            || str_starts_with($package, 'ext-')
+            || str_starts_with($package, 'lib-');
+    }
+
+    /** @return list<string> */
+    private function requirementViolations(mixed $requirements): array
+    {
 
         if (!is_array($requirements)) {
-            return [...$violations, 'The runtime require section must be an object.'];
+            return ['The runtime require section must be an object.'];
         }
+
+        $violations = [];
 
         foreach ($requirements as $package => $constraint) {
             if (!is_string($package) || !is_string($constraint) || $constraint === '') {
@@ -62,15 +78,6 @@ final class StableRuntimeConstraints
         }
 
         return $violations;
-    }
-
-    private function isPlatformRequirement(string $package): bool
-    {
-        return $package === 'php'
-            || $package === 'composer-plugin-api'
-            || $package === 'composer-runtime-api'
-            || str_starts_with($package, 'ext-')
-            || str_starts_with($package, 'lib-');
     }
 
     private function unstableReason(string $constraint): ?string
