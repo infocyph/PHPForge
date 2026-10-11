@@ -209,6 +209,29 @@ Use focused `composer ic:test:*` commands while developing. Use `composer ic:ci`
 
 ### Test commands
 
+PHPForge temporarily requires Pest **^5.3.1** and ParaTest **7.26.0**. ParaTest
+7.26.1 changed the worker constructor used by Pest; Pest 5.3.1 cannot start
+parallel or mutation workers with that version. Keep this compatibility
+constraint here so consuming libraries need no local pin. Remove it after a
+compatible Pest release passes the parallel-worker regression and mutation
+tests ([upstream fix](https://github.com/pestphp/pest/pull/1959)).
+
+ParaTest 7.26.0 requires a private temporary directory when running parallel
+tests: worker results must not be exposed to other local users. The normal
+PHPForge suite runs aggregate Pest sequentially. For direct parallel or
+mutation commands, create a private directory and clean it up afterwards:
+
+```bash
+(
+    umask 077
+    pest_tmp=$(mktemp -d)
+    trap 'rm -rf "$pest_tmp"' EXIT
+    export TMPDIR="$pest_tmp"
+    vendor/bin/pest --configuration vendor/infocyph/phpforge/resources/pest.xml \
+        --bootstrap vendor/autoload.php tests --parallel --processes=2
+)
+```
+
 PHPForge parallelizes independent tools and independently runnable detectors, not duplicate copies of the same check. PHPProbe syntax, reference, duplicate and comment detectors each run in their own process. Source-mutating processors remain sequential. Started parallel peers are allowed to finish, successful output stays concise, failures retain bounded diagnostics, and summaries follow declaration order.
 
 | Command                         | Purpose                                                                                                                                                        |
