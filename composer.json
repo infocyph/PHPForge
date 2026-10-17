@@ -27,7 +27,7 @@
     "require": {
         "php": "^8.4",
         "composer-plugin-api": "^2.9",
-        "brianium/paratest": ">=7.26.0 <7.26.1",
+        "brianium/paratest": "^7.27.1",
         "captainhook/captainhook": "^5.29.2",
         "deptrac/deptrac": "^4.7.2",
         "ergebnis/composer-normalize": "^2.54",
