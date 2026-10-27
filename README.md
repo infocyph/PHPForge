@@ -209,14 +209,18 @@ Use focused `composer ic:test:*` commands while developing. Use `composer ic:ci`
 
 ### Test commands
 
-PHPForge temporarily requires Pest **^5.3.1** and ParaTest **7.26.0**. ParaTest
-7.26.1 changed the worker constructor used by Pest; Pest 5.3.1 cannot start
-parallel or mutation workers with that version. Keep this compatibility
-constraint here so consuming libraries need no local pin. Remove it after a
-compatible Pest release passes the parallel-worker regression and mutation
-tests ([upstream fix](https://github.com/pestphp/pest/pull/1959)).
+PHPForge requires Pest **^5.3.0** and temporarily limits ParaTest to
+**>=7.25.0 <7.26.0**. This resolves to Pest 5.3.0 with PHPUnit 13.3.6:
+Pest 5.3.1–5.3.3 require PHPUnit versions affected by
+[GHSA-9vw2-f4vp-x7gf](https://github.com/sebastianbergmann/phpunit/security/advisories/GHSA-9vw2-f4vp-x7gf),
+and their upper bounds prevent installing the patched PHPUnit 13.4.4.
+ParaTest 7.26.0 also requires PHPUnit 13.4, while 7.26.1 changes the worker
+constructor used by older Pest releases. Keep these constraints in PHPForge
+so consuming libraries need no local pin. Revisit the range when a stable
+Pest release supports patched PHPUnit and passes the mixed Pest/PHPUnit
+parallel-worker regression and mutation tests.
 
-ParaTest 7.26.0 requires a private temporary directory when running parallel
+ParaTest 7.25 requires a private temporary directory when running parallel
 tests: worker results must not be exposed to other local users. The normal
 PHPForge suite runs aggregate Pest sequentially. For direct parallel or
 mutation commands, create a private directory and clean it up afterwards:
