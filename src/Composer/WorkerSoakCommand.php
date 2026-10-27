@@ -273,6 +273,9 @@ final class WorkerSoakCommand extends Command
      */
     private function sample(Process $process, array $configuration, int $measurementStartedAt, array &$samples): ?string
     {
+        $pid = $process->getPid();
+        $rss = is_int($pid) ? $this->rssMegabytes($pid) : null;
+
         if (!$process->isRunning()) {
             return sprintf(
                 'Worker exited before the %.2f second soak duration (exit code %s).',
@@ -280,9 +283,6 @@ final class WorkerSoakCommand extends Command
                 (string) ($process->getExitCode() ?? 'unknown'),
             );
         }
-
-        $pid = $process->getPid();
-        $rss = is_int($pid) ? $this->rssMegabytes($pid) : null;
 
         if ($rss === null) {
             return 'Unable to read worker RSS from /proc; this soak helper requires a Linux process environment.';
