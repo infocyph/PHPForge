@@ -6,6 +6,7 @@ use Infocyph\PHPForge\Composer\WorkerSoakCommand;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
+use Symfony\Component\Process\Process;
 
 /**
  * @param array<string, mixed> $input
@@ -69,3 +70,32 @@ it('fails when a worker exits before the requested soak duration', function (): 
     expect($result['exit_code'])->toBe(1)
         ->and($result['output'])->toContain('exited before');
 });
+
+it('distinguishes an exit during RSS sampling from unavailable telemetry', function (bool $runningAfterRead, string $expected): void {
+    $running = true;
+    $process = $this->createMock(Process::class);
+    $process->method('isRunning')->willReturnCallback(static function () use (&$running): bool {
+        return $running;
+    });
+    $process->method('getPid')->willReturnCallback(static function () use (&$running, $runningAfterRead): int {
+        $running = $runningAfterRead;
+
+        return PHP_INT_MAX;
+    });
+    $process->method('getExitCode')->willReturn(23);
+    $samples = [];
+    $arguments = [
+        $process,
+        ['duration' => 1.0, 'max_rss' => null, 'max_growth' => null],
+        hrtime(true),
+        &$samples,
+    ];
+    $failure = new ReflectionMethod(WorkerSoakCommand::class, 'sample')
+        ->invokeArgs(new WorkerSoakCommand(), $arguments);
+
+    expect($failure)->toBe($expected)
+        ->and($samples)->toBe([]);
+})->with([
+    'worker exited during sampling' => [false, 'Worker exited before the 1.00 second soak duration (exit code 23).'],
+    'live worker telemetry is unavailable' => [true, 'Unable to read worker RSS from /proc; this soak helper requires a Linux process environment.'],
+]);

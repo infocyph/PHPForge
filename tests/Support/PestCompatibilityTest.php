@@ -10,6 +10,17 @@ it('executes Pest parallel workers with the supported dependency set', function 
     mkdir($directory, 0700);
     $fixture = $directory.'/ParallelTest.php';
     file_put_contents($fixture, "<?php test('worker executes', function () { expect(2 + 2)->toBe(4); });\n");
+    file_put_contents($directory.'/PhpunitWorkerTest.php', <<<'PHP'
+<?php
+
+final class PhpunitWorkerTest extends \PHPUnit\Framework\TestCase
+{
+    public function testWorkerExecutes(): void
+    {
+        self::assertSame(4, 2 + 2);
+    }
+}
+PHP);
 
     try {
         $process = new Process([
@@ -17,7 +28,7 @@ it('executes Pest parallel workers with the supported dependency set', function 
             $project.'/vendor/bin/pest',
             '--configuration', $project.'/resources/pest.xml',
             '--bootstrap', $project.'/vendor/autoload.php',
-            $fixture,
+            $directory,
             '--parallel', '--processes=2', '--no-coverage',
             '--colors=never',
         ], $project, ['TMPDIR' => $directory, 'TMP' => $directory, 'TEMP' => $directory]);
@@ -25,7 +36,7 @@ it('executes Pest parallel workers with the supported dependency set', function 
         $process->run();
 
         expect($process->getExitCode())->toBe(0, $process->getOutput().$process->getErrorOutput())
-            ->and($process->getOutput())->toContain('1 passed');
+            ->and($process->getOutput())->toContain('2 passed');
     } finally {
         foreach (glob($directory.'/*') ?: [] as $file) {
             unlink($file);
