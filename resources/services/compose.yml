@@ -209,7 +209,7 @@ services:
     entrypoint: ["bash", "/configure-availability-group.sh"]
 
   mongodb:
-    image: mongo:8.3
+    image: mongo:9.0.4
     profiles: [mongodb]
     ports: ["27017:27017"]
     environment:
@@ -223,7 +223,7 @@ services:
       retries: 40
 
   mongodb-primary:
-    image: mongo:8.3
+    image: mongo:9.0.4
     profiles: [mongodb-replica]
     command: ["mongod", "--replSet", "phpforge-rs", "--bind_ip_all", "--port", "27017"]
     ports: ["27017:27017"]
@@ -234,14 +234,14 @@ services:
       retries: 40
 
   mongodb-secondary:
-    image: mongo:8.3
+    image: mongo:9.0.4
     profiles: [mongodb-replica]
     command: ["mongod", "--replSet", "phpforge-rs", "--bind_ip_all", "--port", "27017"]
     ports: ["27018:27017"]
     healthcheck: *mongodb-replica-health
 
   mongodb-replica-init:
-    image: mongo:8.3
+    image: mongo:9.0.4
     profiles: [mongodb-replica]
     depends_on:
       mongodb-primary: {condition: service_healthy}
