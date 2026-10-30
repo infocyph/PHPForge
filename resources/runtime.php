@@ -12,7 +12,7 @@ return [
         'mariadb' => 'mariadb:12.3',
         'postgres' => 'postgres:18-alpine',
         'mssql' => 'mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04',
-        'mongodb' => 'mongo:8.3',
+        'mongodb' => 'mongo:9.0.4',
         'redis' => 'redis:8.10-alpine',
         'valkey' => 'valkey/valkey:9.1-alpine',
         'memcached' => 'memcached:1.6.45-alpine',

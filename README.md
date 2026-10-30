@@ -1011,7 +1011,7 @@ Image versions are maintained centrally in [`resources/runtime.php`](resources/r
 | PostgreSQL | `postgres:18-alpine` | [Docker Official Image](https://hub.docker.com/_/postgres) | streaming primary + replica | `5432`, replica `5433` |
 | Microsoft SQL Server | `mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04` | [Microsoft Container Registry](https://mcr.microsoft.com/product/mssql/server/about) | two-node read-scale availability group | `1433`, replica `1434` |
 | SQLite | host PHP extension | [SQLite](https://www.sqlite.org/) | standalone only | in-memory/file DSNs |
-| MongoDB | `mongo:8.3` | [Docker Official Image](https://hub.docker.com/_/mongo) | two-member replica set | `27017`, secondary `27018` |
+| MongoDB | `mongo:9.0.4` | [Docker Official Image](https://hub.docker.com/_/mongo) | two-member replica set | `27017`, secondary `27018` |
 | Redis | `redis:8.10-alpine` | [Docker Official Image](https://hub.docker.com/_/redis) | primary + read-only replica | `6379`, replica `6381` |
 | Valkey | `valkey/valkey:9.1-alpine` | [Valkey official image](https://hub.docker.com/r/valkey/valkey) | primary + read-only replica | `6380`, replica `6382` |
 | Memcached | `memcached:1.6.45-alpine` | [Docker Official Image](https://hub.docker.com/_/memcached) | standalone only | `11211` |
@@ -1020,6 +1020,8 @@ Image versions are maintained centrally in [`resources/runtime.php`](resources/r
 | Mailpit | `axllent/mailpit:v1.30` | [Mailpit publisher image](https://hub.docker.com/r/axllent/mailpit) | standalone only | SMTP `1025`; UI/API `8025` |
 | Elasticsearch | `docker.elastic.co/elasticsearch/elasticsearch:9.5.0` | [Elastic registry](https://www.docker.elastic.co/r/elasticsearch/elasticsearch) | two-node cluster | `9200`, peer `9201` |
 | ScyllaDB | `scylladb/scylla:2026.2` | [ScyllaDB official image](https://hub.docker.com/r/scylladb/scylla) | three-node cluster | Alternator `8000`–`8002`; admin `10000`–`10002` |
+
+MongoDB uses the 9.0.4 maintenance release, which includes the Ubuntu kernel-version detection fix in [SERVER-131779](https://jira.mongodb.org/browse/SERVER-131779). This lets MongoDB recognize Ubuntu kernels containing the upstream 7.0.14 fix while retaining its startup guard for affected kernels. The same image is used by standalone, replica members and replica initialization.
 
 When `mssql` is selected, the workflow also installs Microsoft's official `msodbcsql18` host driver from `packages.microsoft.com`. The `pdo_sqlsrv` PHP extension uses that native driver to reach the SQL Server container; enabling the PHP extension alone is not sufficient. Its major version is maintained in `service_client_versions.mssql_odbc` in [`resources/runtime.php`](resources/runtime.php).
 
