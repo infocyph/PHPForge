@@ -1476,6 +1476,53 @@ structural_review:
 - Do not pay multibyte or grapheme-processing cost for ASCII-only identifiers, protocol tokens or internal keys.
 - Do not replace one direct operation with several native calls that introduce extra passes or allocations.
 
+### SPL And Purpose-Built Collection Selection
+
+**Selection And Performance Rules**
+
+- Use native PHP arrays by default for small collections, packed lists, associative maps, one-pass transformations and simple indexed access. A specialized structure is not automatically faster or clearer.
+- Choose the representation from the required access pattern, mutation behavior, ownership, lifetime, ordering, collection size and measured workload rather than from the structure's name.
+- Evaluate algorithmic complexity before choosing a collection, especially when insertion, front removal, searching, ordering or eviction occurs repeatedly as the collection grows.
+- Prefer a simple indexed cursor over a prebuilt packed array when items are consumed once in FIFO order without further insertions. Avoid repeated `array_shift()` on a large packed array, which reindexes remaining numeric elements.
+- Consider native array operations first for small or tightly bounded collections. SPL object allocation, method calls, node storage and conversions may outweigh theoretical complexity improvements.
+- Prefer an already suitable, bounded internal representation over converting arrays to SPL structures and back repeatedly. Do not add collection wrappers, factories or interfaces solely to introduce SPL.
+- Use the following selection rules as review guidance, not as mandates to replace an existing correct and efficient implementation.
+
+**Select By Access Pattern**
+
+- **FIFO work queue — `SplQueue`:** Prefer for dynamically growing queues with repeated enqueue/dequeue operations, such as ready tasks, breadth-first traversal and in-memory job dispatch. Use an indexed array cursor for a fixed input batch consumed once; use a ring buffer when a fixed-capacity, reusable buffer is simpler or faster.
+- **LIFO stack — `SplStack`:** Consider when an explicit stack abstraction improves the contract for parser state, undo history or depth-first traversal. Native `[]`/`array_push()` with `array_pop()` is already efficient and is usually the simpler hot-path choice for a local stack. `SplStack` inherits indexed-access operations and does not make indexing impossible.
+- **Priority-ordered work — `SplPriorityQueue`:** Consider when priorities change by item and the next highest-priority item must be extracted repeatedly, rather than re-sorting the entire queue after each insertion. It is a max-priority queue; use a defined comparison or priority transformation if earliest deadline or lowest numeric value must win.
+- **Incremental extremes — `SplMinHeap`, `SplMaxHeap` and custom `SplHeap`:** Consider when repeatedly extracting the smallest/largest remaining item, merging sorted sources or maintaining a bounded top-K result set. Prefer a size-K min-heap for the largest K items, and a max-heap for the smallest K items, when K is much smaller than N and streaming selection is valid. Sort the final K items if the output requires fully ordered results.
+- **Object-identity set or metadata — `SplObjectStorage`:** Consider when exact object instances are keys, strong ownership is intentional, and attached per-object metadata or deduplication is needed. It retains its objects; detach entries or clear the storage at the appropriate lifecycle boundary.
+- **Non-owning object metadata — `WeakMap`:** Prefer this built-in alternative, rather than `SplObjectStorage`, when entries must disappear once an object has no other strong references. Ensure associated values do not themselves retain the key object; do not use weak keys when the collection is responsible for keeping objects alive.
+- **Dense, pre-sized integer slots — `SplFixedArray`:** Consider when indexed capacity and bounds are meaningful invariants and representative measurements show acceptable access and memory costs. It permits resizing with `setSize()`, so it is not immutable or permanently fixed. Benchmark against a packed native array before adopting it.
+- **Double-ended sequence — `SplDoublyLinkedList`:** Consider only when efficient operations at both ends or bidirectional iteration are material requirements. Avoid it for frequent arbitrary-offset access or as a default list replacement; indexed access requires traversal.
+- **Shared mutable array-like state — `ArrayObject`:** Use only when object identity and shared mutation across call boundaries are intentional parts of the contract. Native arrays have copy-on-write value semantics; replacing them with `ArrayObject` changes observable mutation and assignment behavior and should not be treated as a performance shortcut.
+- **Iterable materialization — `iterator_to_array()`:** Use at a boundary that explicitly needs a complete native array. This is a conversion function, not an SPL data structure. Preserve keys only when the keys are meaningful and unique; with the default `true`, duplicate keys overwrite earlier values. Use `iterator_to_array($iterator, false)` when all values must be retained and key preservation is unnecessary.
+
+**Ordering, Lifetime And Correctness Constraints**
+
+- `SplPriorityQueue` does not guarantee FIFO order among equal priorities. When stability matters, define and test a deterministic secondary ordering key, such as a bounded insertion sequence or stable job identifier; preserve the original priority policy and fairness requirements.
+- Define heap comparator direction and tie-breaking explicitly. A custom `SplHeap::compare()` must establish consistent ordering for the supported values; do not assume extraction is stable or that the heap stores a fully sorted list internally.
+- Heap insertion and extraction are generally `O(log n)` and accessing the next extreme is generally `O(1)`; a one-time native sort can still outperform heap management when the entire result must be ordered once.
+- Priority queues and ordinary heaps are not automatically suitable for arbitrary deletion, priority updates, cancellation or expiring reservations. Evaluate an indexed heap, an ownership map with bounded tombstones/compaction, or another purpose-built representation when those operations are frequent or correctness-critical.
+- For a small, fixed number of priority tiers, compare separate FIFO queues per tier against a generic heap; they may be simpler and more predictable.
+- Do not replace a true LRU eviction policy with FIFO. A queue alone does not support constant-time refresh or removal of arbitrary cached keys; for small associative caches, consider `array_key_first()` with `unset()` for insertion-order eviction when that preserves the contract.
+- Use a bounded indexed ring buffer for rolling histories, recent samples or fixed-capacity windows when it avoids repeated front-removal and offers simpler memory behavior than a linked collection.
+- Do not replace a specialized timer heap, byte queue, protocol buffer, connection pool or scheduler merely because an SPL class has a similar name. Retain custom structures when they enforce required timing, cancellation, buffering, ownership, fairness or memory-budget invariants.
+- Treat `SplObjectStorage` retention and `WeakMap` collection as lifecycle semantics, not implementation details. Avoid object-ID maps that can outlive their objects without explicitly addressing identifier reuse and cleanup.
+- Preserve public array types, iteration semantics, numeric/string keys, tie order, error behavior, serialization formats and persisted state when changing internal storage. Convert only at necessary boundaries and account for conversion cost.
+- Bound queue sizes, heap sizes, retained objects, tombstones and cache entries. Do not use an SPL structure as a substitute for backpressure, cancellation, expiration, cleanup or worker-lifecycle controls.
+
+**Adoption And Verification**
+
+- Before changing an existing collection, document the dominant operations (append, dequeue, lookup, move-to-front, update, remove, iterate, serialize), expected sizes and distribution, required ordering and ownership semantics, and the candidate's theoretical complexity.
+- Benchmark the current representation against at least the simplest suitable alternative, including a native-array or cursor implementation when relevant. Compare realistic small, typical, large and worst-case workloads rather than relying on a one-size-fits-all SPL benchmark.
+- Measure operation throughput, complete host-application RPM when relevant, allocation/peak-memory cost, queue growth and behavior under repeated use or long-running workers. Include the cost of any conversion, compaction, sorting or serialization.
+- Test empty and singleton collections, duplicate/equal priorities, stable ordering, cancellation and rescheduling, object destruction, stale references, bounds violations, iterator-key collisions and persistence round trips wherever applicable.
+- Adopt the specialized structure only when it enforces a required invariant, materially reduces total complexity, or produces a meaningful measured improvement without violating correctness, compatibility or resource budgets. Otherwise retain the native array or existing specialized structure.
+
 ### Iteration And Algorithmic Work
 
 - Treat total work, algorithmic complexity, allocations and I/O as more important than the number of visible loops.
