@@ -164,7 +164,7 @@ it('keeps the pre-setup workflow resolver free of PHP 8.4-only array helpers', f
 });
 
 it('maps every catalog probe to protocol-level readiness logic', function (): void {
-    $script = (string) file_get_contents(dirname(__DIR__, 2).'/.github/scripts/verify-and-wait-services.sh');
+    $script = (string) file_get_contents(dirname(__DIR__, 2).'/resources/services/verify-and-wait.sh');
 
     foreach (ServiceCatalog::all() as $definition) {
         expect(preg_match('/^\s+[^\n]*\b'.preg_quote($definition['probe'], '/').'(?:\||\))/m', $script))->toBe(1);
@@ -192,6 +192,24 @@ it('maps every catalog probe to protocol-level readiness logic', function (): vo
 
     expect($availabilityGroupReady)->toBeInt()
         ->and($availabilityGroupWrite)->toBeInt()->toBeGreaterThan($availabilityGroupReady);
+});
+
+it('runs packaged and workflow readiness from outside the package directory', function (): void {
+    $projectRoot = dirname(__DIR__, 2);
+    $environment = [
+        'INTEGRATION_SERVICES' => '["sqlite"]',
+        'SERVICE_TOPOLOGIES' => '{}',
+        'PHPFORGE_SERVICE_CATALOG' => false,
+        'IC_SQLITE_MEMORY_DSN' => 'sqlite::memory:',
+        'IC_SQLITE_FILE_DSN' => 'sqlite::memory:',
+    ];
+
+    foreach (['resources/services/verify-and-wait.sh', '.github/scripts/verify-and-wait-services.sh'] as $path) {
+        $process = new Process(['bash', $projectRoot.'/'.$path], sys_get_temp_dir(), $environment);
+        $process->mustRun();
+
+        expect($process->getOutput())->toContain('sqlite ready');
+    }
 });
 
 it('uses the versioned runtime manifest as the service image source of truth', function (): void {

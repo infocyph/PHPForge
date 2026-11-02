@@ -75,7 +75,7 @@ final class ServiceCommand extends Command
             return $process->getExitCode() ?? 1;
         }
 
-        $readiness = new Process(['bash', Paths::packageFile('.github/scripts/verify-and-wait-services.sh')], Paths::projectRootPath(), $environment);
+        $readiness = new Process(['bash', Paths::packageFile('resources/services/verify-and-wait.sh')], Paths::projectRootPath(), $environment);
         $readiness->setTimeout(null);
         $readiness->run(static function (string $type, string $buffer) use ($output): void {
             $output->write($buffer, false, $type === Process::ERR ? OutputInterface::OUTPUT_RAW : OutputInterface::OUTPUT_NORMAL);

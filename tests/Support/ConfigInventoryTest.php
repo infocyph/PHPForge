@@ -104,6 +104,36 @@ it('allows only a literal zero exit status outside executable entrypoints', func
     }
 });
 
+it('checks source beneath temporary ancestors while excluding generated project paths', function (): void {
+    $projectRoot = dirname(__DIR__, 2);
+    $directory = sys_get_temp_dir().'/phpforge-phpcs-'.uniqid('', true);
+
+    foreach (['src', 'vendor', 'tmp', 'nested/tmp'] as $path) {
+        mkdir($directory.'/'.$path, 0755, true);
+        file_put_contents($directory.'/'.$path.'/unsafe.php', "<?php\neval('return 1;');\n");
+    }
+
+    try {
+        $process = new Process([
+            PHP_BINARY,
+            $projectRoot.'/vendor/bin/phpcs',
+            '--standard='.$projectRoot.'/resources/phpcs.xml.dist',
+            '--report=json',
+            '--basepath='.$directory,
+            $directory,
+        ], $directory);
+        $process->run();
+        $report = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
+
+        expect($process->getExitCode())->toBe(2)
+            ->and(array_keys($report['files']))->toBe(['src/unsafe.php'])
+            ->and($report['files']['src/unsafe.php']['messages'][0]['source'])
+            ->toBe('PHPForge.PHP.ForbiddenFunctions.Found');
+    } finally {
+        removeConfigInventoryTree($directory);
+    }
+});
+
 it('captures every PHP error level in bundled test configurations', function (): void {
     foreach (['pest.xml', 'phpunit.xml'] as $file) {
         $contents = file_get_contents(ConfigInventory::resolvedPath($file));

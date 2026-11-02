@@ -1,3 +1,6 @@
+/vendor export-ignore
+/.git export-ignore
+/composer.lock export-ignore
 /.github export-ignore
 benchmarks export-ignore
 docs export-ignore
