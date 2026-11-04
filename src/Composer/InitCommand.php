@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\PHPForge\Composer;
 
 use Composer\Command\BaseCommand as Command;
+use Infocyph\PHPForge\Support\ArrayShape;
 use Infocyph\PHPForge\Support\CaptainHook;
 use Infocyph\PHPForge\Support\CommunityTemplateCatalog;
 use Infocyph\PHPForge\Support\Paths;
@@ -52,6 +53,7 @@ final class InitCommand extends Command
     /**
      * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
      * @throws \Symfony\Component\Console\Exception\LogicException|\Symfony\Component\Console\Exception\RuntimeException
+     * @throws \Error
      */
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -161,6 +163,7 @@ final class InitCommand extends Command
      * @return array{workflow_ref:string,services:list<string>,topologies:array<string, string>,flags:array<string, bool>}|null
      *
      * @throws \Symfony\Component\Console\Exception\LogicException|\Symfony\Component\Console\Exception\InvalidArgumentException|\Symfony\Component\Console\Exception\RuntimeException
+     * @throws \Error
      */
     private function interactiveSelection(InputInterface $input, OutputInterface $output, array $flags, string $workflowRef): ?array
     {
@@ -232,13 +235,15 @@ final class InitCommand extends Command
         return $mapped;
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Error
+     */
     private function runtimeVersions(): array
     {
-        $runtime = require __DIR__ . '/../../resources/runtime.php';
-        $values = is_array($runtime) ? ($runtime['php_versions'] ?? null) : null;
+        $runtime = ArrayShape::stringKeyed(Paths::requirePackageFile('resources/runtime.php'));
 
-        return $this->uniqueStrings($values);
+        return $this->uniqueStrings($runtime['php_versions'] ?? null);
     }
 
     /**
@@ -246,6 +251,7 @@ final class InitCommand extends Command
      *
      * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
      * @throws \Symfony\Component\Console\Exception\LogicException|\Symfony\Component\Console\Exception\RuntimeException
+     * @throws \Error
      */
     private function selection(InputInterface $input, OutputInterface $output): ?array
     {

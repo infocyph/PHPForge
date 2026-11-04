@@ -45,6 +45,7 @@ final class ServiceCommand extends Command
     /**
      * @throws \Symfony\Component\Console\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
      * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+     * @throws \Error
      */
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -103,6 +104,7 @@ final class ServiceCommand extends Command
      * @return array{services:list<string>,topologies:array<string, string>}|null
      *
      * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     * @throws \Error
      */
     private function configuration(InputInterface $input, OutputInterface $output): ?array
     {

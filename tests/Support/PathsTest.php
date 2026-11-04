@@ -58,6 +58,7 @@ it('loads installed package resources independently of the consumer working dire
     ], JSON_THROW_ON_ERROR));
     mkdir($consumer.'/resources/services', 0755, true);
     file_put_contents($consumer.'/resources/services/catalog.php', '<?php throw new RuntimeException("Consumer resource selected");');
+    file_put_contents($consumer.'/resources/runtime.php', '<?php throw new RuntimeException("Consumer runtime selected");');
 
     try {
         $process = new Process([PHP_BINARY, '-r', <<<'PHP'
@@ -65,7 +66,7 @@ require $argv[1].'/src/Support/ArrayShape.php';
 require $argv[1].'/src/Support/Paths.php';
 require $argv[1].'/src/Support/ServiceCatalog.php';
 $runtimeFile = Infocyph\PHPForge\Support\Paths::packageFile('resources/runtime.php');
-$runtime = require $runtimeFile;
+$runtime = Infocyph\PHPForge\Support\Paths::requirePackageFile('resources/runtime.php');
 echo json_encode([
     'runtime_file' => $runtimeFile,
     'php_versions' => $runtime['php_versions'],
@@ -87,6 +88,13 @@ PHP, $package], $consumer);
         removePathsTestTree($consumer);
     }
 })->with(['vendor', 'deps']);
+
+it('reports missing package resources with their resolved path', function (): void {
+    $missing = 'resources/missing-'.bin2hex(random_bytes(8)).'.php';
+
+    expect(fn (): mixed => Paths::requirePackageFile($missing))
+        ->toThrow(Error::class, Paths::packageFile($missing));
+});
 
 it('falls back to bundled defaults when project config is missing', function (): void {
     expect(Paths::config('pint.json'))

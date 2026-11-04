@@ -150,6 +150,18 @@ final class Paths
         return self::projectRoot();
     }
 
+    /** @throws \Error */
+    public static function requirePackageFile(string $file): mixed
+    {
+        $path = self::packageFile($file);
+
+        if (!is_file($path)) {
+            throw new \Error(sprintf('Missing PHPForge package file "%s" at "%s".', $file, $path));
+        }
+
+        return require $path;
+    }
+
     public static function vendorDir(): string
     {
         $configured = self::composerConfig('vendor-dir');

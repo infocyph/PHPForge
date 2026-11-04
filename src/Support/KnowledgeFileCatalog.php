@@ -227,7 +227,19 @@ final class KnowledgeFileCatalog
         ]);
         $excludes = $options['excludes'] ?? [];
 
-        return is_array($excludes) ? array_values(array_filter($excludes, is_string(...))) : [];
+        if (!is_array($excludes)) {
+            return [];
+        }
+
+        $resolved = [];
+
+        foreach (array_keys($excludes) as $key) {
+            if (is_string($excludes[$key])) {
+                $resolved[] = $excludes[$key];
+            }
+        }
+
+        return $resolved;
     }
 
     /**
