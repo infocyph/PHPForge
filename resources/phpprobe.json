@@ -2,6 +2,21 @@
   "preset": "standard",
   "reference": {
     "exclude": [
+      "vendor",
+      "node_modules",
+      ".git",
+      ".idea",
+      ".vscode",
+      "coverage",
+      ".phpunit.cache",
+      ".psalm-cache",
+      "build",
+      "dist",
+      "tmp",
+      ".tmp",
+      "storage",
+      "bootstrap/cache",
+      "var/cache",
       "resources"
     ]
   },

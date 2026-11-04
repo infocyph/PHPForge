@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Infocyph\PHPForge\Composer\TaskCatalog;
 use Infocyph\PHPForge\Support\Paths;
 use Infocyph\PHPForge\Support\TaskDisplay;
+use Symfony\Component\Process\Process;
 
 function mirrorTaskCatalogConfig(string $projectRoot, string $file): string
 {
@@ -127,6 +128,35 @@ it('runs reference integrity checks with the PHPProbe checker config', function 
         ->and($command)->toContain('reference')
         ->and($command)->toContain('--config')
         ->and($command)->toContain(Paths::packageFile('resources/phpprobe.json'));
+});
+
+it('checks consumer references without scanning installed dependencies', function (): void {
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-reference-consumer-' . uniqid('', true);
+    $probe = Paths::bin('phpprobe');
+    mkdir($projectRoot . DIRECTORY_SEPARATOR . 'src', 0755, true);
+    $config = mirrorTaskCatalogConfig($projectRoot, 'phpprobe.json');
+    $source = $projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Greeting.php';
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/consumer","autoload":{"psr-4":{"ConsumerFixture\\\\":"src/"}}}');
+    file_put_contents($source, '<?php namespace ConsumerFixture; final class Greeting {}');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'Broken.php', '<?php class Dependency extends MissingDependency {}');
+
+    try {
+        $process = new Process([PHP_BINARY, $probe, 'reference', '--config', $config], $projectRoot);
+        $process->setTimeout(30);
+        $process->run();
+
+        expect($process->getExitCode())->toBe(0, $process->getOutput() . $process->getErrorOutput());
+
+        file_put_contents($source, '<?php namespace ConsumerFixture; final class Greeting { public function greet(MissingConsumerBase $value): void {} }');
+        $process->run();
+
+        expect($process->getExitCode())->toBe(1)
+            ->and($process->getOutput() . $process->getErrorOutput())->toContain('status=FAIL')
+            ->and($process->getOutput() . $process->getErrorOutput())->toContain('MissingConsumerBase')
+            ->and($process->getOutput() . $process->getErrorOutput())->not->toContain('MissingDependency');
+    } finally {
+        removeTaskCatalogTree($projectRoot);
+    }
 });
 
 it('runs CI comment policy checks with error-focused output', function (): void {

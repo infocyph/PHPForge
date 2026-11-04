@@ -83,7 +83,7 @@
         "ic:benchmark": "@php bin/run-task.php test:bench",
         "ic:benchmark:compare": "@php bin/phpforge benchmark:compare",
         "ic:benchmark:validate": "@php bin/phpforge benchmark:validate",
-        "ic:ci": "@php bin/phpforge ci",
+        "ic:ci": "Infocyph\\PHPForge\\Composer\\CiCommand",
         "ic:commit-message": "@php bin/phpforge commit-message",
         "ic:doctor": "@php bin/phpforge doctor",
         "ic:hooks": "@php bin/run-task.php hooks",
