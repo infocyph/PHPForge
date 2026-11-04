@@ -90,9 +90,13 @@ final readonly class KnowledgeCli
         return 0;
     }
 
-    /** @param array{name:string,value:string} $option
+    /**
+     * @param array{name:string,value:string} $option
      * @param KnowledgeQueryOptions $options
+     *
      * @return KnowledgeQueryOptions
+     *
+     * @throws \InvalidArgumentException
      */
     private function applyQueryOption(array $option, array $options): array
     {
@@ -106,24 +110,28 @@ final readonly class KnowledgeCli
             }
 
             return match ($name) {
-                'limit' => [...$options, 'limit' => $parsed],
-                'depth' => [...$options, 'depth' => $parsed],
-                default => [...$options, 'budget' => $parsed],
+                'limit' => array_replace($options, ['limit' => $parsed]),
+                'depth' => array_replace($options, ['depth' => $parsed]),
+                default => array_replace($options, ['budget' => $parsed]),
             };
         }
 
         return match ($name) {
-            'graph' => [...$options, 'graph' => $option['value']],
-            'direction' => [...$options, 'direction' => $option['value']],
-            'context' => [...$options, 'context' => $option['value']],
-            'relation' => [...$options, 'relations' => [...$options['relations'], $option['value']]],
-            'provider' => [...$options, 'provider' => $option['value'], 'explain' => true],
-            default => [...$options, 'model' => $option['value'], 'explain' => true],
+            'graph' => array_replace($options, ['graph' => $option['value']]),
+            'direction' => array_replace($options, ['direction' => $option['value']]),
+            'context' => array_replace($options, ['context' => $option['value']]),
+            'relation' => array_replace($options, ['relations' => [...$options['relations'], $option['value']]]),
+            'provider' => array_replace($options, ['provider' => $option['value'], 'explain' => true]),
+            default => array_replace($options, ['model' => $option['value'], 'explain' => true]),
         };
     }
 
-    /** @param list<string> $args
+    /**
+     * @param list<string> $args
+     *
      * @return array{paths:list<string>,output:?string,force:bool}
+     *
+     * @throws \InvalidArgumentException
      */
     private function buildOptions(array $args): array
     {
@@ -172,9 +180,13 @@ final readonly class KnowledgeCli
         fwrite(STDERR, $message);
     }
 
-    /** @param array<string, mixed> $result
+    /**
+     * @param array<string, mixed> $result
      * @param KnowledgeQueryOptions $options
+     *
      * @return array{Explanation|null,string|null}
+     *
+     * @throws \InvalidArgumentException
      */
     private function explanation(array $result, array $options): array
     {
@@ -201,8 +213,12 @@ final readonly class KnowledgeCli
         fwrite(STDOUT, $message);
     }
 
-    /** @param list<string> $args
+    /**
+     * @param list<string> $args
+     *
      * @return KnowledgeQueryOptions
+     *
+     * @throws \InvalidArgumentException
      */
     private function queryOptions(array $args): array
     {
@@ -229,9 +245,9 @@ final readonly class KnowledgeCli
 
             if (in_array($arg, ['--json', '--explain', '--dfs'], true)) {
                 $options = match ($arg) {
-                    '--json' => [...$options, 'json' => true],
-                    '--explain' => [...$options, 'explain' => true],
-                    default => [...$options, 'mode' => 'dfs'],
+                    '--json' => array_replace($options, ['json' => true]),
+                    '--explain' => array_replace($options, ['explain' => true]),
+                    default => array_replace($options, ['mode' => 'dfs']),
                 };
 
                 continue;

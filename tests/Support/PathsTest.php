@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Infocyph\PHPForge\Support\Paths;
+use Infocyph\PHPForge\Support\ServiceCatalog;
+use Symfony\Component\Process\Process;
 
 function removePathsTestTree(string $path): void
 {
@@ -27,6 +29,72 @@ function removePathsTestTree(string $path): void
 
     rmdir($path);
 }
+
+it('loads installed package resources independently of the consumer working directory', function (string $vendorDirectory): void {
+    $consumer = sys_get_temp_dir().'/phpforge-consumer-'.bin2hex(random_bytes(8));
+    $package = $consumer.'/'.$vendorDirectory.'/infocyph/phpforge';
+    $files = [
+        'src/Support/ArrayShape.php',
+        'src/Support/Paths.php',
+        'src/Support/ServiceCatalog.php',
+        'resources/runtime.php',
+        'resources/services/catalog.php',
+        'resources/psalm.xml',
+    ];
+
+    foreach ($files as $file) {
+        $target = $package.'/'.$file;
+
+        if (!is_dir(dirname($target))) {
+            mkdir(dirname($target), 0755, true);
+        }
+
+        copy(Paths::packageFile($file), $target);
+    }
+
+    file_put_contents($consumer.'/composer.json', json_encode([
+        'name' => 'example/consumer',
+        'config' => ['vendor-dir' => $vendorDirectory],
+    ], JSON_THROW_ON_ERROR));
+    mkdir($consumer.'/resources/services', 0755, true);
+    file_put_contents($consumer.'/resources/services/catalog.php', '<?php throw new RuntimeException("Consumer resource selected");');
+    file_put_contents($consumer.'/resources/runtime.php', '<?php throw new RuntimeException("Consumer runtime selected");');
+
+    try {
+        $process = new Process([PHP_BINARY, '-r', <<<'PHP'
+require $argv[1].'/src/Support/ArrayShape.php';
+require $argv[1].'/src/Support/Paths.php';
+require $argv[1].'/src/Support/ServiceCatalog.php';
+$runtimeFile = Infocyph\PHPForge\Support\Paths::packageFile('resources/runtime.php');
+$runtime = Infocyph\PHPForge\Support\Paths::requirePackageFile('resources/runtime.php');
+echo json_encode([
+    'runtime_file' => $runtimeFile,
+    'php_versions' => $runtime['php_versions'],
+    'psalm_config' => Infocyph\PHPForge\Support\Paths::config('psalm.xml'),
+    'services' => Infocyph\PHPForge\Support\ServiceCatalog::names(),
+], JSON_THROW_ON_ERROR);
+PHP, $package], $consumer);
+        $process->setTimeout(30);
+        $process->run();
+        $runtime = require Paths::packageFile('resources/runtime.php');
+        $result = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
+
+        expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
+            ->and(str_replace('\\', '/', $result['runtime_file']))->toBe(str_replace('\\', '/', $package.'/resources/runtime.php'))
+            ->and($result['php_versions'])->toBe($runtime['php_versions'])
+            ->and(str_replace('\\', '/', $result['psalm_config']))->toBe(str_replace('\\', '/', $package.'/resources/psalm.xml'))
+            ->and($result['services'])->toBe(ServiceCatalog::names());
+    } finally {
+        removePathsTestTree($consumer);
+    }
+})->with(['vendor', 'deps']);
+
+it('reports missing package resources with their resolved path', function (): void {
+    $missing = 'resources/missing-'.bin2hex(random_bytes(8)).'.php';
+
+    expect(fn (): mixed => Paths::requirePackageFile($missing))
+        ->toThrow(Error::class, Paths::packageFile($missing));
+});
 
 it('falls back to bundled defaults when project config is missing', function (): void {
     expect(Paths::config('pint.json'))

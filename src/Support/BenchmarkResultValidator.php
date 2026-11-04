@@ -105,7 +105,7 @@ final class BenchmarkResultValidator
             return null;
         }
 
-        $expectedErrorRate = $attempted === 0 ? 0.0 : $failed / $attempted;
+        $expectedErrorRate = $attempted === 0 ? 0.0 : (float) $failed / (float) $attempted;
 
         return abs($errorRate - $expectedErrorRate) > 0.0000001
             ? $path . '.error_rate must equal failed_operations divided by attempted_operations.'

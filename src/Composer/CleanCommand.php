@@ -21,16 +21,21 @@ final class CleanCommand extends Command
         'psalm-results.sarif',
     ];
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct()
     {
         parent::__construct('ic:clean');
     }
 
+    #[\Override]
     protected function configure(): void
     {
         $this->setDescription('Remove known PHPForge tool output files and directories.');
     }
 
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         unset($input);
@@ -56,7 +61,9 @@ final class CleanCommand extends Command
     private function remove(string $path): void
     {
         if (is_dir($path) && !is_link($path)) {
-            foreach (scandir($path) ?: [] as $child) {
+            $children = scandir($path);
+
+            foreach (is_array($children) ? $children : [] as $child) {
                 if ($child === '.' || $child === '..') {
                     continue;
                 }

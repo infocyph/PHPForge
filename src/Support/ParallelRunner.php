@@ -272,7 +272,10 @@ final readonly class ParallelRunner
 
     /**
      * @param list<string> $task
+     *
      * @return array{heading:string,status:string,exit_code:int}
+     *
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
      */
     private function runPreflight(array $task): array
     {
@@ -284,7 +287,10 @@ final readonly class ParallelRunner
 
     /**
      * @param list<string> $task
+     *
      * @return array{heading:string,status:string,exit_code:int}
+     *
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
      */
     private function runSynchronousCheck(array $task, string $heading): array
     {
@@ -295,7 +301,10 @@ final readonly class ParallelRunner
 
     /**
      * @param list<string> $task
+     *
      * @return array{process:Process,stdout:string,stderr:string}
+     *
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
      */
     private function runSynchronousTask(array $task): array
     {
@@ -324,7 +333,10 @@ final readonly class ParallelRunner
 
     /**
      * @param list<string> $task
+     *
      * @return array{process:Process,task:list<string>,heading:string,stdout:resource,stderr:resource,stdout_truncated:bool,stderr_truncated:bool,started_at:float,index:int,long_running_reported:bool}
+     *
+     * @throws \RuntimeException|\Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessStartFailedException
      */
     private function startTask(array $task, int $index): array
     {

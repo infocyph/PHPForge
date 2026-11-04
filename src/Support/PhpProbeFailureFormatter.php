@@ -86,7 +86,7 @@ final class PhpProbeFailureFormatter
                 '  %d. Lines: %d, Similarity: %.0f%%, Engine: %s, Score: %.1f',
                 $index + 1,
                 self::integer($clone['lines'] ?? null),
-                self::number($clone['similarity'] ?? null) * 100,
+                self::number($clone['similarity'] ?? null) * 100.0,
                 self::text($clone['source'] ?? null, 'unknown'),
                 self::number($clone['score'] ?? null),
             );

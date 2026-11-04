@@ -12,11 +12,18 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 final class ListConfigCommand extends Command
 {
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct()
     {
         parent::__construct('ic:list-config');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function configure(): void
     {
         $this
@@ -24,6 +31,10 @@ final class ListConfigCommand extends Command
             ->addOption('json', null, InputOption::VALUE_NONE, 'Output JSON.');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $rows = [];

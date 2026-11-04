@@ -18,6 +18,10 @@ final class ServiceCommand extends Command
     /** @var 'up'|'down'|'status' */
     private readonly string $action;
 
+    /**
+     * @throws \InvalidArgumentException
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct(string $action, string $prefix = 'ic:')
     {
         if (!in_array($action, ['up', 'down', 'status'], true)) {
@@ -28,6 +32,8 @@ final class ServiceCommand extends Command
         parent::__construct($prefix . 'services:' . $action);
     }
 
+    /** @throws \Symfony\Component\Console\Exception\InvalidArgumentException */
+    #[\Override]
     protected function configure(): void
     {
         $this
@@ -36,6 +42,12 @@ final class ServiceCommand extends Command
             ->addOption('topologies', null, InputOption::VALUE_REQUIRED, 'JSON service-to-topology object.');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+     * @throws \Error
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $configuration = $this->configuration($input, $output);
@@ -88,7 +100,12 @@ final class ServiceCommand extends Command
         return $readiness->getExitCode() ?? 1;
     }
 
-    /** @return array{services:list<string>,topologies:array<string, string>}|null */
+    /**
+     * @return array{services:list<string>,topologies:array<string, string>}|null
+     *
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     * @throws \Error
+     */
     private function configuration(InputInterface $input, OutputInterface $output): ?array
     {
         $stored = $this->storedConfiguration();
@@ -170,9 +187,12 @@ final class ServiceCommand extends Command
      */
     private function serviceEnvironment(array $services, array $topologies): array
     {
-        $database = getenv('IC_SERVICE_DATABASE') ?: 'phpforge';
-        $username = getenv('IC_SERVICE_USERNAME') ?: 'phpforge';
-        $password = getenv('IC_SERVICE_PASSWORD') ?: 'Phpforge_123!';
+        $database = getenv('IC_SERVICE_DATABASE');
+        $database = in_array($database, [false, '', '0'], true) ? 'phpforge' : $database;
+        $username = getenv('IC_SERVICE_USERNAME');
+        $username = in_array($username, [false, '', '0'], true) ? 'phpforge' : $username;
+        $password = getenv('IC_SERVICE_PASSWORD');
+        $password = in_array($password, [false, '', '0'], true) ? 'Phpforge_123!' : $password;
         $mongodbReplica = ($topologies['mongodb'] ?? 'standalone') === 'replica-set';
 
         return [

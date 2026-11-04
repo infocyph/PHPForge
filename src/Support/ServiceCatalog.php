@@ -21,15 +21,19 @@ namespace Infocyph\PHPForge\Support;
  */
 final class ServiceCatalog
 {
-    /** @return ServiceMap */
+    /**
+     * @return ServiceMap
+     * @throws \Error
+     */
     public static function all(): array
     {
-        return self::normalizeCatalog(require Paths::packageFile('resources/services/catalog.php'));
+        return self::normalizeCatalog(Paths::requirePackageFile('resources/services/catalog.php'));
     }
 
     /**
      * @param list<string> $services
      * @return list<string>
+     * @throws \Error
      */
     public static function extensions(array $services): array
     {
@@ -48,7 +52,10 @@ final class ServiceCatalog
         return $resolved;
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Error
+     */
     public static function names(): array
     {
         return array_keys(self::all());
@@ -58,6 +65,7 @@ final class ServiceCatalog
      * @param list<string> $services
      * @param array<string, string> $topologies
      * @return list<string>
+     * @throws \Error
      */
     public static function profiles(array $services, array $topologies): array
     {
@@ -107,7 +115,7 @@ final class ServiceCatalog
 
         $topologies = [];
 
-        foreach (get_object_vars($decoded) as $service => $topology) {
+        foreach ((array) $decoded as $service => $topology) {
             if (!is_string($service) || !is_string($topology)) {
                 return null;
             }
@@ -122,6 +130,7 @@ final class ServiceCatalog
      * @param list<string> $services
      * @param array<string, string> $topologies
      * @return list<string>
+     * @throws \Error
      */
     public static function validate(array $services, array $topologies): array
     {
@@ -154,7 +163,10 @@ final class ServiceCatalog
         return $errors;
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Error
+     */
     public static function validateDefinitions(): array
     {
         $errors = [];

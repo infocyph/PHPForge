@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\PHPForge\Composer;
 
 use Composer\Command\BaseCommand as Command;
+use Infocyph\PHPForge\Support\ArrayShape;
 use Infocyph\PHPForge\Support\CaptainHook;
 use Infocyph\PHPForge\Support\CommunityTemplateCatalog;
 use Infocyph\PHPForge\Support\Paths;
@@ -20,11 +21,18 @@ use Symfony\Component\Process\Process;
 
 final class InitCommand extends Command
 {
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct()
     {
         parent::__construct('ic:init');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function configure(): void
     {
         $this
@@ -42,6 +50,12 @@ final class InitCommand extends Command
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing files.');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     * @throws \Symfony\Component\Console\Exception\LogicException|\Symfony\Component\Console\Exception\RuntimeException
+     * @throws \Error
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $selection = $this->selection($input, $output);
@@ -58,7 +72,7 @@ final class InitCommand extends Command
         }
 
         foreach (['captainhook', 'gitlab_ci', 'bitbucket_ci', 'forgejo_workflow'] as $flag) {
-            if ($selection['flags'][$flag]) {
+            if ($selection['flags'][$flag] ?? false) {
                 [$source, $target] = $this->target($flag);
                 $copied += $this->copy($source, $target, $force, $output);
             }
@@ -72,7 +86,7 @@ final class InitCommand extends Command
 
         $output->writeln('Supported PHP: ' . implode(', ', $this->runtimeVersions()));
 
-        if ($selection['flags']['captainhook'] && $this->installHooks($output) !== 0) {
+        if (($selection['flags']['captainhook'] ?? false) && $this->installHooks($output) !== 0) {
             return 1;
         }
 
@@ -123,6 +137,9 @@ final class InitCommand extends Command
         return $this->write($updated, $target, $force, $output);
     }
 
+    /**
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+     */
     private function installHooks(OutputInterface $output): int
     {
         $configuration = Paths::projectRootPath() . '/captainhook.json';
@@ -142,7 +159,11 @@ final class InitCommand extends Command
 
     /**
      * @param array<string, bool> $flags
+     *
      * @return array{workflow_ref:string,services:list<string>,topologies:array<string, string>,flags:array<string, bool>}|null
+     *
+     * @throws \Symfony\Component\Console\Exception\LogicException|\Symfony\Component\Console\Exception\InvalidArgumentException|\Symfony\Component\Console\Exception\RuntimeException
+     * @throws \Error
      */
     private function interactiveSelection(InputInterface $input, OutputInterface $output, array $flags, string $workflowRef): ?array
     {
@@ -214,16 +235,24 @@ final class InitCommand extends Command
         return $mapped;
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     * @throws \Error
+     */
     private function runtimeVersions(): array
     {
-        $runtime = require Paths::packageFile('resources/runtime.php');
-        $values = is_array($runtime) ? ($runtime['php_versions'] ?? null) : null;
+        $runtime = ArrayShape::stringKeyed(Paths::requirePackageFile('resources/runtime.php'));
 
-        return $this->uniqueStrings($values);
+        return $this->uniqueStrings($runtime['php_versions'] ?? null);
     }
 
-    /** @return array{workflow_ref:string,services:list<string>,topologies:array<string, string>,flags:array<string, bool>}|null */
+    /**
+     * @return array{workflow_ref:string,services:list<string>,topologies:array<string, string>,flags:array<string, bool>}|null
+     *
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     * @throws \Symfony\Component\Console\Exception\LogicException|\Symfony\Component\Console\Exception\RuntimeException
+     * @throws \Error
+     */
     private function selection(InputInterface $input, OutputInterface $output): ?array
     {
         $workflowRef = $input->getOption('workflow-ref');

@@ -21,6 +21,9 @@ final class Paths
         return self::projectRoot() . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . $name;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public static function bundledConfigFile(string $file): string
     {
         $resourceFile = self::bundledConfigFileOrNull($file);
@@ -65,6 +68,9 @@ final class Paths
         return null;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public static function config(string $file): string
     {
         $projectFile = self::projectConfigPath($file);
@@ -91,6 +97,8 @@ final class Paths
 
     /**
      * @param non-empty-list<string> $files
+     *
+     * @throws \RuntimeException
      */
     public static function firstConfig(array $files): string
     {
@@ -140,6 +148,18 @@ final class Paths
     public static function projectRootPath(): string
     {
         return self::projectRoot();
+    }
+
+    /** @throws \Error */
+    public static function requirePackageFile(string $file): mixed
+    {
+        $path = self::packageFile($file);
+
+        if (!is_file($path)) {
+            throw new \Error(sprintf('Missing PHPForge package file "%s" at "%s".', $file, $path));
+        }
+
+        return require $path;
     }
 
     public static function vendorDir(): string

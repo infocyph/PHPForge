@@ -13,6 +13,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 final class BenchmarkCommand extends Command
 {
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct(
         private readonly string $mode,
         string $name,
@@ -20,6 +23,10 @@ final class BenchmarkCommand extends Command
         parent::__construct($name);
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function configure(): void
     {
         if ($this->mode === 'validate') {
@@ -38,6 +45,7 @@ final class BenchmarkCommand extends Command
             ->addOption('stable-environment', null, InputOption::VALUE_NONE, 'Assert that both runs came from a stable, comparable environment.');
     }
 
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         return $this->mode === 'validate'
@@ -45,6 +53,9 @@ final class BenchmarkCommand extends Command
             : $this->compare($input, $output);
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
     private function compare(InputInterface $input, OutputInterface $output): int
     {
         $maximumRegression = filter_var($input->getOption('max-regression'), FILTER_VALIDATE_FLOAT);
@@ -93,6 +104,9 @@ final class BenchmarkCommand extends Command
         return $result['status'] === 'failed' ? 1 : 0;
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
     private function validate(InputInterface $input, OutputInterface $output): int
     {
         $file = $input->getArgument('result');

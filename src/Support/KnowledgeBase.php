@@ -23,7 +23,10 @@ final class KnowledgeBase
 
     /**
      * @param list<string> $paths
+     *
      * @return array{document:KnowledgeDocument,reused:bool,path:string,artifacts:list<string>}
+     *
+     * @throws \RuntimeException
      */
     public function build(array $paths = [], ?string $output = null, bool $force = false): array
     {
@@ -61,7 +64,6 @@ final class KnowledgeBase
         $phpGraph = new CodeGraphExtractor()->extract($phpFiles, $root);
         /** @var list<KnowledgeNode> $nodes */
         $nodes = $phpGraph['nodes'];
-        /** @var list<KnowledgeEdge> $edges */
         $edges = $phpGraph['edges'];
         $nodeIds = array_fill_keys(array_column($nodes, 'id'), true);
 
@@ -113,7 +115,11 @@ final class KnowledgeBase
         return Paths::projectRootPath() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
     }
 
-    /** @return KnowledgeDocument */
+    /**
+     * @return KnowledgeDocument
+     *
+     * @throws \RuntimeException
+     */
     public function read(string $path): array
     {
         if (!is_file($path)) {
@@ -265,7 +271,11 @@ final class KnowledgeBase
         ];
     }
 
-    /** @param KnowledgeDocument $document */
+    /**
+     * @param KnowledgeDocument $document
+     *
+     * @throws \RuntimeException
+     */
     private function write(string $path, array $document): void
     {
         $directory = dirname($path);

@@ -273,7 +273,7 @@ it('installs dependencies before analyzers produce gates, sarif, and native fail
         ->and($analyzerIndex)->toBeInt()->toBeGreaterThan($installIndex)
         ->and(substr_count($analyzerScript, 'bin/phpstan'))
         ->toBe(2)
-        ->and(substr_count($analyzerScript, 'bin/psalm.phar'))
+        ->and(substr_count($analyzerScript, 'bin/psalm"'))
         ->toBe(1)
         ->and($analyzerScript)->toContain('--threads=1')
         ->and($analyzerScript)->toContain('--output-format=console')

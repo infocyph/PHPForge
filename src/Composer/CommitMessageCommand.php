@@ -17,6 +17,7 @@ final class CommitMessageCommand extends Command
 {
     private readonly GeminiCommitMessageGenerator $generator;
 
+    /** @throws \Symfony\Component\Console\Exception\LogicException */
     public function __construct(
         string $name = 'ic:commit-message',
         ?GeminiCommitMessageGenerator $generator = null,
@@ -25,6 +26,8 @@ final class CommitMessageCommand extends Command
         $this->generator = $generator ?? new GeminiCommitMessageGenerator();
     }
 
+    /** @throws \Symfony\Component\Console\Exception\InvalidArgumentException */
+    #[\Override]
     protected function configure(): void
     {
         $this
@@ -32,6 +35,11 @@ final class CommitMessageCommand extends Command
             ->addArgument('message-file', InputArgument::REQUIRED, 'Git commit message file to populate.');
     }
 
+    /**
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Console\Exception\InvalidArgumentException
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $messageFile = $input->getArgument('message-file');
@@ -84,9 +92,11 @@ final class CommitMessageCommand extends Command
                 return 1;
             }
 
+            $model = getenv('GEMINI_MODEL');
+            $model = in_array($model, [false, '', '0'], true) ? GeminiCommitMessageGenerator::DEFAULT_MODEL : $model;
             $output->writeln(sprintf(
                 '<info>Generated commit message with Gemini (%s).</info>',
-                getenv('GEMINI_MODEL') ?: GeminiCommitMessageGenerator::DEFAULT_MODEL,
+                $model,
             ));
         } catch (\RuntimeException $exception) {
             $output->writeln(sprintf(
@@ -111,6 +121,9 @@ final class CommitMessageCommand extends Command
         return false;
     }
 
+    /**
+     * @throws \Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException|\RuntimeException|\Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
+     */
     private function stagedDiff(): string
     {
         $process = new Process(

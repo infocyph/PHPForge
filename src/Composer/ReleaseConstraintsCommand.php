@@ -12,16 +12,21 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 final class ReleaseConstraintsCommand extends Command
 {
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct(string $name = 'ic:release:constraints')
     {
         parent::__construct($name);
     }
 
+    #[\Override]
     protected function configure(): void
     {
         $this->setDescription('Reject non-stable runtime dependency constraints before release.');
     }
 
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         unset($input);

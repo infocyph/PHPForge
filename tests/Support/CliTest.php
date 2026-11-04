@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Infocyph\PHPForge\Support\ProcRunner;
 use Infocyph\PHPForge\Support\ProcessResult;
+use Symfony\Component\Process\Process;
 
 /**
  * @param list<string> $arguments
@@ -58,6 +59,17 @@ it('reports invalid commands with a useful suggestion', function (): void {
         ->and($result->stderr)->toContain('unknown command "doctro"')
         ->and($result->stderr)->toContain('Did you mean "doctor"?')
         ->and($result->stderr)->toContain('phpforge help');
+});
+
+it('registers CI options on the actual root Composer command', function (): void {
+    $project = dirname(__DIR__, 2);
+    $process = new Process([PHP_BINARY, $project.'/vendor/bin/composer', 'ic:ci', '--help'], $project);
+    $process->setTimeout(30);
+    $process->run();
+
+    expect($process->getExitCode())->toBe(0, $process->getOutput().$process->getErrorOutput())
+        ->and($process->getOutput())->toContain('--prefer-lowest')
+        ->toContain('--without-analysis');
 });
 
 it('checks stable runtime constraints without the Composer command runtime', function (): void {

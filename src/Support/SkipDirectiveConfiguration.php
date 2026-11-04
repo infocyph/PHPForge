@@ -64,7 +64,7 @@ final class SkipDirectiveConfiguration
     }
 
     /**
-     * @return list<array{tool: string, pattern: string}>
+     * @return list<array{tool: string, pattern: non-empty-string}>
      */
     public function extraCommentRules(): array
     {
@@ -130,7 +130,11 @@ final class SkipDirectiveConfiguration
             : stripcslashes($value);
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     *
+     * @throws \RuntimeException
+     */
     private function effectivePhpstanExclusions(string $path): array
     {
         $projectRoot = realpath(Paths::projectRootPath());
@@ -304,7 +308,7 @@ final class SkipDirectiveConfiguration
     }
 
     /**
-     * @param list<array{int, string, int}|string> $tokens
+     * @param list<array{0: int, 1: string, 2: int}|string> $tokens
      * @return list<string>
      */
     private function rectorCallStringPaths(array $tokens, int $nameIndex, string $configDirectory): array
@@ -313,8 +317,8 @@ final class SkipDirectiveConfiguration
     }
 
     /**
-     * @param list<array{int, string, int}|string> $tokens
-     * @return list<array{int, string, int}|string>
+     * @param list<array{0: int, 1: string, 2: int}|string> $tokens
+     * @return list<array{0: int, 1: string, 2: int}|string>
      */
     private function rectorCallTokens(array $tokens, int $nameIndex): array
     {
@@ -369,7 +373,7 @@ final class SkipDirectiveConfiguration
     }
 
     /**
-     * @param list<array{int, string, int}|string> $tokens
+     * @param list<array{0: int, 1: string, 2: int}|string> $tokens
      * @return list<string>
      */
     private function rectorStringPaths(array $tokens, string $configDirectory): array

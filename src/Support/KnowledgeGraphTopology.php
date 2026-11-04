@@ -138,7 +138,7 @@ final class KnowledgeGraphTopology
      */
     private function gain(string $label, array $neighborWeights, array $totals, int $degree, int $twiceWeight): float
     {
-        return ($neighborWeights[$label] ?? 0) - ($degree * ($totals[$label] ?? 0) / $twiceWeight);
+        return (float) ($neighborWeights[$label] ?? 0) - (float) ($degree * ($totals[$label] ?? 0)) / (float) $twiceWeight;
     }
 
     /**

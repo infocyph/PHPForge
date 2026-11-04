@@ -13,6 +13,8 @@ final class ProcRunner
 
     /**
      * @param list<string>|string $command
+     *
+     * @throws \Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException|\Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
      */
     public function run(array|string $command, string $stdin = ''): ?ProcessResult
     {

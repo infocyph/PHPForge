@@ -182,7 +182,7 @@ final class SkipDirectiveScanner
     }
 
     /**
-     * @param array{int, string, int}|string $token
+     * @param array{0: int, 1: string, 2: int}|string $token
      * @return array{file: string, line: int, tool: string, directive: string}|null
      */
     private function attributeFinding(string $file, array|string $token, int $depth): ?array
@@ -200,7 +200,7 @@ final class SkipDirectiveScanner
     }
 
     /**
-     * @param list<array{int, string, int}|string> $tokens
+     * @param list<array{0: int, 1: string, 2: int}|string> $tokens
      * @return list<array{file: string, line: int, tool: string, directive: string}>
      */
     private function attributeFindings(string $file, array $tokens): array
@@ -229,7 +229,7 @@ final class SkipDirectiveScanner
     }
 
     /**
-     * @param list<array{tool: string, pattern: string}> $extraRules
+     * @param list<array{tool: string, pattern: non-empty-string}> $extraRules
      * @return list<array{file: string, line: int, tool: string, directive: string}>
      */
     private function commentFindings(string $file, string $comment, int $startLine, array $extraRules): array
@@ -253,8 +253,8 @@ final class SkipDirectiveScanner
     }
 
     /**
-     * @param list<array{int, string, int}|string> $tokens
-     * @param list<array{tool: string, pattern: string}> $extraRules
+     * @param list<array{0: int, 1: string, 2: int}|string> $tokens
+     * @param list<array{tool: string, pattern: non-empty-string}> $extraRules
      * @return list<array{file: string, line: int, tool: string, directive: string}>
      */
     private function commentTokenFindings(string $file, array $tokens, array $extraRules): array
@@ -325,7 +325,7 @@ final class SkipDirectiveScanner
     }
 
     /**
-     * @param list<array{tool: string, pattern: string}> $extraRules
+     * @param list<array{tool: string, pattern: non-empty-string}> $extraRules
      * @return list<array{file: string, line: int, tool: string, directive: string}>
      */
     private function fileFindings(string $file, string $contents, array $extraRules): array
@@ -392,6 +392,23 @@ final class SkipDirectiveScanner
         return in_array($id, [T_STRING, T_NAME_FULLY_QUALIFIED, T_NAME_QUALIFIED, T_NAME_RELATIVE], true);
     }
 
+    private function isScannableEntry(\SplFileInfo|\RecursiveDirectoryIterator|string $entry, string $root): bool
+    {
+        if (!$entry instanceof \SplFileInfo || $entry->isLink()) {
+            return false;
+        }
+
+        if ($entry->isDir()) {
+            $relative = ltrim(substr($entry->getPathname(), strlen($root)), DIRECTORY_SEPARATOR);
+            $relative = str_replace(DIRECTORY_SEPARATOR, '/', $relative);
+
+            return !in_array($entry->getFilename(), self::EXCLUDED_DIRECTORIES, true)
+                && !in_array($relative, self::EXCLUDED_DIRECTORIES, true);
+        }
+
+        return isset(self::PHP_EXTENSIONS[strtolower($entry->getExtension())]);
+    }
+
     /**
      * @param list<array{id: int|null, text: string, line: int}> $tokens
      */
@@ -415,7 +432,7 @@ final class SkipDirectiveScanner
         return null;
     }
 
-    /** @param array{int, string, int}|string $token */
+    /** @param array{0: int, 1: string, 2: int}|string $token */
     private function nextAttributeDepth(array|string $token, int $depth): int
     {
         if (is_array($token) && $token[0] === T_ATTRIBUTE) {
@@ -445,21 +462,7 @@ final class SkipDirectiveScanner
             $directory = new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS);
             $filter = new \RecursiveCallbackFilterIterator(
                 $directory,
-                static function (\SplFileInfo $entry) use ($root): bool {
-                    if ($entry->isLink()) {
-                        return false;
-                    }
-
-                    if ($entry->isDir()) {
-                        $relative = ltrim(substr($entry->getPathname(), strlen($root)), DIRECTORY_SEPARATOR);
-                        $relative = str_replace(DIRECTORY_SEPARATOR, '/', $relative);
-
-                        return !in_array($entry->getFilename(), self::EXCLUDED_DIRECTORIES, true)
-                            && !in_array($relative, self::EXCLUDED_DIRECTORIES, true);
-                    }
-
-                    return isset(self::PHP_EXTENSIONS[strtolower($entry->getExtension())]);
-                },
+                fn(\SplFileInfo|\RecursiveDirectoryIterator|string $entry): bool => $this->isScannableEntry($entry, $root),
             );
             $iterator = new \RecursiveIteratorIterator($filter);
 
@@ -505,7 +508,7 @@ final class SkipDirectiveScanner
         $nameIndex = $openIndex - 1;
         $nameToken = $tokens[$nameIndex] ?? null;
 
-        if (($nameToken['id'] ?? null) !== T_STRING) {
+        if ($nameToken === null || $nameToken['id'] !== T_STRING) {
             return null;
         }
 
@@ -541,7 +544,7 @@ final class SkipDirectiveScanner
     }
 
     /**
-     * @param list<array{int, string, int}|string> $tokens
+     * @param list<array{0: int, 1: string, 2: int}|string> $tokens
      * @return list<array{id: int|null, text: string, line: int}>
      */
     private function significantTokens(array $tokens): array

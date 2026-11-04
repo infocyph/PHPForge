@@ -18,6 +18,8 @@ final class Runner
 
     /**
      * @param list<list<string>> $tasks
+     *
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
      */
     public function run(array $tasks): int
     {
@@ -50,6 +52,9 @@ final class Runner
         return $failureExitCode;
     }
 
+    /**
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+     */
     private function detectComposerVersion(): string
     {
         if (is_string($this->composerVersion)) {
@@ -77,6 +82,9 @@ final class Runner
         return $this->composerVersion = $line;
     }
 
+    /**
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+     */
     private function renderSystemInfo(): void
     {
         $this->output->writeln('<info>System Info</info>');
@@ -93,7 +101,10 @@ final class Runner
 
     /**
      * @param list<string> $task
+     *
      * @return array{heading:string,status:string,exit_code:int}
+     *
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
      */
     private function runTask(array $task, bool $isFirstTask): array
     {

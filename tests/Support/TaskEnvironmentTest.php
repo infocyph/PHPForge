@@ -19,7 +19,7 @@ function withTaskEnvironmentVariable(string $name, ?string $value, callable $cal
 it('removes GitHub Actions detection only from PHPStan tasks', function (): void {
     withTaskEnvironmentVariable('GITHUB_ACTIONS', 'true', function (): void {
         $phpstan = TaskEnvironment::for([PHP_BINARY, 'vendor/bin/phpstan']);
-        $psalm = TaskEnvironment::for([PHP_BINARY, 'vendor/bin/psalm.phar']);
+        $psalm = TaskEnvironment::for([PHP_BINARY, 'vendor/bin/psalm']);
 
         expect($phpstan)->toBeArray()
             ->and($phpstan['GITHUB_ACTIONS'] ?? null)->toBeFalse()

@@ -5,9 +5,12 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
 $catalog = require $root . '/resources/services/catalog.php';
-$servicesJson = getenv('INTEGRATION_SERVICES_INPUT') ?: '[]';
-$topologiesJson = getenv('SERVICE_TOPOLOGIES_INPUT') ?: '{}';
-$configuredExtensions = getenv('PHP_EXTENSIONS_INPUT') ?: '';
+$servicesJson = getenv('INTEGRATION_SERVICES_INPUT');
+$servicesJson = in_array($servicesJson, [false, '', '0'], true) ? '[]' : $servicesJson;
+$topologiesJson = getenv('SERVICE_TOPOLOGIES_INPUT');
+$topologiesJson = in_array($topologiesJson, [false, '', '0'], true) ? '{}' : $topologiesJson;
+$configuredExtensions = getenv('PHP_EXTENSIONS_INPUT');
+$configuredExtensions = in_array($configuredExtensions, [false, '', '0'], true) ? '' : $configuredExtensions;
 $services = json_decode($servicesJson, true);
 $topologiesObject = json_decode($topologiesJson);
 $containsNonString = static function (array $values): bool {
@@ -43,7 +46,9 @@ $profiles = [];
 $extensions = [];
 $external = false;
 
-foreach (preg_split('/\s*,\s*/', trim($configuredExtensions), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $extension) {
+$configuredExtensionList = preg_split('/\s*,\s*/', trim($configuredExtensions), -1, PREG_SPLIT_NO_EMPTY);
+
+foreach (is_array($configuredExtensionList) ? $configuredExtensionList : [] as $extension) {
     $extension = str_starts_with($extension, 'ext-') ? substr($extension, 4) : $extension;
     $extensions[$extension] = true;
 }

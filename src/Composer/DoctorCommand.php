@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Infocyph\PHPForge\Composer;
 
 use Composer\Command\BaseCommand as Command;
+use Infocyph\PHPForge\Support\ArrayShape;
 use Infocyph\PHPForge\Support\ConfigInventory;
 use Infocyph\PHPForge\Support\Paths;
 use Infocyph\PHPForge\Support\ServiceCatalog;
@@ -40,11 +41,18 @@ final class DoctorCommand extends Command
 
     private const string WORKFLOW_PATH = '.github/workflows/security-standards.yml';
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct()
     {
         parent::__construct('ic:doctor');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function configure(): void
     {
         $this
@@ -52,6 +60,11 @@ final class DoctorCommand extends Command
             ->addOption('json', null, InputOption::VALUE_NONE, 'Output JSON.');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     * @throws \Error
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $diagnostics = $this->diagnostics();
@@ -86,7 +99,10 @@ final class DoctorCommand extends Command
         return is_array($config) ? ($config['allow-plugins'] ?? []) : [];
     }
 
-    /** @return Diagnostics */
+    /**
+     * @return Diagnostics
+     * @throws \Error
+     */
     private function diagnostics(): array
     {
         $configs = [];
@@ -129,7 +145,10 @@ final class DoctorCommand extends Command
         return array_any(explode(PATH_SEPARATOR, $path), fn($directory) => is_executable($directory . DIRECTORY_SEPARATOR . 'docker'));
     }
 
-    /** @param list<string> $services */
+    /**
+     * @param list<string> $services
+     * @throws \Error
+     */
     private function needsCompose(array $services): bool
     {
         $catalog = ServiceCatalog::all();
@@ -312,11 +331,14 @@ final class DoctorCommand extends Command
         }
     }
 
-    /** @return array{valid:bool,php_versions:list<string>} */
+    /**
+     * @return array{valid:bool,php_versions:list<string>}
+     * @throws \Error
+     */
     private function runtimeDiagnostics(): array
     {
-        $manifest = require Paths::packageFile('resources/runtime.php');
-        $versions = is_array($manifest) ? ($manifest['php_versions'] ?? null) : null;
+        $manifest = ArrayShape::stringKeyed(Paths::requirePackageFile('resources/runtime.php'));
+        $versions = $manifest['php_versions'] ?? null;
 
         if (!is_array($versions) || !array_is_list($versions)) {
             return ['valid' => false, 'php_versions' => []];
@@ -335,7 +357,10 @@ final class DoctorCommand extends Command
         return ['valid' => $resolved !== [], 'php_versions' => $resolved];
     }
 
-    /** @param WorkflowDiagnostics $result */
+    /**
+     * @param WorkflowDiagnostics $result
+     * @throws \Error
+     */
     private function validateWorkflowServices(array &$result): void
     {
         $servicesValue = $result['inputs']['integration_services'] ?? null;
@@ -387,7 +412,10 @@ final class DoctorCommand extends Command
         return [$warningCount + count($missingConfigs) + count($disabledPlugins), $missingConfigs !== []];
     }
 
-    /** @return WorkflowDiagnostics */
+    /**
+     * @return WorkflowDiagnostics
+     * @throws \Error
+     */
     private function workflowDiagnostics(): array
     {
         $workflowPath = Paths::projectRootPath() . DIRECTORY_SEPARATOR . self::WORKFLOW_PATH;

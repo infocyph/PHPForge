@@ -17,11 +17,18 @@ final class StageCommand extends Command
 {
     private const array COMPOSER_FILES = ['composer.json', 'composer.lock'];
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct(string $name = 'ic:stage')
     {
         parent::__construct($name);
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function configure(): void
     {
         $this
@@ -29,6 +36,11 @@ final class StageCommand extends Command
             ->addArgument('paths', InputArgument::IS_ARRAY | InputArgument::REQUIRED, 'Files or directories to stage.');
     }
 
+    /**
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Console\Exception\InvalidArgumentException
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $paths = $this->stringArguments($input->getArgument('paths'));
@@ -87,6 +99,10 @@ final class StageCommand extends Command
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     * @throws \Symfony\Component\Process\Exception\LogicException
+     */
     private function assertGitRepository(string $root): void
     {
         $result = $this->runProcess(['git', 'rev-parse', '--is-inside-work-tree'], $root);
@@ -130,7 +146,11 @@ final class StageCommand extends Command
 
     /**
      * @param list<string> $command
+     *
      * @return list<string>
+     *
+     * @throws \RuntimeException
+     * @throws \Symfony\Component\Process\Exception\LogicException
      */
     private function gitFileList(array $command, string $root): array
     {
@@ -150,7 +170,11 @@ final class StageCommand extends Command
 
     /**
      * @param list<string> $paths
+     *
      * @return list<array{string, string}>
+     *
+     * @throws \RuntimeException
+     * @throws \Symfony\Component\Process\Exception\LogicException
      */
     private function phpFilesToStage(string $root, array $paths): array
     {
@@ -199,7 +223,11 @@ final class StageCommand extends Command
         );
     }
 
-    /** @param list<string> $command */
+    /**
+     * @param list<string> $command
+     *
+     * @throws \Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException|\RuntimeException|\Symfony\Component\Process\Exception\LogicException
+     */
     private function runProcess(array $command, string $root, string $stdin = ''): ProcessResult
     {
         $process = new Process($command, $root);

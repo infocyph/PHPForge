@@ -59,8 +59,8 @@ it('formats composer normalize with a friendly title', function (): void {
         ->toBe('Composer Normalize');
 });
 
-it('formats the dependency-isolated Psalm PHAR with a friendly title', function (): void {
-    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/psalm.phar', '--config=psalm.xml']))
+it('formats the regular Psalm binary with a friendly title', function (): void {
+    expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/psalm', '--config=psalm.xml']))
         ->toBe('Psalm (Config: psalm.xml)');
 });
 

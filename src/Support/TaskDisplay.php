@@ -172,7 +172,7 @@ final class TaskDisplay
             $tool === 'phpcs' => 'PHPCS',
             $tool === 'phpcbf' => 'PHPCBF',
             $tool === 'phpstan' => 'PHPStan',
-            in_array($tool, ['psalm', 'psalm.phar'], true) => 'Psalm',
+            $tool === 'psalm' => 'Psalm',
             $tool === 'rector' => 'Rector',
             $tool === 'phpbench' => 'PHPBench',
             $tool === 'deptrac' => 'Deptrac',

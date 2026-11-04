@@ -3,16 +3,18 @@
 declare(strict_types=1);
 
 use Infocyph\PHPForge\Composer\PublishConfigCommand;
+use Infocyph\PHPProbe\Config\PresetRepository;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 it('ships strict comment policy without tightening unrelated PHPProbe detectors', function (): void {
     $contents = file_get_contents(dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR.'phpprobe.json');
     $config = is_string($contents) ? json_decode($contents, true) : null;
+    $referenceExcludes = new PresetRepository()->config('standard')->applyReferenceOptions([])['excludes'];
 
     expect($config)->toBe([
         'preset' => 'standard',
         'reference' => [
-            'exclude' => ['resources'],
+            'exclude' => [...$referenceExcludes, 'resources'],
         ],
         'duplicates' => [
             'max_clone_groups' => 100000,

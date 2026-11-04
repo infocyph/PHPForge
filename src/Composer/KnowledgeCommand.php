@@ -13,11 +13,18 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 final class KnowledgeCommand extends Command
 {
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct(private readonly string $action)
     {
         parent::__construct('ic:kb:' . $action);
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function configure(): void
     {
         if ($this->action === 'build') {
@@ -47,6 +54,7 @@ final class KnowledgeCommand extends Command
             ->addOption('model', null, InputOption::VALUE_REQUIRED, 'Provider model override.');
     }
 
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $cli = new KnowledgeCli(
@@ -59,7 +67,11 @@ final class KnowledgeCommand extends Command
             : $cli->query($this->queryArguments($input));
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     *
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
     private function buildArguments(InputInterface $input): array
     {
         $arguments = $this->strings($input->getArgument('paths'));
@@ -76,7 +88,11 @@ final class KnowledgeCommand extends Command
         return $arguments;
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     *
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
     private function queryArguments(InputInterface $input): array
     {
         $arguments = $this->strings($input->getArgument('question'));
@@ -107,8 +123,12 @@ final class KnowledgeCommand extends Command
         return $arguments;
     }
 
-    /** @param list<string> $arguments
+    /**
+     * @param list<string> $arguments
+     *
      * @return list<string>
+     *
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
      */
     private function withRelationOptions(array $arguments, InputInterface $input): array
     {

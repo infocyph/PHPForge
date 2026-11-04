@@ -127,14 +127,14 @@ final class KnowledgeGraphFacts
     private function health(): array
     {
         $nodeCount = count($this->nodes);
-        $possibleEdges = $nodeCount > 1 ? ($nodeCount * ($nodeCount - 1)) / 2 : 0;
+        $possibleEdges = $nodeCount > 1 ? (float) ($nodeCount * ($nodeCount - 1)) / 2.0 : 0.0;
 
         return [
             'connected_components' => $this->connectedComponents(),
             'isolated_nodes' => count(array_filter($this->degrees, static fn(int $degree): bool => $degree === 0)),
             'self_loops' => $this->selfLoops,
             'dangling_edges' => $this->dangling,
-            'density' => $possibleEdges > 0 ? round(count($this->pairs) / $possibleEdges, 8) : 0.0,
+            'density' => $possibleEdges > 0 ? round((float) count($this->pairs) / $possibleEdges, 8) : 0.0,
         ];
     }
 

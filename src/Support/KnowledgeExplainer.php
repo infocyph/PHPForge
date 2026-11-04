@@ -22,7 +22,10 @@ final readonly class KnowledgeExplainer
 
     /**
      * @param array<string, mixed> $query
+     *
      * @return Explanation
+     *
+     * @throws \InvalidArgumentException|\RuntimeException
      */
     public function explain(array $query, string $provider = 'auto', ?string $model = null): array
     {
@@ -68,7 +71,11 @@ final readonly class KnowledgeExplainer
         return $allowed;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     *
+     * @throws \RuntimeException
+     */
     private function decodedObject(string $response, string $provider): array
     {
         try {
@@ -100,6 +107,8 @@ final readonly class KnowledgeExplainer
 
     /**
      * @return Explanation
+     *
+     * @throws \RuntimeException
      */
     private function decodeExplanation(string $response, string $provider): array
     {
@@ -169,6 +178,9 @@ final readonly class KnowledgeExplainer
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function gemini(string $context, ?string $model): string
     {
         $key = $this->environment('GEMINI_API_KEY');
@@ -215,6 +227,9 @@ final readonly class KnowledgeExplainer
         ]);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function ollama(string $context, ?string $model): string
     {
         $host = rtrim($this->environment('OLLAMA_HOST') ?? 'http://127.0.0.1:11434', '/');
@@ -249,6 +264,9 @@ final readonly class KnowledgeExplainer
         return $this->withModel($content, $model);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function ollamaModel(string $host): string
     {
         $lastError = null;
@@ -301,7 +319,11 @@ final readonly class KnowledgeExplainer
         return null;
     }
 
-    /** @return array{string,string} */
+    /**
+     * @return array{string,string}
+     *
+     * @throws \RuntimeException
+     */
     private function providerResponse(string $context, string $provider, ?string $model): array
     {
         if ($provider === 'ollama') {
@@ -331,7 +353,11 @@ final readonly class KnowledgeExplainer
         }
     }
 
-    /** @param list<string> $headers */
+    /**
+     * @param list<string> $headers
+     *
+     * @throws \RuntimeException
+     */
     private function send(string $url, array $headers, string $payload, string $method = 'POST', int $timeout = 30): string
     {
         if ($this->request instanceof \Closure) {
@@ -367,6 +393,9 @@ final readonly class KnowledgeExplainer
         return $response;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function validatedModel(string $model, bool $ollama = false): string
     {
         $pattern = $ollama
@@ -380,6 +409,9 @@ final readonly class KnowledgeExplainer
         return $model;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function withModel(string $explanation, string $model): string
     {
         try {
