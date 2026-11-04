@@ -19,16 +19,21 @@ final class TaskEnvironment
             $environment['XDEBUG_MODE'] = 'off';
         }
 
-        if (self::isPhpstan($task)) {
+        if (self::isTool($task, 'phpstan')) {
             $environment['GITHUB_ACTIONS'] = false;
+        }
+
+        if (self::isTool($task, 'psalm')) {
+            // Psalm otherwise returns success for taint analysis with reports in GitHub Actions.
+            $environment['GITHUB_WORKFLOW'] = false;
         }
 
         return $environment === [] ? null : $environment;
     }
 
     /** @param list<string> $task */
-    private static function isPhpstan(array $task): bool
+    private static function isTool(array $task, string $name): bool
     {
-        return basename(str_replace('\\', '/', $task[1] ?? '')) === 'phpstan';
+        return basename(str_replace('\\', '/', $task[1] ?? '')) === $name;
     }
 }
