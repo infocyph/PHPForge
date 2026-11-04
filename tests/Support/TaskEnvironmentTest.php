@@ -36,3 +36,11 @@ it('keeps the existing Xdebug subprocess policy', function (): void {
         expect(TaskEnvironment::for([PHP_BINARY, 'tool']))->toBeNull();
     });
 });
+
+it('removes the Psalm GitHub workflow exit-code exemption only from Psalm tasks', function (): void {
+    $psalm = TaskEnvironment::for([PHP_BINARY, 'vendor/bin/psalm']);
+    $phpstan = TaskEnvironment::for([PHP_BINARY, 'vendor/bin/phpstan']);
+
+    expect($psalm['GITHUB_WORKFLOW'] ?? null)->toBeFalse()
+        ->and($phpstan)->not->toHaveKey('GITHUB_WORKFLOW');
+});
