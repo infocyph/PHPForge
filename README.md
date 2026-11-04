@@ -209,19 +209,13 @@ Use focused `composer ic:test:*` commands while developing. Use `composer ic:ci`
 
 ### Test commands
 
-PHPForge requires Pest **^5.3.0** and temporarily limits ParaTest to
-**>=7.25.0 <7.26.0**. This resolves to Pest 5.3.0 with PHPUnit 13.3.6:
-Pest 5.3.1–5.3.3 require PHPUnit versions affected by
+PHPForge requires Pest **^5.3.5** and ParaTest **^7.27.5**. These releases
+support PHPUnit 13.4.5, which includes the fix for
 [GHSA-9vw2-f4vp-x7gf](https://github.com/sebastianbergmann/phpunit/security/advisories/GHSA-9vw2-f4vp-x7gf),
-and their upper bounds prevent installing the patched PHPUnit 13.4.4.
-ParaTest 7.26.0 also requires PHPUnit 13.4, while 7.26.1 changes the worker
-constructor used by older Pest releases. Keep these constraints in PHPForge
-so consuming libraries need no local pin. Revisit the range when a stable
-Pest release supports patched PHPUnit and passes the mixed Pest/PHPUnit
-parallel-worker regression and mutation tests.
+and the updated ParaTest worker constructor. The mixed Pest/PHPUnit
+parallel-worker regression verifies that both test styles execute.
 
-ParaTest 7.25 requires a private temporary directory when running parallel
-tests: worker results must not be exposed to other local users. The normal
+Keep temporary worker results private when running parallel tests. The normal
 PHPForge suite runs aggregate Pest sequentially. For direct parallel or
 mutation commands, create a private directory and clean it up afterwards:
 
@@ -1474,7 +1468,7 @@ Before:
     "pestphp/pest-plugin-drift": "^5.0",
     "phpbench/phpbench": "^1.7",
     "phpstan/phpstan": "^2.2.7",
-    "psalm/phar": "^6.16.1",
+    "vimeo/psalm": "^7.0.2",
     "rector/rector": "^2.5.9",
     "squizlabs/php_codesniffer": "^4.0.1",
     "symfony/var-dumper": "^8.1.2",
@@ -1488,10 +1482,10 @@ After:
 composer require --dev infocyph/phpforge:dev-main@dev
 ```
 
-PHPForge installs the stable `psalm/phar` distribution. Its isolated
-dependency graph prevents Psalm's internal component constraints from colliding
-with the PHPUnit version selected by Pest, while preserving the normal Psalm
-configuration and security-analysis workflow.
+PHPForge installs stable `vimeo/psalm ^7.0.2`, which supports the
+`sebastian/diff ^9` and Symfony 8 versions used by the other tools. Local and
+workflow security checks use `vendor/bin/psalm` with the bundled configuration;
+the package also provides the local `vendor/vimeo/psalm/config.xsd` schema.
 
 </details>
 

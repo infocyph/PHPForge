@@ -96,7 +96,7 @@ final class BenchmarkResult
             return ['messages' => [sprintf('Workload "%s" contains invalid successful RPM values.', $name)], 'comparison' => null];
         }
 
-        $regression = (($baselineRpm - $candidateRpm) / $baselineRpm) * 100;
+        $regression = (($baselineRpm - $candidateRpm) / $baselineRpm) * 100.0;
         $messages = $this->metricRegressionErrors($name, $regression, $maximumRegressionPercent, $baseline, $candidate);
 
         return [

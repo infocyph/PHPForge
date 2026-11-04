@@ -7,6 +7,12 @@ use Infocyph\PHPForge\Support\ServiceCatalog;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Yaml\Yaml;
 
+it('rejects numeric service keys and non-string topology values', function (): void {
+    expect(ServiceCatalog::topologiesFromJson('{"0":"standalone"}'))->toBeNull()
+        ->and(ServiceCatalog::topologiesFromJson('{"redis":0}'))->toBeNull()
+        ->and(ServiceCatalog::topologiesFromJson('{"redis":"replica"}'))->toBe(['redis' => 'replica']);
+});
+
 it('defines the complete supported integration service set once', function (): void {
     expect(ServiceCatalog::names())->toBe([
         'mysql',

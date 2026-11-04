@@ -483,7 +483,7 @@ jobs:
           elif [ -f psalm.xml.dist ]; then psalm_config=psalm.xml.dist
           elif [ "$package" = infocyph/phpforge ]; then psalm_config=resources/psalm.xml
           else psalm_config="$vendor_dir/infocyph/phpforge/resources/psalm.xml"; fi
-          php "$vendor_dir/bin/psalm.phar" --config="$psalm_config" --security-analysis --threads=1 --no-progress --no-cache --output-format=console --report=psalm-results.sarif > psalm-results.log 2>&1
+          php "$vendor_dir/bin/psalm" --config="$psalm_config" --security-analysis --threads=1 --no-progress --no-cache --output-format=console --report=psalm-results.sarif > psalm-results.log 2>&1
           psalm_status=$?
           set -e
           printf 'audit_status=%d\nphpstan_status=%d\nsarif_status=%d\npsalm_status=%d\n' "$audit_status" "$phpstan_status" "$sarif_status" "$psalm_status" >> "$GITHUB_OUTPUT"

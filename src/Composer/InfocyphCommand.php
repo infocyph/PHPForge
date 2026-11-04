@@ -15,6 +15,8 @@ final class InfocyphCommand extends Command
     /**
      * @param list<list<string>> $tasks
      * @param list<list<string>> $preflightTasks
+     *
+     * @throws \Symfony\Component\Console\Exception\LogicException
      */
     public function __construct(
         string $commandName,
@@ -27,12 +29,17 @@ final class InfocyphCommand extends Command
         parent::__construct($commandName);
     }
 
+    #[\Override]
     protected function configure(): void
     {
         $this
             ->setDescription($this->commandDescription);
     }
 
+    /**
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         unset($input);

@@ -16,6 +16,11 @@ use Infocyph\PHPForge\Support\CaptainHook;
 use Infocyph\PHPForge\Support\Paths;
 use Symfony\Component\Process\Process;
 
+/**
+ * Composer loads this entry point through the package's extra.class metadata.
+ *
+ * @api
+ */
 final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
 {
     /**
@@ -32,6 +37,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
     /**
      * @return array<string, string>
      */
+    #[\Override]
     public static function getSubscribedEvents(): array
     {
         return [
@@ -39,6 +45,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         ];
     }
 
+    #[\Override]
     public function activate(Composer $composer, IOInterface $io): void
     {
         unset($composer);
@@ -46,11 +53,13 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         $this->reportMissingAllowPlugins();
     }
 
+    #[\Override]
     public function deactivate(Composer $composer, IOInterface $io): void {}
 
     /**
      * @return array<class-string, class-string>
      */
+    #[\Override]
     public function getCapabilities(): array
     {
         return [
@@ -58,6 +67,9 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         ];
     }
 
+    /**
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\RuntimeException
+     */
     public function installHooks(Event $event): void
     {
         if (!$event->isDevMode() || !$this->isGitCheckout()) {
@@ -88,6 +100,7 @@ final class Plugin implements Capable, EventSubscriberInterface, PluginInterface
         }
     }
 
+    #[\Override]
     public function uninstall(Composer $composer, IOInterface $io): void {}
 
     private function isGitCheckout(): bool

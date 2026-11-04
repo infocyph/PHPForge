@@ -19,6 +19,8 @@ final class PhpstanActiveConfig
      *     memory_limit: string,
      *     analyse_paths: list<string>
      * }
+     *
+     * @throws \RuntimeException
      */
     public function context(): array
     {
@@ -46,6 +48,9 @@ final class PhpstanActiveConfig
      *     parameter: string|null,
      *     parameters: mixed
      * }
+     *
+     * @throws \RuntimeException
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
      */
     public function summary(string $parameter = self::DEFAULT_PARAMETER, bool $all = false): array
     {
@@ -160,6 +165,9 @@ final class PhpstanActiveConfig
 
     /**
      * @return array<string, mixed>
+     *
+     * @throws \RuntimeException
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
      */
     private function phpstanParameters(string $configPath): array
     {

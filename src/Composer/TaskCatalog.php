@@ -8,10 +8,17 @@ use Infocyph\PHPForge\Support\ArrayShape;
 use Infocyph\PHPForge\Support\CaptainHook;
 use Infocyph\PHPForge\Support\Paths;
 
+/**
+ * Task definitions are also invoked by name through the Composer command provider.
+ *
+ * @api
+ */
 final class TaskCatalog
 {
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function architecture(): array
     {
@@ -50,6 +57,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function ci(bool $skipHeavyAnalysis = false): array
     {
@@ -71,6 +80,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function comments(): array
     {
@@ -79,6 +90,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function commentsCi(): array
     {
@@ -87,6 +100,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function duplicates(): array
     {
@@ -102,6 +117,9 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
      */
     public static function hooks(): array
     {
@@ -110,6 +128,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function lintCheck(): array
     {
@@ -118,6 +138,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function lintFix(): array
     {
@@ -142,6 +164,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function probeCheck(): array
     {
@@ -150,6 +174,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function probeCheckCi(): array
     {
@@ -158,6 +184,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function processAll(): array
     {
@@ -171,6 +199,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function refactorCheck(): array
     {
@@ -179,6 +209,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function refactorFix(): array
     {
@@ -187,6 +219,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function references(): array
     {
@@ -211,6 +245,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function releaseGuard(): array
     {
@@ -224,10 +260,12 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function security(): array
     {
-        return [[Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--security-analysis', '--threads=' . self::psalmThreads(), '--no-cache', '--output-format=console']];
+        return [[Paths::php(), Paths::bin('psalm'), '--config=' . self::psalmConfig(), '--security-analysis', '--threads=' . self::psalmThreads(), '--no-cache', '--output-format=console']];
     }
 
     /**
@@ -240,6 +278,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function sniff(): array
     {
@@ -248,6 +288,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function sniffFix(): array
     {
@@ -256,6 +298,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function staticAnalysis(): array
     {
@@ -266,6 +310,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function syntax(): array
     {
@@ -274,6 +320,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function testAll(): array
     {
@@ -282,6 +330,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function testAllCi(): array
     {
@@ -298,6 +348,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function testDetails(): array
     {
@@ -320,6 +372,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function testParallel(): array
     {
@@ -328,6 +382,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     public static function testParallelCi(): array
     {
@@ -348,7 +404,10 @@ final class TaskCatalog
 
     /**
      * @param list<string> $options
+     *
      * @return list<string>
+     *
+     * @throws \RuntimeException
      */
     private static function benchCommand(array $options): array
     {
@@ -475,6 +534,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     private static function fullTestSuite(bool $ciComments): array
     {
@@ -487,7 +548,7 @@ final class TaskCatalog
             [Paths::php(), Paths::bin('phpcs'), '--standard=' . Paths::config('phpcs.xml.dist'), '--report=full', '.'],
             ...self::architecture(),
             ...self::staticAnalysis(),
-            [Paths::php(), Paths::bin('psalm.phar'), '--config=' . self::psalmConfig(), '--show-info=false', '--security-analysis', '--threads=1', '--no-progress', '--no-cache', '--output-format=console'],
+            [Paths::php(), Paths::bin('psalm'), '--config=' . self::psalmConfig(), '--show-info=false', '--security-analysis', '--threads=1', '--no-progress', '--no-cache', '--output-format=console'],
             ...self::refactorCheck(),
         ];
     }
@@ -524,6 +585,8 @@ final class TaskCatalog
 
     /**
      * @return list<string>
+     *
+     * @throws \RuntimeException
      */
     private static function pestCommand(): array
     {
@@ -537,6 +600,8 @@ final class TaskCatalog
 
     /**
      * @return list<string>
+     *
+     * @throws \RuntimeException
      */
     private static function pestConfigArgs(): array
     {
@@ -585,7 +650,10 @@ final class TaskCatalog
 
     /**
      * @param list<string> $extraArgs
+     *
      * @return list<string>
+     *
+     * @throws \RuntimeException
      */
     private static function probeCommand(string $subcommand, array $extraArgs = []): array
     {
@@ -594,6 +662,8 @@ final class TaskCatalog
 
     /**
      * @return list<list<string>>
+     *
+     * @throws \RuntimeException
      */
     private static function probeTasks(bool $ciComments): array
     {
@@ -605,6 +675,9 @@ final class TaskCatalog
         ];
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private static function psalmConfig(): string
     {
         return Paths::firstConfig(['psalm.xml', 'psalm.xml.dist']);

@@ -23,7 +23,8 @@ final class QualitySummary
             mkdir($directory, 0775, true);
         }
 
-        file_put_contents($path, json_encode(self::payload($results), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        $encoded = json_encode(self::payload($results), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        file_put_contents($path, $encoded . PHP_EOL);
     }
 
     private static function labelFromHeading(string $heading): string
@@ -100,7 +101,7 @@ final class QualitySummary
     {
         $label = strtolower(self::labelFromHeading($heading));
 
-        return match ($label) {
+        $known = match ($label) {
             'checking syntax' => 'syntax',
             'duplicate code' => 'duplicates',
             'phpcs' => 'phpcs',
@@ -109,7 +110,15 @@ final class QualitySummary
             'phpstan' => 'phpstan',
             'psalm' => 'psalm',
             'rector' => 'rector',
-            default => preg_replace('/[^a-z0-9]+/', '_', $label) ?: 'unknown',
+            default => null,
         };
+
+        if ($known !== null) {
+            return $known;
+        }
+
+        $normalized = preg_replace('/[^a-z0-9]+/', '_', $label);
+
+        return in_array($normalized, [null, '', '0'], true) ? 'unknown' : $normalized;
     }
 }

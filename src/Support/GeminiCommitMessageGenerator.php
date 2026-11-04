@@ -16,6 +16,9 @@ final readonly class GeminiCommitMessageGenerator
         return $this->environment('GEMINI_API_KEY') !== null;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public function generate(string $diff): string
     {
         $apiKey = $this->environment('GEMINI_API_KEY');
@@ -46,6 +49,9 @@ final readonly class GeminiCommitMessageGenerator
         return $this->message($response);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function decodeInstruction(string $encoded, string $source): string
     {
         $compact = preg_replace('/\s+/', '', $encoded);
@@ -65,6 +71,9 @@ final readonly class GeminiCommitMessageGenerator
         return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function instruction(): string
     {
         $encoded = $this->environment('GITX_SYS_INSTRUCTION_B64');
@@ -82,6 +91,9 @@ final readonly class GeminiCommitMessageGenerator
         return $this->decodeInstruction($encoded, 'The bundled commit-message instruction');
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function message(string $response): string
     {
         $decoded = $this->responseData($response);
@@ -101,6 +113,9 @@ final readonly class GeminiCommitMessageGenerator
         return $message;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function payload(string $diff): string
     {
         return json_encode([
@@ -128,6 +143,8 @@ final readonly class GeminiCommitMessageGenerator
 
     /**
      * @return array<string, mixed>
+     *
+     * @throws \RuntimeException
      */
     private function responseData(string $response): array
     {
@@ -174,6 +191,9 @@ final readonly class GeminiCommitMessageGenerator
         return $texts;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function send(string $url, string $apiKey, string $payload): string
     {
         $context = stream_context_create([
@@ -208,7 +228,11 @@ final readonly class GeminiCommitMessageGenerator
         return $response;
     }
 
-    /** @param array<string, mixed> $response */
+    /**
+     * @param array<string, mixed> $response
+     *
+     * @throws \RuntimeException
+     */
     private function throwApiError(array $response): void
     {
         if (!array_key_exists('error', $response)) {

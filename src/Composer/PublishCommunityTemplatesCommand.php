@@ -13,11 +13,18 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 final class PublishCommunityTemplatesCommand extends Command
 {
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct(string $name = 'ic:community')
     {
         parent::__construct($name);
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function configure(): void
     {
         $this
@@ -25,6 +32,10 @@ final class PublishCommunityTemplatesCommand extends Command
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing project files.');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $published = 0;

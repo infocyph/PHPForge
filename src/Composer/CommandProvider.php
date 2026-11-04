@@ -39,6 +39,12 @@ release|ic:release:guard|Run Composer validation, stable dependency constraints,
 release|ic:hooks|Install enabled CaptainHook hooks.|hooks
 COMMANDS;
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     */
+    #[\Override]
     public function getCommands(): array
     {
         return [

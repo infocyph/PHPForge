@@ -67,7 +67,7 @@ final readonly class KnowledgeGraphInsights
         $result = [];
 
         foreach ($buckets as $id => $bucket) {
-            $result[] = $this->community((int) $id, $bucket, $nodes, $degrees);
+            $result[] = $this->community($id, $bucket, $nodes, $degrees);
         }
 
         usort($result, static fn(array $left, array $right): int => $left['id'] <=> $right['id']);

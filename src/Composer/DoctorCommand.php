@@ -40,11 +40,18 @@ final class DoctorCommand extends Command
 
     private const string WORKFLOW_PATH = '.github/workflows/security-standards.yml';
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct()
     {
         parent::__construct('ic:doctor');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function configure(): void
     {
         $this
@@ -52,6 +59,10 @@ final class DoctorCommand extends Command
             ->addOption('json', null, InputOption::VALUE_NONE, 'Output JSON.');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $diagnostics = $this->diagnostics();
@@ -315,7 +326,7 @@ final class DoctorCommand extends Command
     /** @return array{valid:bool,php_versions:list<string>} */
     private function runtimeDiagnostics(): array
     {
-        $manifest = require Paths::packageFile('resources/runtime.php');
+        $manifest = require __DIR__ . '/../../resources/runtime.php';
         $versions = is_array($manifest) ? ($manifest['php_versions'] ?? null) : null;
 
         if (!is_array($versions) || !array_is_list($versions)) {

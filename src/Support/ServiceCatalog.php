@@ -24,7 +24,7 @@ final class ServiceCatalog
     /** @return ServiceMap */
     public static function all(): array
     {
-        return self::normalizeCatalog(require Paths::packageFile('resources/services/catalog.php'));
+        return self::normalizeCatalog(require __DIR__ . '/../../resources/services/catalog.php');
     }
 
     /**
@@ -107,7 +107,7 @@ final class ServiceCatalog
 
         $topologies = [];
 
-        foreach (get_object_vars($decoded) as $service => $topology) {
+        foreach ((array) $decoded as $service => $topology) {
             if (!is_string($service) || !is_string($topology)) {
                 return null;
             }

@@ -161,16 +161,18 @@ it('uses detailed failure reports for tools whose compact modes hide findings', 
         ->and($phpcs[0])->not->toContain('--report=summary');
 });
 
-it('runs Psalm through the dependency-isolated PHAR binary', function (): void {
+it('runs the regular Psalm binary with security analysis enabled', function (): void {
     $security = TaskCatalog::security()[0];
     $suitePsalm = array_values(array_filter(
         TaskCatalog::testAll(),
-        static fn(array $command): bool => basename(str_replace('\\', '/', $command[1] ?? '')) === 'psalm.phar',
+        static fn(array $command): bool => basename(str_replace('\\', '/', $command[1] ?? '')) === 'psalm',
     ));
 
-    expect(basename(str_replace('\\', '/', $security[1])))->toBe('psalm.phar')
+    expect(basename(str_replace('\\', '/', $security[1])))->toBe('psalm')
+        ->and($security)->toContain('--security-analysis')
         ->and($security)->toContain('--output-format=console')
         ->and($suitePsalm)->toHaveCount(1)
+        ->and($suitePsalm[0])->toContain('--security-analysis')
         ->and($suitePsalm[0])->toContain('--output-format=console');
 });
 

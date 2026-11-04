@@ -12,22 +12,28 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 final class VersionCommand extends Command
 {
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct()
     {
         parent::__construct('ic:version');
     }
 
+    #[\Override]
     protected function configure(): void
     {
         $this->setDescription('Show PHPForge, PHP, Composer, and vendor-dir versions.');
     }
 
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         unset($input);
         $version = InstalledVersions::isInstalled('infocyph/phpforge')
-            ? InstalledVersions::getPrettyVersion('infocyph/phpforge') ?: 'root/dev'
-            : 'root/dev';
+            ? InstalledVersions::getPrettyVersion('infocyph/phpforge')
+            : null;
+        $version = in_array($version, [null, '', '0'], true) ? 'root/dev' : $version;
 
         $output->writeln('PHPForge:   ' . $version);
         $output->writeln('PHP:        ' . PHP_VERSION);

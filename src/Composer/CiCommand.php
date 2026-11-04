@@ -12,11 +12,18 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 final class CiCommand extends Command
 {
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct()
     {
         parent::__construct('ic:ci');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function configure(): void
     {
         $this
@@ -25,6 +32,11 @@ final class CiCommand extends Command
             ->addOption('without-analysis', null, InputOption::VALUE_NONE, 'Skip PHPStan and Psalm when a separate CI analysis job owns them.');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     * @throws \RuntimeException
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         if ((bool) $input->getOption('prefer-lowest') || (bool) $input->getOption('without-analysis')) {

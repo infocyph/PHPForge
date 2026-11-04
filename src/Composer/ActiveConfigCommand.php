@@ -16,11 +16,18 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 final class ActiveConfigCommand extends Command
 {
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct()
     {
         parent::__construct('ic:active-config');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function configure(): void
     {
         $this
@@ -31,6 +38,10 @@ final class ActiveConfigCommand extends Command
             ->addOption('parameter', null, InputOption::VALUE_REQUIRED, 'Output one config/effective parameter by key or dot path.');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $selectedFiles = $this->resolveFiles($input);
@@ -56,6 +67,9 @@ final class ActiveConfigCommand extends Command
         return 0;
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
     private function optionString(InputInterface $input, string $name): ?string
     {
         $value = $input->getOption($name);
@@ -65,6 +79,8 @@ final class ActiveConfigCommand extends Command
 
     /**
      * @return list<string>
+     *
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
      */
     private function resolveFiles(InputInterface $input): array
     {

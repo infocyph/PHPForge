@@ -29,7 +29,10 @@ final class KnowledgeArtifacts
     /**
      * @param array<string, mixed> $document
      * @param list<FileRecord> $records
+     *
      * @return list<string>
+     *
+     * @throws \RuntimeException
      */
     public function publish(array $document, array $records, string $knowledgePath): array
     {
@@ -384,6 +387,9 @@ final class KnowledgeArtifacts
         return implode(PHP_EOL, $lines);
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function write(string $path, string $contents): void
     {
         $temporary = tempnam(dirname($path), '.phpforge-artifact-');
@@ -403,7 +409,11 @@ final class KnowledgeArtifacts
         }
     }
 
-    /** @param array<string, mixed> $document */
+    /**
+     * @param array<string, mixed> $document
+     *
+     * @throws \RuntimeException
+     */
     private function writeJson(string $path, array $document): void
     {
         $this->write($path, json_encode($document, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL);

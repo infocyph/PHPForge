@@ -48,8 +48,12 @@ final class KnowledgeFileCatalog
         'id_dsa', 'id_ed25519', 'id_rsa', 'secrets.json', 'service-account.json',
     ];
 
-    /** @param list<string> $paths
+    /**
+     * @param list<string> $paths
+     *
      * @return list<FileRecord>
+     *
+     * @throws \RuntimeException
      */
     public function records(string $root, array $paths): array
     {
@@ -123,6 +127,16 @@ final class KnowledgeFileCatalog
     }
 
     /** @param list<string> $excludes */
+    private function includeFilesystemEntry(\SplFileInfo|\RecursiveDirectoryIterator|string $file, string $root, array $excludes): bool
+    {
+        if (!$file instanceof \SplFileInfo) {
+            return false;
+        }
+
+        return !$file->isDir() || !$this->isExcluded($this->relative($file->getPathname(), $root), $excludes);
+    }
+
+    /** @param list<string> $excludes */
     private function isExcluded(string $path, array $excludes): bool
     {
         foreach ($excludes as $exclude) {
@@ -187,7 +201,11 @@ final class KnowledgeFileCatalog
         return array_values(array_unique($normalized));
     }
 
-    /** @return list<string> */
+    /**
+     * @return list<string>
+     *
+     * @throws \RuntimeException
+     */
     private function probeExcludes(): array
     {
         $config = PhpProbeConfig::fromFile(Paths::config('phpprobe.json'));
@@ -212,7 +230,11 @@ final class KnowledgeFileCatalog
         return is_array($excludes) ? array_values(array_filter($excludes, is_string(...))) : [];
     }
 
-    /** @return FileRecord|null */
+    /**
+     * @return FileRecord|null
+     *
+     * @throws \RuntimeException
+     */
     private function record(string $root, string $relative): ?array
     {
         $absolute = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
@@ -272,7 +294,7 @@ final class KnowledgeFileCatalog
             $directory = new \RecursiveDirectoryIterator($absolute, \FilesystemIterator::SKIP_DOTS);
             $filter = new \RecursiveCallbackFilterIterator(
                 $directory,
-                fn(\SplFileInfo $file): bool => !$file->isDir() || !$this->isExcluded($this->relative($file->getPathname(), $root), $excludes),
+                fn(\SplFileInfo|\RecursiveDirectoryIterator|string $file): bool => $this->includeFilesystemEntry($file, $root, $excludes),
             );
             $iterator = new \RecursiveIteratorIterator($filter);
 
@@ -294,8 +316,12 @@ final class KnowledgeFileCatalog
         return str_replace('\\', '/', substr($path, strlen(rtrim($root, DIRECTORY_SEPARATOR)) + 1));
     }
 
-    /** @param list<string> $pathspecs
+    /**
+     * @param list<string> $pathspecs
+     *
      * @return list<string>|null
+     *
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
      */
     private function trackedFiles(string $root, array $pathspecs): ?array
     {

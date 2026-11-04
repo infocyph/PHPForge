@@ -59,6 +59,14 @@ it('keeps the bundled deptrac config project agnostic', function (): void {
         ->and($contents)->toContain('type: directory');
 });
 
+it('validates the bundled Psalm configuration against the installed package schema', function (): void {
+    $xml = new DOMDocument();
+    $xml->load(ConfigInventory::resolvedPath('psalm.xml'));
+
+    expect($xml->schemaValidate(dirname(__DIR__, 2).'/vendor/vimeo/psalm/config.xsd'))->toBeTrue()
+        ->and(is_file(dirname(__DIR__, 2).'/vendor/bin/psalm'))->toBeTrue();
+});
+
 it('keeps forbidden-function checks active in executable PHP entrypoints', function (): void {
     $contents = file_get_contents(ConfigInventory::resolvedPath('phpcs.xml.dist'));
     $sniff = file_get_contents(dirname(__DIR__, 2).'/resources/PHPForge/Sniffs/PHP/ForbiddenFunctionsSniff.php');

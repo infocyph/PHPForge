@@ -12,6 +12,8 @@ final class CaptainHook
 
     /**
      * @return list<string>
+     *
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
      */
     public static function installCommand(string $configPath): array
     {
@@ -64,6 +66,9 @@ final class CaptainHook
         ]);
     }
 
+    /**
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+     */
     private static function installHelp(): string
     {
         if (is_string(self::$installHelp)) {
@@ -92,6 +97,9 @@ final class CaptainHook
             : $left === $right;
     }
 
+    /**
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+     */
     private static function supportsInstallOption(string $option): bool
     {
         return str_contains(self::installHelp(), $option);

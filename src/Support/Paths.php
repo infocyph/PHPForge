@@ -21,6 +21,9 @@ final class Paths
         return self::projectRoot() . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . $name;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public static function bundledConfigFile(string $file): string
     {
         $resourceFile = self::bundledConfigFileOrNull($file);
@@ -65,6 +68,9 @@ final class Paths
         return null;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     public static function config(string $file): string
     {
         $projectFile = self::projectConfigPath($file);
@@ -91,6 +97,8 @@ final class Paths
 
     /**
      * @param non-empty-list<string> $files
+     *
+     * @throws \RuntimeException
      */
     public static function firstConfig(array $files): string
     {

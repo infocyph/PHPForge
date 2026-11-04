@@ -7,6 +7,11 @@ namespace Infocyph\PHPForge\Support;
 use Infocyph\PHPForge\Composer\TaskCatalog;
 use Symfony\Component\Console\Output\ConsoleOutput;
 
+/**
+ * Entry point for the executable bin/phpforge dispatcher.
+ *
+ * @api
+ */
 final class Cli
 {
     private const string COMMAND_ROWS = <<<'COMMANDS'
@@ -47,7 +52,7 @@ COMMANDS;
             'kb:build' => new KnowledgeCli()->build(array_slice($argv, 2)),
             'kb:query' => new KnowledgeCli()->query(array_slice($argv, 2)),
             'active-config' => $this->activeConfig(array_slice($argv, 2)),
-            'phpstan-sarif' => new PhpstanSarifConverter()->convert((string) ($argv[2] ?? ''), (string) ($argv[3] ?? 'phpstan-results.sarif')),
+            'phpstan-sarif' => new PhpstanSarifConverter()->convert($argv[2] ?? '', $argv[3] ?? 'phpstan-results.sarif'),
             'audit' => new ComposerAuditor()->run(),
             'release-constraints' => $this->releaseConstraints(),
             'help', '--help', '-h' => $this->help(),
@@ -150,6 +155,8 @@ COMMANDS;
 
     /**
      * @param list<string> $args
+     *
+     * @throws \RuntimeException
      */
     private function ci(array $args): int
     {
@@ -221,6 +228,9 @@ COMMANDS;
 
     /**
      * @param list<string> $args
+     *
+     * @throws \Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException|\Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
+     * @throws \RuntimeException
      */
     private function probe(string $command, array $args): int
     {
@@ -317,7 +327,10 @@ COMMANDS;
 
     /**
      * @param list<string> $args
+     *
      * @return list<string>
+     *
+     * @throws \RuntimeException
      */
     private function withDefaultProbeConfig(array $args): array
     {

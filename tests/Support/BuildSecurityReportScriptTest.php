@@ -31,6 +31,7 @@ it('maps current workflow jobs and benchmark steps into the security report', fu
     $fixtureRoot = sys_get_temp_dir().'/phpforge-security-report-'.bin2hex(random_bytes(8));
     $binDirectory = $fixtureRoot.'/bin';
     $artifactDirectory = $fixtureRoot.'/.phpforge-report/in/benchmark';
+    $psalmVersion = Composer\InstalledVersions::getPrettyVersion('vimeo/psalm');
 
     mkdir($binDirectory, 0777, true);
     mkdir($artifactDirectory, 0777, true);
@@ -90,6 +91,10 @@ if [ "${1:-}" = "list" ]; then
   exit 0
 fi
 if [ "${1:-}" = "show" ]; then
+  if [ "${2:-}" = "vimeo/psalm" ]; then
+    printf '{"versions":["%s"]}\n' "$PHPFORGE_TEST_PSALM_VERSION"
+    exit 0
+  fi
   echo '{"versions":["test-version"]}'
   exit 0
 fi
@@ -105,6 +110,7 @@ BASH);
             [
                 'PATH' => $binDirectory.PATH_SEPARATOR.(getenv('PATH') ?: ''),
                 'PHPFORGE_TEST_JOBS_JSON' => $fixtureRoot.'/jobs.json',
+                'PHPFORGE_TEST_PSALM_VERSION' => $psalmVersion,
                 'GITHUB_API_URL' => 'https://api.github.test',
                 'GITHUB_REPOSITORY' => 'infocyph/InterMix',
                 'GITHUB_RUN_ID' => '33291640667',
@@ -128,8 +134,10 @@ BASH);
             JSON_THROW_ON_ERROR,
         );
         $summary = file_get_contents($summaryPath);
+        $psalm = array_values(array_filter($report['tools'], static fn(array $tool): bool => $tool['name'] === 'Psalm'));
 
-        expect($report['matrix_results'] ?? null)->toBe([
+        expect($psalm)->toBe([['name' => 'Psalm', 'package' => 'vimeo/psalm', 'version' => $psalmVersion]])
+            ->and($report['matrix_results'] ?? null)->toBe([
             [
                 'php_version' => '8.4',
                 'code_analysis_prefer_lowest' => 'success',

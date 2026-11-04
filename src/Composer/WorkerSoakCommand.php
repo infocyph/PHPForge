@@ -13,11 +13,18 @@ use Symfony\Component\Process\Process;
 
 final class WorkerSoakCommand extends Command
 {
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct(string $name = 'ic:soak:worker')
     {
         parent::__construct($name);
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function configure(): void
     {
         $this
@@ -32,6 +39,10 @@ final class WorkerSoakCommand extends Command
             ->addOption('report', null, InputOption::VALUE_REQUIRED, 'Optional JSON report path.');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessStartFailedException
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $command = $input->getArgument('worker-command');
@@ -103,6 +114,8 @@ final class WorkerSoakCommand extends Command
      *     max_rss: float|null,
      *     max_growth: float|null
      * }|null
+     *
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
      */
     private function configuration(InputInterface $input, OutputInterface $output): ?array
     {
@@ -141,8 +154,8 @@ final class WorkerSoakCommand extends Command
     private function monitor(Process $process, array $configuration): array
     {
         $startedAt = hrtime(true);
-        $measurementStartedAt = $startedAt + (int) round($configuration['warmup'] * 1_000_000_000);
-        $deadline = $measurementStartedAt + (int) round($configuration['duration'] * 1_000_000_000);
+        $measurementStartedAt = $startedAt + (int) round($configuration['warmup'] * 1_000_000_000.0);
+        $deadline = $measurementStartedAt + (int) round($configuration['duration'] * 1_000_000_000.0);
         $samples = [];
         $failure = null;
 
@@ -155,7 +168,7 @@ final class WorkerSoakCommand extends Command
                 break;
             }
 
-            usleep((int) round($configuration['interval'] * 1_000_000));
+            usleep((int) round($configuration['interval'] * 1_000_000.0));
         }
 
         return [
@@ -165,6 +178,9 @@ final class WorkerSoakCommand extends Command
         ];
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
     private function numberOption(
         InputInterface $input,
         OutputInterface $output,
@@ -183,6 +199,9 @@ final class WorkerSoakCommand extends Command
         return $value;
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
     private function optionalNumberOption(InputInterface $input, OutputInterface $output, string $name): float|false|null
     {
         $raw = $input->getOption($name);
@@ -268,7 +287,7 @@ final class WorkerSoakCommand extends Command
     }
 
     /**
-     * @param array{duration:float, max_rss:float|null, max_growth:float|null} $configuration
+     * @param array{duration:float, max_rss:float|null, max_growth:float|null, ...} $configuration
      * @param list<float> $samples
      */
     private function sample(Process $process, array $configuration, int $measurementStartedAt, array &$samples): ?string

@@ -21,11 +21,18 @@ final class PublishConfigCommand extends Command
      */
     private const array PHPPROBE_PRESETS = ['default', 'standard', 'ci', 'strict'];
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\LogicException
+     */
     public function __construct()
     {
         parent::__construct('ic:publish-config');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function configure(): void
     {
         $this
@@ -36,6 +43,10 @@ final class PublishConfigCommand extends Command
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing project files.');
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
+    #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $files = $this->resolveFiles($input);
@@ -68,6 +79,8 @@ final class PublishConfigCommand extends Command
 
     /**
      * @return array{preset: string}
+     *
+     * @throws \InvalidArgumentException
      */
     private static function phpprobePreset(string $preset): array
     {
@@ -78,6 +91,9 @@ final class PublishConfigCommand extends Command
         return ['preset' => $preset];
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function applyPhpprobePreset(string $contents, string $preset): ?string
     {
         $decoded = json_decode($contents, true);
@@ -96,6 +112,9 @@ final class PublishConfigCommand extends Command
         return $encoded . PHP_EOL;
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function publishFile(
         string $file,
         bool $force,
@@ -145,6 +164,8 @@ final class PublishConfigCommand extends Command
 
     /**
      * @return list<string>
+     *
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
      */
     private function resolveFiles(InputInterface $input): array
     {
@@ -157,6 +178,9 @@ final class PublishConfigCommand extends Command
         return ConfigFileSelection::normalize(array_values($files), ConfigInventory::files());
     }
 
+    /**
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
+     */
     private function resolvePhpprobePreset(InputInterface $input, OutputInterface $output): ?string
     {
         $preset = $this->stringOption($input->getOption('phpprobe-preset'));
@@ -183,6 +207,9 @@ final class PublishConfigCommand extends Command
         return is_string($value) ? $value : '';
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function transformConfigContents(
         string $file,
         string $contents,

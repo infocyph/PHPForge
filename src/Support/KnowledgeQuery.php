@@ -73,7 +73,10 @@ final class KnowledgeQuery
      * Zero for limit or budget requests the applicable safety maximum.
      *
      * @param list<string> $relations
+     *
      * @return QueryResult
+     *
+     * @throws \InvalidArgumentException|\RuntimeException
      */
     public function query(
         string $question,
@@ -433,6 +436,9 @@ final class KnowledgeQuery
         return max(1, (int) ceil(strlen($json) / 4));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function validate(
         string $question,
         int $limit,
