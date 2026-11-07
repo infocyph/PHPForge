@@ -1000,26 +1000,26 @@ Image versions are maintained centrally in [`resources/runtime.php`](resources/r
 
 | Service | Image | Upstream source | Non-standalone layout | Published endpoints |
 | --- | --- | --- | --- | --- |
-| MySQL | `mysql:9.7` | [Docker Official Image](https://hub.docker.com/_/mysql) | primary + replica | `3306`, replica `3307` |
-| MariaDB | `mariadb:12.3` | [Docker Official Image](https://hub.docker.com/_/mariadb) | primary + replica | `3308`, replica `3309` |
+| MySQL | `mysql:26.10` | [Docker Official Image](https://hub.docker.com/_/mysql) | primary + replica | `3306`, replica `3307` |
+| MariaDB | `mariadb:13.0` | [Docker Official Image](https://hub.docker.com/_/mariadb) | primary + replica | `3308`, replica `3309` |
 | PostgreSQL | `postgres:18-alpine` | [Docker Official Image](https://hub.docker.com/_/postgres) | streaming primary + replica | `5432`, replica `5433` |
-| Microsoft SQL Server | `mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04` | [Microsoft Container Registry](https://mcr.microsoft.com/product/mssql/server/about) | two-node read-scale availability group | `1433`, replica `1434` |
+| Microsoft SQL Server | `mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-22.04` | [Microsoft Container Registry](https://mcr.microsoft.com/product/mssql/server/about) | two-node read-scale availability group | `1433`, replica `1434` |
 | SQLite | host PHP extension | [SQLite](https://www.sqlite.org/) | standalone only | in-memory/file DSNs |
 | MongoDB | `mongo:9.0.4` | [Docker Official Image](https://hub.docker.com/_/mongo) | two-member replica set | `27017`, secondary `27018` |
 | Redis | `redis:8.10-alpine` | [Docker Official Image](https://hub.docker.com/_/redis) | primary + read-only replica | `6379`, replica `6381` |
 | Valkey | `valkey/valkey:9.1-alpine` | [Valkey official image](https://hub.docker.com/r/valkey/valkey) | primary + read-only replica | `6380`, replica `6382` |
 | Memcached | `memcached:1.6.45-alpine` | [Docker Official Image](https://hub.docker.com/_/memcached) | standalone only | `11211` |
-| RabbitMQ | `rabbitmq:4.3-management-alpine` | [Docker Official Image](https://hub.docker.com/_/rabbitmq) | three-node cluster | AMQP `5672`–`5674`; management `15672`–`15674` |
-| NATS | `nats:2.14-alpine` | [Docker Official Image](https://hub.docker.com/_/nats) | three-node JetStream cluster | clients `4222`–`4224`; monitoring `8222`–`8224` |
-| Mailpit | `axllent/mailpit:v1.30` | [Mailpit publisher image](https://hub.docker.com/r/axllent/mailpit) | standalone only | SMTP `1025`; UI/API `8025` |
-| Elasticsearch | `docker.elastic.co/elasticsearch/elasticsearch:9.5.0` | [Elastic registry](https://www.docker.elastic.co/r/elasticsearch/elasticsearch) | two-node cluster | `9200`, peer `9201` |
-| ScyllaDB | `scylladb/scylla:2026.2` | [ScyllaDB official image](https://hub.docker.com/r/scylladb/scylla) | three-node cluster | Alternator `8000`–`8002`; admin `10000`–`10002` |
+| RabbitMQ | `rabbitmq:4.4-management-alpine` | [Docker Official Image](https://hub.docker.com/_/rabbitmq) | three-node cluster | AMQP `5672`–`5674`; management `15672`–`15674` |
+| NATS | `nats:2.15-alpine` | [Docker Official Image](https://hub.docker.com/_/nats) | three-node JetStream cluster | clients `4222`–`4224`; monitoring `8222`–`8224` |
+| Mailpit | `axllent/mailpit:v1.33` | [Mailpit publisher image](https://hub.docker.com/r/axllent/mailpit) | standalone only | SMTP `1025`; UI/API `8025` |
+| Elasticsearch | `docker.elastic.co/elasticsearch/elasticsearch:9.5.6` | [Elastic registry](https://www.docker.elastic.co/r/elasticsearch/elasticsearch) | two-node cluster | `9200`, peer `9201` |
+| ScyllaDB | `scylladb/scylla:2026.3` | [ScyllaDB official image](https://hub.docker.com/r/scylladb/scylla) | three-node cluster | Alternator `8000`–`8002`; admin `10000`–`10002` |
 
 MongoDB uses the 9.0.4 maintenance release, which includes the Ubuntu kernel-version detection fix in [SERVER-131779](https://jira.mongodb.org/browse/SERVER-131779). This lets MongoDB recognize Ubuntu kernels containing the upstream 7.0.14 fix while retaining its startup guard for affected kernels. The same image is used by standalone, replica members and replica initialization.
 
 When `mssql` is selected, the workflow also installs Microsoft's official `msodbcsql18` host driver from `packages.microsoft.com`. The `pdo_sqlsrv` PHP extension uses that native driver to reach the SQL Server container; enabling the PHP extension alone is not sufficient. Its major version is maintained in `service_client_versions.mssql_odbc` in [`resources/runtime.php`](resources/runtime.php).
 
-The SQL Server availability-group profile stages its primary and replica before the rest of the service fleet and retries a failed engine up to three times. PHPForge pins Microsoft's supported SQL Server 2022 CU26 Ubuntu image instead of the mutable `latest` tag. Each engine receives a `3840m` container limit and a `3072` MB SQL Server limit, leaving runtime headroom while keeping a two-node group within a GitHub-hosted runner. Local runs can override these with `PHPFORGE_MSSQL_CONTAINER_MEMORY_LIMIT` and `PHPFORGE_MSSQL_MEMORY_LIMIT_MB`.
+The SQL Server availability-group profile stages its primary and replica before the rest of the service fleet and retries a failed engine up to three times. PHPForge pins Microsoft's supported SQL Server 2025 CU10 Ubuntu image instead of the mutable `latest` tag. Each engine receives a `3840m` container limit and a `3072` MB SQL Server limit, leaving runtime headroom while keeping a two-node group within a GitHub-hosted runner. Local runs can override these with `PHPFORGE_MSSQL_CONTAINER_MEMORY_LIMIT` and `PHPFORGE_MSSQL_MEMORY_LIMIT_MB`.
 
 The small SQL Server shared-volume initializer uses the Docker Official `alpine:3.24` image; it does not run a service workload. RabbitMQ clustering supplies the nodes needed for quorum queues, but applications must still declare quorum queues when message replication is required.
 
@@ -1468,7 +1468,7 @@ Before:
     "pestphp/pest-plugin-drift": "^5.0",
     "phpbench/phpbench": "^1.7",
     "phpstan/phpstan": "^2.2.7",
-    "vimeo/psalm": "^7.0.2",
+    "vimeo/psalm": "^7.0.5",
     "rector/rector": "^2.5.9",
     "squizlabs/php_codesniffer": "^4.0.1",
     "symfony/var-dumper": "^8.1.2",
@@ -1482,7 +1482,7 @@ After:
 composer require --dev infocyph/phpforge:dev-main@dev
 ```
 
-PHPForge installs stable `vimeo/psalm ^7.0.2`, which supports the
+PHPForge installs stable `vimeo/psalm ^7.0.5`, which supports the
 `sebastian/diff ^9` and Symfony 8 versions used by the other tools. Local and
 workflow security checks use `vendor/bin/psalm` with the bundled configuration;
 the package also provides the local `vendor/vimeo/psalm/config.xsd` schema.

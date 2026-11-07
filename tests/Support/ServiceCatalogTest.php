@@ -246,12 +246,24 @@ it('uses the versioned runtime manifest as the service image source of truth', f
     expect($runtime['php_versions'] ?? null)->toBe(['8.4', '8.5'])
         ->and($runtime['service_client_versions']['mssql_odbc'] ?? null)->toBe('18')
         ->and($runtime['service_images']['mssql'] ?? null)
-        ->toBe('mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04')
+        ->toBe('mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-22.04')
         ->and(array_keys($runtime['service_images'] ?? []))->toBe(array_values(array_filter(
             ServiceCatalog::names(),
             static fn (string $service): bool => $service !== 'sqlite',
         )))
         ->and(implode("\n", $runtime['service_images'] ?? []))->not->toContain('bitnami/');
+});
+
+it('binds the published ScyllaDB admin API on every node', function (): void {
+    $compose = Yaml::parseFile(dirname(__DIR__, 2).'/resources/services/compose.yml');
+
+    foreach (['scylladb', 'scylladb-primary', 'scylladb-replica-1', 'scylladb-replica-2'] as $name) {
+        $command = $compose['services'][$name]['command'];
+        $index = array_search('--api-address', $command, true);
+
+        expect($index)->toBeInt()
+            ->and($command[$index + 1] ?? null)->toBe('0.0.0.0');
+    }
 });
 
 it('bounds and sequences SQL Server availability-group startup', function (): void {
