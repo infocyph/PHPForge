@@ -99,3 +99,41 @@ it('distinguishes an exit during RSS sampling from unavailable telemetry', funct
     'worker exited during sampling' => [false, 'Worker exited before the 1.00 second soak duration (exit code 23).'],
     'live worker telemetry is unavailable' => [true, 'Unable to read worker RSS from /proc; this soak helper requires a Linux process environment.'],
 ]);
+
+it('rechecks missing RSS on the next sample before classifying the failure', function (bool $runningAfterRetry, string $expected): void {
+    $checks = 0;
+    $process = $this->createMock(Process::class);
+    $process->method('getPid')->willReturn(PHP_INT_MAX);
+    $process->method('isRunning')->willReturnCallback(static function () use (&$checks, $runningAfterRetry): bool {
+        return ++$checks === 1 || $runningAfterRetry;
+    });
+    $process->method('getExitCode')->willReturn(23);
+    $result = new ReflectionMethod(WorkerSoakCommand::class, 'monitor')->invoke(new WorkerSoakCommand(), $process, [
+        'duration' => 1.0, 'warmup' => 0.0, 'interval' => 0.1,
+        'grace_period' => 0.0, 'max_rss' => null, 'max_growth' => null,
+    ]);
+
+    expect($result['failure'])->toBe($expected)
+        ->and($result['samples'])->toBe([])
+        ->and($checks)->toBe(2);
+})->with([
+    'worker exits after the initial RSS read' => [false, 'Worker exited before the 1.00 second soak duration (exit code 23).'],
+    'RSS remains unavailable for a live worker' => [true, 'Unable to read worker RSS from /proc; this soak helper requires a Linux process environment.'],
+]);
+
+it('recovers from one missing RSS sample without losing subsequent telemetry', function (): void {
+    $reads = 0;
+    $process = $this->createMock(Process::class);
+    $process->method('getPid')->willReturnCallback(static function () use (&$reads): int {
+        return ++$reads === 1 ? PHP_INT_MAX : getmypid();
+    });
+    $process->method('isRunning')->willReturn(true);
+    $result = new ReflectionMethod(WorkerSoakCommand::class, 'monitor')->invoke(new WorkerSoakCommand(), $process, [
+        'duration' => 1.0, 'warmup' => 0.0, 'interval' => 0.1,
+        'grace_period' => 0.0, 'max_rss' => null, 'max_growth' => null,
+    ]);
+
+    expect($result['failure'])->toBeNull()
+        ->and($result['samples'])->not->toBeEmpty()
+        ->and(min($result['samples']))->toBeGreaterThan(0);
+});

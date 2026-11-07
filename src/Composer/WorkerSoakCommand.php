@@ -13,6 +13,8 @@ use Symfony\Component\Process\Process;
 
 final class WorkerSoakCommand extends Command
 {
+    private const string RSS_UNAVAILABLE = 'Unable to read worker RSS from /proc; this soak helper requires a Linux process environment.';
+
     /**
      * @throws \Symfony\Component\Console\Exception\LogicException
      */
@@ -162,12 +164,14 @@ final class WorkerSoakCommand extends Command
         while (hrtime(true) < $deadline) {
             $sample = $this->sample($process, $configuration, $measurementStartedAt, $samples);
 
-            if (is_string($sample)) {
+            if (is_string($sample) && ($sample !== self::RSS_UNAVAILABLE || $failure === self::RSS_UNAVAILABLE)) {
                 $failure = $sample;
 
                 break;
             }
 
+            // A worker can lose VmRSS before its exit is visible; retry once at the normal interval.
+            $failure = $sample;
             usleep((int) round($configuration['interval'] * 1_000_000.0));
         }
 
@@ -304,7 +308,7 @@ final class WorkerSoakCommand extends Command
         }
 
         if ($rss === null) {
-            return 'Unable to read worker RSS from /proc; this soak helper requires a Linux process environment.';
+            return self::RSS_UNAVAILABLE;
         }
 
         if ($configuration['max_rss'] !== null && $rss > $configuration['max_rss']) {
