@@ -2,7 +2,7 @@ name: phpforge
 
 services:
   mysql:
-    image: mysql:9.7
+    image: mysql:26.10
     profiles: [mysql]
     ports: ["3306:3306"]
     environment: &mysql-environment
@@ -17,7 +17,7 @@ services:
       retries: 40
 
   mysql-primary:
-    image: mysql:9.7
+    image: mysql:26.10
     profiles: [mysql-replica]
     command: ["--server-id=1", "--log-bin=mysql-bin", "--binlog-format=ROW", "--gtid-mode=ON", "--enforce-gtid-consistency=ON"]
     ports: ["3306:3306"]
@@ -27,7 +27,7 @@ services:
     healthcheck: *mysql-health
 
   mysql-replica:
-    image: mysql:9.7
+    image: mysql:26.10
     profiles: [mysql-replica]
     command: ["--server-id=2", "--relay-log=mysql-relay-bin", "--read-only=ON", "--gtid-mode=ON", "--enforce-gtid-consistency=ON"]
     ports: ["3307:3306"]
@@ -36,7 +36,7 @@ services:
     healthcheck: *mysql-health
 
   mysql-replica-init:
-    image: mysql:9.7
+    image: mysql:26.10
     profiles: [mysql-replica]
     depends_on:
       mysql-primary: {condition: service_healthy}
@@ -47,7 +47,7 @@ services:
     entrypoint: ["bash", "/configure-replica.sh"]
 
   mariadb:
-    image: mariadb:12.3
+    image: mariadb:13.0
     profiles: [mariadb]
     ports: ["3308:3306"]
     environment: &mariadb-environment
@@ -62,7 +62,7 @@ services:
       retries: 40
 
   mariadb-primary:
-    image: mariadb:12.3
+    image: mariadb:13.0
     profiles: [mariadb-replica]
     command: ["--server-id=1", "--log-bin=mariadb-bin", "--binlog-format=ROW"]
     ports: ["3308:3306"]
@@ -72,7 +72,7 @@ services:
     healthcheck: *mariadb-health
 
   mariadb-replica:
-    image: mariadb:12.3
+    image: mariadb:13.0
     profiles: [mariadb-replica]
     command: ["--server-id=2", "--relay-log=mariadb-relay-bin", "--read-only=ON"]
     ports: ["3309:3306"]
@@ -81,7 +81,7 @@ services:
     healthcheck: *mariadb-health
 
   mariadb-replica-init:
-    image: mariadb:12.3
+    image: mariadb:13.0
     profiles: [mariadb-replica]
     depends_on:
       mariadb-primary: {condition: service_healthy}
@@ -140,7 +140,7 @@ services:
       retries: 40
 
   mssql:
-    image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
+    image: mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-22.04
     profiles: [mssql]
     ports: ["1433:1433"]
     mem_limit: ${PHPFORGE_MSSQL_CONTAINER_MEMORY_LIMIT:-3840m}
@@ -164,7 +164,7 @@ services:
     command: ["sh", "-c", "chmod 0777 /shared"]
 
   mssql-primary:
-    image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
+    image: mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-22.04
     profiles: [mssql-availability-group]
     hostname: mssql-primary
     ports: ["1433:1433"]
@@ -179,7 +179,7 @@ services:
     healthcheck: *mssql-health
 
   mssql-replica:
-    image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
+    image: mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-22.04
     profiles: [mssql-availability-group]
     hostname: mssql-replica
     ports: ["1434:1433"]
@@ -195,7 +195,7 @@ services:
     healthcheck: *mssql-health
 
   mssql-availability-group-init:
-    image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
+    image: mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-22.04
     profiles: [mssql-availability-group]
     environment:
       <<: *mssql-environment
@@ -323,7 +323,7 @@ services:
       retries: 30
 
   rabbitmq:
-    image: rabbitmq:4.3-management-alpine
+    image: rabbitmq:4.4-management-alpine
     profiles: [rabbitmq]
     ports: ["5672:5672", "15672:15672"]
     environment: &rabbitmq-environment
@@ -336,7 +336,7 @@ services:
       retries: 40
 
   rabbitmq-primary:
-    image: rabbitmq:4.3-management-alpine
+    image: rabbitmq:4.4-management-alpine
     profiles: [rabbitmq-cluster]
     hostname: rabbitmq-primary
     ports: ["5672:5672", "15672:15672"]
@@ -347,7 +347,7 @@ services:
     healthcheck: *rabbitmq-health
 
   rabbitmq-replica-1:
-    image: rabbitmq:4.3-management-alpine
+    image: rabbitmq:4.4-management-alpine
     profiles: [rabbitmq-cluster]
     hostname: rabbitmq-replica-1
     ports: ["5673:5672", "15673:15672"]
@@ -360,7 +360,7 @@ services:
     healthcheck: *rabbitmq-health
 
   rabbitmq-replica-2:
-    image: rabbitmq:4.3-management-alpine
+    image: rabbitmq:4.4-management-alpine
     profiles: [rabbitmq-cluster]
     hostname: rabbitmq-replica-2
     ports: ["5674:5672", "15674:15672"]
@@ -373,7 +373,7 @@ services:
     healthcheck: *rabbitmq-health
 
   rabbitmq-cluster-init:
-    image: rabbitmq:4.3-management-alpine
+    image: rabbitmq:4.4-management-alpine
     profiles: [rabbitmq-cluster]
     hostname: rabbitmq-cluster-init
     environment:
@@ -387,7 +387,7 @@ services:
     entrypoint: ["sh", "/configure-cluster.sh"]
 
   nats:
-    image: nats:2.14-alpine
+    image: nats:2.15-alpine
     profiles: [nats]
     command: ["--jetstream", "--store_dir=/data", "--http_port=8222"]
     ports: ["4222:4222", "8222:8222"]
@@ -398,28 +398,28 @@ services:
       retries: 30
 
   nats-primary:
-    image: nats:2.14-alpine
+    image: nats:2.15-alpine
     profiles: [nats-cluster]
     command: ["--name", "nats-primary", "--jetstream", "--store_dir=/data", "--http_port=8222", "--cluster_name", "phpforge", "--cluster", "nats://0.0.0.0:6222", "--routes", "nats://nats-replica-1:6222,nats://nats-replica-2:6222"]
     ports: ["4222:4222", "8222:8222"]
     healthcheck: *nats-health
 
   nats-replica-1:
-    image: nats:2.14-alpine
+    image: nats:2.15-alpine
     profiles: [nats-cluster]
     command: ["--name", "nats-replica-1", "--jetstream", "--store_dir=/data", "--http_port=8222", "--cluster_name", "phpforge", "--cluster", "nats://0.0.0.0:6222", "--routes", "nats://nats-primary:6222,nats://nats-replica-2:6222"]
     ports: ["4223:4222", "8223:8222"]
     healthcheck: *nats-health
 
   nats-replica-2:
-    image: nats:2.14-alpine
+    image: nats:2.15-alpine
     profiles: [nats-cluster]
     command: ["--name", "nats-replica-2", "--jetstream", "--store_dir=/data", "--http_port=8222", "--cluster_name", "phpforge", "--cluster", "nats://0.0.0.0:6222", "--routes", "nats://nats-primary:6222,nats://nats-replica-1:6222"]
     ports: ["4224:4222", "8224:8222"]
     healthcheck: *nats-health
 
   mailpit:
-    image: axllent/mailpit:v1.30
+    image: axllent/mailpit:v1.33
     profiles: [mailpit]
     ports: ["1025:1025", "8025:8025"]
     healthcheck:
@@ -429,7 +429,7 @@ services:
       retries: 30
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.6
     profiles: [elasticsearch]
     ports: ["9200:9200"]
     environment:
@@ -443,7 +443,7 @@ services:
       retries: 40
 
   elasticsearch-primary:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.6
     profiles: [elasticsearch-cluster]
     ports: ["9200:9200"]
     environment: &elasticsearch-cluster-environment
@@ -460,7 +460,7 @@ services:
       retries: 40
 
   elasticsearch-replica:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.6
     profiles: [elasticsearch-cluster]
     ports: ["9201:9200"]
     environment:
@@ -469,9 +469,9 @@ services:
     healthcheck: *elasticsearch-cluster-health
 
   scylladb:
-    image: scylladb/scylla:2026.2
+    image: scylladb/scylla:2026.3
     profiles: [scylladb]
-    command: ["--reactor-backend", "epoll", "--smp", "1", "--memory", "1G", "--overprovisioned", "1", "--alternator-port", "8000", "--alternator-write-isolation", "only_rmw_uses_lwt"]
+    command: ["--api-address", "0.0.0.0", "--reactor-backend", "epoll", "--smp", "1", "--memory", "1G", "--overprovisioned", "1", "--alternator-port", "8000", "--alternator-write-isolation", "only_rmw_uses_lwt"]
     ports: ["8000:8000", "10000:10000"]
     healthcheck: &scylladb-health
       test: [CMD-SHELL, "curl -fsS http://127.0.0.1:10000/storage_service/scylla_release_version >/dev/null"]
@@ -480,25 +480,25 @@ services:
       retries: 60
 
   scylladb-primary:
-    image: scylladb/scylla:2026.2
+    image: scylladb/scylla:2026.3
     profiles: [scylladb-cluster]
-    command: ["--smp", "1", "--memory", "1G", "--overprovisioned", "1", "--alternator-port", "8000", "--alternator-write-isolation", "only_rmw_uses_lwt"]
+    command: ["--api-address", "0.0.0.0", "--smp", "1", "--memory", "1G", "--overprovisioned", "1", "--alternator-port", "8000", "--alternator-write-isolation", "only_rmw_uses_lwt"]
     ports: ["8000:8000", "10000:10000"]
     healthcheck: *scylladb-health
 
   scylladb-replica-1:
-    image: scylladb/scylla:2026.2
+    image: scylladb/scylla:2026.3
     profiles: [scylladb-cluster]
-    command: ["--seeds", "scylladb-primary", "--reactor-backend", "epoll", "--smp", "1", "--memory", "1G", "--overprovisioned", "1", "--alternator-port", "8000", "--alternator-write-isolation", "only_rmw_uses_lwt"]
+    command: ["--api-address", "0.0.0.0", "--seeds", "scylladb-primary", "--reactor-backend", "epoll", "--smp", "1", "--memory", "1G", "--overprovisioned", "1", "--alternator-port", "8000", "--alternator-write-isolation", "only_rmw_uses_lwt"]
     ports: ["8001:8000", "10001:10000"]
     depends_on:
       scylladb-primary: {condition: service_healthy}
     healthcheck: *scylladb-health
 
   scylladb-replica-2:
-    image: scylladb/scylla:2026.2
+    image: scylladb/scylla:2026.3
     profiles: [scylladb-cluster]
-    command: ["--seeds", "scylladb-primary", "--reactor-backend", "epoll", "--smp", "1", "--memory", "1G", "--overprovisioned", "1", "--alternator-port", "8000", "--alternator-write-isolation", "only_rmw_uses_lwt"]
+    command: ["--api-address", "0.0.0.0", "--seeds", "scylladb-primary", "--reactor-backend", "epoll", "--smp", "1", "--memory", "1G", "--overprovisioned", "1", "--alternator-port", "8000", "--alternator-write-isolation", "only_rmw_uses_lwt"]
     ports: ["8002:8000", "10002:10000"]
     depends_on:
       scylladb-primary: {condition: service_healthy}
