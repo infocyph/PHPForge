@@ -6,13 +6,15 @@ use Symfony\Component\Process\Process;
 
 /**
  * @return array{process: Process, attempts: int}
+ *
+ * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
  */
 function runComposerAuditFixture(int $successfulAttempt): array
 {
     $projectRoot = dirname(__DIR__, 2);
-    $directory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-audit-'.uniqid('', true);
-    $attemptFile = $directory.DIRECTORY_SEPARATOR.'attempts';
-    $composer = $directory.DIRECTORY_SEPARATOR.'composer';
+    $directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-audit-' . uniqid('', true);
+    $attemptFile = $directory . DIRECTORY_SEPARATOR . 'attempts';
+    $composer = $directory . DIRECTORY_SEPARATOR . 'composer';
     mkdir($directory, 0755, true);
     file_put_contents($composer, <<<'PHP'
 #!/usr/bin/env php
@@ -33,9 +35,10 @@ exit(100);
 PHP);
     chmod($composer, 0755);
 
-    $path = $directory.PATH_SEPARATOR.(getenv('PATH') ?: '');
+    $currentPath = getenv('PATH');
+    $path = $directory . PATH_SEPARATOR . ($currentPath === false ? '' : $currentPath);
     $process = new Process(
-        [PHP_BINARY, $projectRoot.'/bin/phpforge', 'audit'],
+        [PHP_BINARY, $projectRoot . '/bin/phpforge', 'audit'],
         $projectRoot,
         [
             'PATH' => $path,
@@ -44,7 +47,7 @@ PHP);
         ],
     );
     $process->run();
-    $attempts = is_file($attemptFile) ? (int) file_get_contents($attemptFile) : 0;
+    $attempts = is_file($attemptFile) ? (int) fixtureFile($attemptFile) : 0;
 
     unlink($composer);
     unlink($attemptFile);

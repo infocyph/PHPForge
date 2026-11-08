@@ -4,26 +4,32 @@ declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
 
+$projectRoot = getcwd();
+
+if ($projectRoot === false) {
+    throw new RuntimeException('Unable to resolve the project working directory for Rector.');
+}
+
 return RectorConfig::configure()
-    ->withPaths([getcwd()])
+    ->withPaths([$projectRoot])
     ->withSkip([
-        getcwd().'/vendor',
-        getcwd().'/node_modules',
-        getcwd().'/coverage',
-        getcwd().'/.phpunit.cache',
-        getcwd().'/.psalm-cache',
-        getcwd().'/build',
-        getcwd().'/dist',
-        getcwd().'/tmp',
-        getcwd().'/.tmp',
-        getcwd().'/storage',
-        getcwd().'/bootstrap/cache',
-        getcwd().'/var/cache',
-        getcwd().'/tests',
-        getcwd().'/resources',
-        getcwd().'/bin',
-        getcwd().'/benchmarks',
-        getcwd().'/examples',
+        $projectRoot . '/vendor',
+        $projectRoot . '/node_modules',
+        $projectRoot . '/coverage',
+        $projectRoot . '/.phpunit.cache',
+        $projectRoot . '/.psalm-cache',
+        $projectRoot . '/build',
+        $projectRoot . '/dist',
+        $projectRoot . '/tmp',
+        $projectRoot . '/.tmp',
+        $projectRoot . '/storage',
+        $projectRoot . '/bootstrap/cache',
+        $projectRoot . '/var/cache',
+        $projectRoot . '/tests',
+        $projectRoot . '/resources',
+        $projectRoot . '/bin',
+        $projectRoot . '/benchmarks',
+        $projectRoot . '/examples',
     ])
     ->withPreparedSets(deadCode: true)
     ->withPhpSets();

@@ -2,19 +2,25 @@
 
 declare(strict_types=1);
 
-use Infocyph\PHPForge\Support\ProcRunner;
 use Infocyph\PHPForge\Support\ProcessResult;
+use Infocyph\PHPForge\Support\ProcRunner;
 use Symfony\Component\Process\Process;
 
 /**
  * @param list<string> $arguments
+ *
+ * @throws \Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException|\Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|RuntimeException
  */
 function runPhpforgeCli(array $arguments): ProcessResult
 {
-    $binary = dirname(__DIR__, 2).DIRECTORY_SEPARATOR.'bin'.DIRECTORY_SEPARATOR.'phpforge';
+    $binary = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpforge';
     $result = (new ProcRunner())->run([PHP_BINARY, $binary, ...$arguments]);
 
     expect($result)->toBeInstanceOf(ProcessResult::class);
+
+    if (!$result instanceof ProcessResult) {
+        throw new RuntimeException('The CLI did not return a process result.');
+    }
 
     return $result;
 }
@@ -63,11 +69,11 @@ it('reports invalid commands with a useful suggestion', function (): void {
 
 it('registers CI options on the actual root Composer command', function (): void {
     $project = dirname(__DIR__, 2);
-    $process = new Process([PHP_BINARY, $project.'/vendor/bin/composer', 'ic:ci', '--help'], $project);
+    $process = new Process([PHP_BINARY, $project . '/vendor/bin/composer', 'ic:ci', '--help'], $project);
     $process->setTimeout(30);
     $process->run();
 
-    expect($process->getExitCode())->toBe(0, $process->getOutput().$process->getErrorOutput())
+    expect($process->getExitCode())->toBe(0, $process->getOutput() . $process->getErrorOutput())
         ->and($process->getOutput())->toContain('--prefer-lowest')
         ->toContain('--without-analysis');
 });
@@ -81,14 +87,14 @@ it('checks stable runtime constraints without the Composer command runtime', fun
 });
 
 it('consumes active config parameter values regardless of option order', function (array $arguments): void {
-    $result = runPhpforgeCli(['active-config', ...$arguments]);
+    $result = runPhpforgeCli(['active-config', ...fixtureStringList($arguments)]);
     $configs = json_decode($result->stdout, true, 512, JSON_THROW_ON_ERROR);
 
     expect($result->exitCode)->toBe(0)
         ->and($result->stderr)->toBe('')
         ->and($configs)->toHaveCount(1)
-        ->and($configs[0]['config_file'])->toBe('phpstan.neon.dist')
-        ->and($configs[0]['value'])->toBe(['class' => 80, 'function' => 12]);
+        ->and(fixtureValue($configs, [0, 'config_file']))->toBe('phpstan.neon.dist')
+        ->and(fixtureValue($configs, [0, 'value']))->toBe(['class' => 80, 'function' => 12]);
 })->with([
     'parameter first' => [['--parameter', 'cognitive_complexity', '--json', 'phpstan.neon.dist']],
     'parameter last' => [['--json', '--phpstan.neon.dist', '--parameter', 'cognitive_complexity']],

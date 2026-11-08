@@ -3,16 +3,21 @@
 
 declare(strict_types=1);
 
-use Infocyph\PHPForge\Support\Cli;
 use Infocyph\PHPForge\Composer\BenchmarkCommand;
+use Infocyph\PHPForge\Composer\CommitMessageCommand;
 use Infocyph\PHPForge\Composer\DoctorCommand;
 use Infocyph\PHPForge\Composer\ListConfigCommand;
 use Infocyph\PHPForge\Composer\ServiceCommand;
 use Infocyph\PHPForge\Composer\StageCommand;
-use Infocyph\PHPForge\Composer\CommitMessageCommand;
 use Infocyph\PHPForge\Composer\WorkerSoakCommand;
+use Infocyph\PHPForge\Support\Cli;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArgvInput;
+
+$argv = $argv ?? [];
+$arguments = $argv;
+$scriptName = array_shift($arguments) ?? __FILE__;
+$commandName = array_shift($arguments) ?? '';
 
 $autoloaders = [
     __DIR__ . '/../vendor/autoload.php',
@@ -40,11 +45,11 @@ $composerCommands = [
     'commit-message',
 ];
 
-if (in_array($argv[1] ?? null, $composerCommands, true) && !class_exists(Composer\Command\BaseCommand::class)) {
+if (in_array($commandName, $composerCommands, true) && !class_exists(Composer\Command\BaseCommand::class)) {
     fwrite(STDERR, sprintf(
         'Command "%s" requires the Composer command runtime; use "composer ic:%s" instead.%s',
-        $argv[1],
-        $argv[1],
+        $commandName,
+        $commandName,
         PHP_EOL,
     ));
 
@@ -94,7 +99,7 @@ if (!class_exists(Cli::class)) {
     require __DIR__ . '/../src/Support/Cli.php';
 }
 
-$standaloneCommand = match ($argv[1] ?? null) {
+$standaloneCommand = match ($commandName) {
     'doctor' => new DoctorCommand(),
     'list-config' => new ListConfigCommand(),
     'benchmark:validate' => new BenchmarkCommand('validate', 'benchmark:validate'),
@@ -114,9 +119,9 @@ if ($standaloneCommand !== null) {
     $application->addCommand($standaloneCommand);
 
     exit($application->run(new ArgvInput([
-        $argv[0],
-        $standaloneCommand->getName(),
-        ...array_slice($argv, 2),
+        $scriptName,
+        $commandName,
+        ...$arguments,
     ])));
 }
 

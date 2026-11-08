@@ -655,6 +655,18 @@ If none of those exists outside the PHPForge source project, PHPForge fails inst
 | Rector                 | `rector.php`, then bundled `rector.php`                                                                      |
 | CaptainHook            | `captainhook.json`, then bundled `captainhook.json`                                                          |
 
+### Analysis scope
+
+Bundled PHPStan and Psalm configurations analyze maintained PHP throughout the project, including `tests/`, `bin/`, `resources/`, `benchmarks/` and `examples/`.
+PHPForge includes Pest and PHPUnit analyzer integrations so test APIs, assertions and test-only callers are understood without disabling production checks.
+Analysis levels, cognitive-complexity limits, taint checks and unused-code checks remain active.
+
+Dependency, cache and generated-output exclusions remain in place. Keep intentionally invalid fixture exclusions specific to those fixtures instead of excluding their parent source directory.
+
+Existing project-root configurations take precedence. If you published an older config, remove exclusions for maintained code and include the corresponding analyzer extensions, or republish the bundled config after reviewing local customizations.
+Directory discovery normally selects `.php` files. Add extensionless PHP entrypoints explicitly to PHPStan's `paths` and Psalm's `projectFiles` file entries. PHPStan also needs explicit paths for maintained PHP in hidden directories such as `.github/scripts/`. Non-PHP resources are outside PHP analysis.
+Pest and PHPUnit continue to execute `tests/`; their coverage source remains `src/`.
+
 ### PHPProbe checker config
 
 `phpprobe.json` configures PHPProbe syntax, reference-integrity, duplicate-code and comment-policy checks.

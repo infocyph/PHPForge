@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Infocyph\PHPForge\Support\ProcRunner;
 use Infocyph\PHPForge\Support\ProcessResult;
+use Infocyph\PHPForge\Support\ProcRunner;
 
 it('captures stdin, stdout, stderr, and the exit code', function (): void {
     $script = <<<'PHP'
@@ -14,9 +14,9 @@ PHP;
 
     $result = (new ProcRunner())->run([PHP_BINARY, '-r', $script], 'payload');
 
-    expect($result)
-        ->toBeInstanceOf(ProcessResult::class)
-        ->and($result->stdout)->toBe('payload')
+    PHPUnit\Framework\Assert::assertInstanceOf(ProcessResult::class, $result);
+
+    expect($result->stdout)->toBe('payload')
         ->and($result->stderr)->toBe('problem')
         ->and($result->exitCode)->toBe(7);
 });
@@ -31,9 +31,9 @@ PHP;
 
     $result = (new ProcRunner())->run([PHP_BINARY, '-r', $script, (string) $bytes]);
 
-    expect($result)
-        ->toBeInstanceOf(ProcessResult::class)
-        ->and($result->successful())->toBeTrue()
+    PHPUnit\Framework\Assert::assertInstanceOf(ProcessResult::class, $result);
+
+    expect($result->successful())->toBeTrue()
         ->and(strlen($result->stdout))->toBe($bytes)
         ->and(strlen($result->stderr))->toBe($bytes);
 });

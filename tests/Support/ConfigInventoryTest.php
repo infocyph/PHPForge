@@ -5,30 +5,6 @@ declare(strict_types=1);
 use Infocyph\PHPForge\Support\ConfigInventory;
 use Symfony\Component\Process\Process;
 
-function removeConfigInventoryTree(string $path): void
-{
-    if (!is_dir($path)) {
-        return;
-    }
-
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-
-    foreach ($iterator as $item) {
-        if ($item->isDir()) {
-            rmdir($item->getPathname());
-
-            continue;
-        }
-
-        unlink($item->getPathname());
-    }
-
-    rmdir($path);
-}
-
 it('lists bundled config files without duplicates', function (): void {
     expect(ConfigInventory::files())
         ->toContain('pest.xml')
@@ -63,13 +39,13 @@ it('validates the bundled Psalm configuration against the installed package sche
     $xml = new DOMDocument();
     $xml->load(ConfigInventory::resolvedPath('psalm.xml'));
 
-    expect($xml->schemaValidate(dirname(__DIR__, 2).'/vendor/vimeo/psalm/config.xsd'))->toBeTrue()
-        ->and(is_file(dirname(__DIR__, 2).'/vendor/bin/psalm'))->toBeTrue();
+    expect($xml->schemaValidate(dirname(__DIR__, 2) . '/vendor/vimeo/psalm/config.xsd'))->toBeTrue()
+        ->and(is_file(dirname(__DIR__, 2) . '/vendor/bin/psalm'))->toBeTrue();
 });
 
 it('keeps forbidden-function checks active in executable PHP entrypoints', function (): void {
     $contents = file_get_contents(ConfigInventory::resolvedPath('phpcs.xml.dist'));
-    $sniff = file_get_contents(dirname(__DIR__, 2).'/resources/PHPForge/Sniffs/PHP/ForbiddenFunctionsSniff.php');
+    $sniff = file_get_contents(dirname(__DIR__, 2) . '/resources/PHPForge/Sniffs/PHP/ForbiddenFunctionsSniff.php');
 
     expect($contents)->toBeString()
         ->not->toContain('<exclude-pattern type="relative">bin/*.php</exclude-pattern>')
@@ -81,16 +57,16 @@ it('keeps forbidden-function checks active in executable PHP entrypoints', funct
 
 it('allows only a literal zero exit status outside executable entrypoints', function (): void {
     $projectRoot = dirname(__DIR__, 2);
-    $directory = $projectRoot.DIRECTORY_SEPARATOR.'.phpcs-fixture-'.uniqid('', true);
+    $directory = $projectRoot . DIRECTORY_SEPARATOR . '.phpcs-fixture-' . uniqid('', true);
     mkdir($directory, 0755, true);
 
     $check = static function (string $contents, string $name) use ($directory, $projectRoot): int {
-        $path = $directory.DIRECTORY_SEPARATOR.$name;
+        $path = $directory . DIRECTORY_SEPARATOR . $name;
         file_put_contents($path, $contents);
         $process = new Process([
             PHP_BINARY,
-            $projectRoot.'/vendor/bin/phpcs',
-            '--standard='.$projectRoot.'/resources/phpcs.xml.dist',
+            $projectRoot . '/vendor/bin/phpcs',
+            '--standard=' . $projectRoot . '/resources/phpcs.xml.dist',
             $path,
         ]);
         $process->run();
@@ -108,37 +84,37 @@ it('allows only a literal zero exit status outside executable entrypoints', func
             ->and($check("#!/usr/bin/env php\n<?php\ndie(0);\n", 'die.php'))->not->toBe(0)
             ->and($check("#!/usr/bin/env php\n<?php\neval('return 1;');\n", 'unsafe-entrypoint.php'))->not->toBe(0);
     } finally {
-        removeConfigInventoryTree($directory);
+        removeFixtureDirectory($directory);
     }
 });
 
 it('checks source beneath temporary ancestors while excluding generated project paths', function (): void {
     $projectRoot = dirname(__DIR__, 2);
-    $directory = sys_get_temp_dir().'/phpforge-phpcs-'.uniqid('', true);
+    $directory = sys_get_temp_dir() . '/phpforge-phpcs-' . uniqid('', true);
 
     foreach (['src', 'vendor', 'tmp', 'nested/tmp'] as $path) {
-        mkdir($directory.'/'.$path, 0755, true);
-        file_put_contents($directory.'/'.$path.'/unsafe.php', "<?php\neval('return 1;');\n");
+        mkdir($directory . '/' . $path, 0755, true);
+        file_put_contents($directory . '/' . $path . '/unsafe.php', "<?php\neval('return 1;');\n");
     }
 
     try {
         $process = new Process([
             PHP_BINARY,
-            $projectRoot.'/vendor/bin/phpcs',
-            '--standard='.$projectRoot.'/resources/phpcs.xml.dist',
+            $projectRoot . '/vendor/bin/phpcs',
+            '--standard=' . $projectRoot . '/resources/phpcs.xml.dist',
             '--report=json',
-            '--basepath='.$directory,
+            '--basepath=' . $directory,
             $directory,
         ], $directory);
         $process->run();
         $report = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
 
         expect($process->getExitCode())->toBe(2)
-            ->and(array_keys($report['files']))->toBe(['src/unsafe.php'])
-            ->and($report['files']['src/unsafe.php']['messages'][0]['source'])
+            ->and(array_keys(fixtureArray(fixtureValue($report, ['files']))))->toBe(['src/unsafe.php'])
+            ->and(fixtureValue($report, ['files', 'src/unsafe.php', 'messages', 0, 'source']))
             ->toBe('PHPForge.PHP.ForbiddenFunctions.Found');
     } finally {
-        removeConfigInventoryTree($directory);
+        removeFixtureDirectory($directory);
     }
 });
 
@@ -169,21 +145,21 @@ it('reports project config sources before bundled sources', function (): void {
 
 it('treats phpprobe.json as the project source when present', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-config-inventory-'.uniqid('', true);
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-config-inventory-' . uniqid('', true);
 
     mkdir($projectRoot, 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'phpprobe.json', '{}');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'phpprobe.json', '{}');
 
     chdir($projectRoot);
 
     try {
         expect(ConfigInventory::source('phpprobe.json'))->toBe('project');
-        expect(ConfigInventory::resolvedPath('phpprobe.json'))->toBe($projectRoot.DIRECTORY_SEPARATOR.'phpprobe.json');
+        expect(ConfigInventory::resolvedPath('phpprobe.json'))->toBe($projectRoot . DIRECTORY_SEPARATOR . 'phpprobe.json');
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);
         }
 
-        removeConfigInventoryTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });

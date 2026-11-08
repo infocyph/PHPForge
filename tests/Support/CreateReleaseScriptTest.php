@@ -5,11 +5,17 @@ declare(strict_types=1);
 use Symfony\Component\Process\Process;
 use Symfony\Component\Yaml\Yaml;
 
+/**
+ * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\ProcessFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+ */
 function releaseGit(string $root, string ...$arguments): void
 {
     (new Process(['git', ...$arguments], $root))->mustRun();
 }
 
+/**
+ * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\ProcessFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+ */
 function releaseCommit(string $root, string $contents, string $message): void
 {
     file_put_contents($root . '/library.php', $contents);
@@ -67,14 +73,19 @@ afterEach(function (): void {
     (new Process(['rm', '-rf', $this->releaseRoot]))->mustRun();
 });
 
-/** @param array<string, string> $overrides */
+/**
+ * @param array<string, string> $overrides
+ *
+ * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+ */
 function runReleaseScript(string $root, string $tag, array $overrides = []): Process
 {
+    $path = getenv('PATH');
     $process = new Process(
         ['bash', dirname(__DIR__, 2) . '/.github/scripts/create-release.sh'],
         $root,
         array_merge([
-            'PATH' => $root . '/bin:' . getenv('PATH'),
+            'PATH' => $root . '/bin:' . ($path === false ? '' : $path),
             'TEST_ROOT' => $root,
             'RUNNER_TEMP' => $root . '/scratch',
             'RELEASE_TAG' => $tag,
@@ -99,12 +110,12 @@ it('generates notes from the tagged diff and passes literal markdown through a f
     $process = runReleaseScript($this->releaseRoot, 'v1.1.0');
 
     expect($process->isSuccessful())->toBeTrue()
-        ->and(file_get_contents($this->releaseRoot . '/prompt.md'))->toContain('Previous version: v1.0.0', '+function newApi()', '-function oldApi()', '$(touch injected)')
-        ->and(file_get_contents($this->releaseRoot . '/published-notes.md'))->toContain('`API` and $values.', 'https://github.com/example/library/compare/v1.0.0...v1.1.0')
-        ->and(file_get_contents($this->releaseRoot . '/publish-args.txt'))->toContain('--verify-tag', '--notes-file')
-        ->and(file_get_contents($this->releaseRoot . '/publish-args.txt'))->not->toContain('--prerelease')
+        ->and(fixtureFile($this->releaseRoot . '/prompt.md'))->toContain('Previous version: v1.0.0', '+function newApi()', '-function oldApi()', '$(touch injected)')
+        ->and(fixtureFile($this->releaseRoot . '/published-notes.md'))->toContain('`API` and $values.', 'https://github.com/example/library/compare/v1.0.0...v1.1.0')
+        ->and(fixtureFile($this->releaseRoot . '/publish-args.txt'))->toContain('--verify-tag', '--notes-file')
+        ->and(fixtureFile($this->releaseRoot . '/publish-args.txt'))->not->toContain('--prerelease')
         ->and(is_file($this->releaseRoot . '/injected'))->toBeFalse()
-        ->and(glob($this->releaseRoot . '/scratch/*'))->toBe([]);
+        ->and(fixtureGlob($this->releaseRoot . '/scratch/*'))->toBe([]);
 });
 
 it('includes the full initial history and tree when no previous version exists', function (): void {
@@ -113,8 +124,8 @@ it('includes the full initial history and tree when no previous version exists',
     releaseGit($this->releaseRoot, 'tag', '1.0');
 
     expect(runReleaseScript($this->releaseRoot, '1.0')->isSuccessful())->toBeTrue()
-        ->and(file_get_contents($this->releaseRoot . '/prompt.md'))->toContain('none (initial release)', 'Initial library', 'Add second API', '+function firstApi()')
-        ->and(file_get_contents($this->releaseRoot . '/published-notes.md'))->not->toContain('Full Changelog');
+        ->and(fixtureFile($this->releaseRoot . '/prompt.md'))->toContain('none (initial release)', 'Initial library', 'Add second API', '+function firstApi()')
+        ->and(fixtureFile($this->releaseRoot . '/published-notes.md'))->not->toContain('Full Changelog');
 });
 
 it('ignores prereleases and non-version tags when choosing a stable baseline', function (): void {
@@ -127,7 +138,7 @@ it('ignores prereleases and non-version tags when choosing a stable baseline', f
     releaseGit($this->releaseRoot, 'tag', 'v1.1.0');
 
     expect(runReleaseScript($this->releaseRoot, 'v1.1.0')->isSuccessful())->toBeTrue()
-        ->and(file_get_contents($this->releaseRoot . '/prompt.md'))->toContain('Previous version: v1.0.0', 'Candidate API');
+        ->and(fixtureFile($this->releaseRoot . '/prompt.md'))->toContain('Previous version: v1.0.0', 'Candidate API');
 });
 
 it('compares successive prereleases and prevents them becoming latest', function (): void {
@@ -137,8 +148,8 @@ it('compares successive prereleases and prevents them becoming latest', function
     releaseGit($this->releaseRoot, 'tag', 'v2.0.0-rc.2');
 
     expect(runReleaseScript($this->releaseRoot, 'v2.0.0-rc.2')->isSuccessful())->toBeTrue()
-        ->and(file_get_contents($this->releaseRoot . '/prompt.md'))->toContain('Previous version: v2.0.0-rc.1')
-        ->and(file_get_contents($this->releaseRoot . '/publish-args.txt'))->toContain('--prerelease', '--latest=false');
+        ->and(fixtureFile($this->releaseRoot . '/prompt.md'))->toContain('Previous version: v2.0.0-rc.1')
+        ->and(fixtureFile($this->releaseRoot . '/publish-args.txt'))->toContain('--prerelease', '--latest=false');
 });
 
 it('handles tags sharing a commit without treating the release as an initial release', function (): void {
@@ -147,7 +158,7 @@ it('handles tags sharing a commit without treating the release as an initial rel
     releaseGit($this->releaseRoot, 'tag', 'v1.0.1');
 
     expect(runReleaseScript($this->releaseRoot, 'v1.0.1')->isSuccessful())->toBeTrue()
-        ->and(file_get_contents($this->releaseRoot . '/prompt.md'))->toContain('Previous version: v1.0.0');
+        ->and(fixtureFile($this->releaseRoot . '/prompt.md'))->toContain('Previous version: v1.0.0');
 });
 
 it('preserves existing releases without requiring Copilot credentials', function (): void {
@@ -166,7 +177,7 @@ it('fails without publishing when authentication or note generation fails', func
     releaseCommit($this->releaseRoot, 'library', 'Library');
     releaseGit($this->releaseRoot, 'tag', 'v1.0.0');
 
-    expect(runReleaseScript($this->releaseRoot, 'v1.0.0', $overrides)->isSuccessful())->toBeFalse()
+    expect(runReleaseScript($this->releaseRoot, 'v1.0.0', fixtureStringMap($overrides))->isSuccessful())->toBeFalse()
         ->and(is_file($this->releaseRoot . '/publish-args.txt'))->toBeFalse();
 })->with([
     'API failure' => [['TEST_API_MODE' => 'error']],
@@ -195,7 +206,7 @@ it('passes complete diffs larger than one megabyte without shell argument limits
 
     expect(runReleaseScript($this->releaseRoot, 'v1.0.0')->isSuccessful())->toBeTrue()
         ->and(filesize($this->releaseRoot . '/prompt.md'))->toBeGreaterThan(1000000)
-        ->and(file_get_contents($this->releaseRoot . '/prompt.md'))->toContain('END_OF_COMPLETE_DIFF');
+        ->and(fixtureFile($this->releaseRoot . '/prompt.md'))->toContain('END_OF_COMPLETE_DIFF');
 });
 
 it('rejects invalid tags and a checkout different from the pushed tag', function (string $tag): void {
@@ -211,22 +222,22 @@ it('separates tag releases from regular QA with explicit secret forwarding', fun
     $wrapper = Yaml::parseFile(dirname(__DIR__, 2) . '/resources/workflows/security-standards.yml');
     $projectWrapper = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/phpforge.yml');
     $release = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/release.yml');
-    $steps = array_column($release['jobs']['release']['steps'], null, 'name');
+    $steps = array_column(fixtureArray(fixtureValue($release, ['jobs', 'release', 'steps'])), null, 'name');
 
-    expect($wrapper['on']['push']['tags'])->toBe(['v*', '[0-9]*'])
-        ->and($wrapper['jobs']['phpforge']['if'])->toBe("github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/')")
-        ->and($wrapper['jobs']['release']['needs'] ?? null)->toBeNull()
-        ->and($wrapper['jobs']['release']['if'])->toContain("startsWith(github.ref, 'refs/tags/')")
-        ->and($projectWrapper['jobs']['security-standards']['if'])->toBe("github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/')")
-        ->and($projectWrapper['jobs']['release']['needs'] ?? null)->toBeNull()
-        ->and($wrapper['jobs']['release']['permissions'])->toBe(['contents' => 'write'])
-        ->and($wrapper['jobs']['release']['secrets']['COPILOT_GITHUB_TOKEN'])->toBe('${{ secrets.COPILOT_GITHUB_TOKEN }}')
-        ->and($release['on']['workflow_call']['secrets']['COPILOT_GITHUB_TOKEN']['required'])->toBeTrue()
-        ->and($release['on']['workflow_call']['inputs']['instructions_file'] ?? null)->toBeNull()
-        ->and($steps['Checkout release tooling']['with']['sparse-checkout'])->toContain('resources/release-notes-instructions.md')
-        ->and($steps['Generate notes and create release']['env']['RELEASE_INSTRUCTIONS_FILE'])
+    expect(fixtureValue($wrapper, ['on', 'push', 'tags']))->toBe(['v*', '[0-9]*'])
+        ->and(fixtureValue($wrapper, ['jobs', 'phpforge', 'if']))->toBe("github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/')")
+        ->and(fixtureValue($wrapper, ['jobs', 'release', 'needs'], true) ?? null)->toBeNull()
+        ->and(fixtureValue($wrapper, ['jobs', 'release', 'if']))->toContain("startsWith(github.ref, 'refs/tags/')")
+        ->and(fixtureValue($projectWrapper, ['jobs', 'security-standards', 'if']))->toBe("github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/')")
+        ->and(fixtureValue($projectWrapper, ['jobs', 'release', 'needs'], true) ?? null)->toBeNull()
+        ->and(fixtureValue($wrapper, ['jobs', 'release', 'permissions']))->toBe(['contents' => 'write'])
+        ->and(fixtureValue($wrapper, ['jobs', 'release', 'secrets', 'COPILOT_GITHUB_TOKEN']))->toBe('${{ secrets.COPILOT_GITHUB_TOKEN }}')
+        ->and(fixtureValue($release, ['on', 'workflow_call', 'secrets', 'COPILOT_GITHUB_TOKEN', 'required']))->toBeTrue()
+        ->and(fixtureValue($release, ['on', 'workflow_call', 'inputs', 'instructions_file'], true) ?? null)->toBeNull()
+        ->and(fixtureValue($steps, ['Checkout release tooling', 'with', 'sparse-checkout']))->toContain('resources/release-notes-instructions.md')
+        ->and(fixtureValue($steps, ['Generate notes and create release', 'env', 'RELEASE_INSTRUCTIONS_FILE']))
         ->toBe('${{ github.workspace }}/.phpforge-release/resources/release-notes-instructions.md')
-        ->and($release['concurrency']['cancel-in-progress'])->toBeFalse();
+        ->and(fixtureValue($release, ['concurrency', 'cancel-in-progress']))->toBeFalse();
 });
 
 it('excludes newer version tags on unrelated branches from the baseline', function (): void {
@@ -240,6 +251,6 @@ it('excludes newer version tags on unrelated branches from the baseline', functi
     releaseGit($this->releaseRoot, 'tag', 'v1.1.0');
 
     expect(runReleaseScript($this->releaseRoot, 'v1.1.0')->isSuccessful())->toBeTrue()
-        ->and(file_get_contents($this->releaseRoot . '/prompt.md'))->toContain('Previous version: v1.0.0')
-        ->and(file_get_contents($this->releaseRoot . '/prompt.md'))->not->toContain('Unrelated feature', 'v9.0.0');
+        ->and(fixtureFile($this->releaseRoot . '/prompt.md'))->toContain('Previous version: v1.0.0')
+        ->and(fixtureFile($this->releaseRoot . '/prompt.md'))->not->toContain('Unrelated feature', 'v9.0.0');
 });

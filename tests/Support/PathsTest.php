@@ -6,33 +6,9 @@ use Infocyph\PHPForge\Support\Paths;
 use Infocyph\PHPForge\Support\ServiceCatalog;
 use Symfony\Component\Process\Process;
 
-function removePathsTestTree(string $path): void
-{
-    if (!is_dir($path)) {
-        return;
-    }
-
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-
-    foreach ($iterator as $item) {
-        if ($item->isDir()) {
-            rmdir($item->getPathname());
-
-            continue;
-        }
-
-        unlink($item->getPathname());
-    }
-
-    rmdir($path);
-}
-
 it('loads installed package resources independently of the consumer working directory', function (string $vendorDirectory): void {
-    $consumer = sys_get_temp_dir().'/phpforge-consumer-'.bin2hex(random_bytes(8));
-    $package = $consumer.'/'.$vendorDirectory.'/infocyph/phpforge';
+    $consumer = sys_get_temp_dir() . '/phpforge-consumer-' . bin2hex(random_bytes(8));
+    $package = $consumer . '/' . $vendorDirectory . '/infocyph/phpforge';
     $files = [
         'src/Support/ArrayShape.php',
         'src/Support/Paths.php',
@@ -43,7 +19,7 @@ it('loads installed package resources independently of the consumer working dire
     ];
 
     foreach ($files as $file) {
-        $target = $package.'/'.$file;
+        $target = $package . '/' . $file;
 
         if (!is_dir(dirname($target))) {
             mkdir(dirname($target), 0755, true);
@@ -52,13 +28,13 @@ it('loads installed package resources independently of the consumer working dire
         copy(Paths::packageFile($file), $target);
     }
 
-    file_put_contents($consumer.'/composer.json', json_encode([
+    file_put_contents($consumer . '/composer.json', json_encode([
         'name' => 'example/consumer',
         'config' => ['vendor-dir' => $vendorDirectory],
     ], JSON_THROW_ON_ERROR));
-    mkdir($consumer.'/resources/services', 0755, true);
-    file_put_contents($consumer.'/resources/services/catalog.php', '<?php throw new RuntimeException("Consumer resource selected");');
-    file_put_contents($consumer.'/resources/runtime.php', '<?php throw new RuntimeException("Consumer runtime selected");');
+    mkdir($consumer . '/resources/services', 0755, true);
+    file_put_contents($consumer . '/resources/services/catalog.php', '<?php throw new RuntimeException("Consumer resource selected");');
+    file_put_contents($consumer . '/resources/runtime.php', '<?php throw new RuntimeException("Consumer runtime selected");');
 
     try {
         $process = new Process([PHP_BINARY, '-r', <<<'PHP'
@@ -76,23 +52,23 @@ echo json_encode([
 PHP, $package], $consumer);
         $process->setTimeout(30);
         $process->run();
-        $runtime = require Paths::packageFile('resources/runtime.php');
+        $runtime = Paths::requirePackageFile('resources/runtime.php');
         $result = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
 
         expect($process->getExitCode())->toBe(0, $process->getErrorOutput())
-            ->and(str_replace('\\', '/', $result['runtime_file']))->toBe(str_replace('\\', '/', $package.'/resources/runtime.php'))
-            ->and($result['php_versions'])->toBe($runtime['php_versions'])
-            ->and(str_replace('\\', '/', $result['psalm_config']))->toBe(str_replace('\\', '/', $package.'/resources/psalm.xml'))
-            ->and($result['services'])->toBe(ServiceCatalog::names());
+            ->and(str_replace('\\', '/', fixtureString(fixtureValue($result, ['runtime_file']))))->toBe(str_replace('\\', '/', fixtureString($package . '/resources/runtime.php')))
+            ->and(fixtureValue($result, ['php_versions']))->toBe(fixtureValue($runtime, ['php_versions']))
+            ->and(str_replace('\\', '/', fixtureString(fixtureValue($result, ['psalm_config']))))->toBe(str_replace('\\', '/', fixtureString($package . '/resources/psalm.xml')))
+            ->and(fixtureValue($result, ['services']))->toBe(ServiceCatalog::names());
     } finally {
-        removePathsTestTree($consumer);
+        removeFixtureDirectory($consumer);
     }
 })->with(['vendor', 'deps']);
 
 it('reports missing package resources with their resolved path', function (): void {
-    $missing = 'resources/missing-'.bin2hex(random_bytes(8)).'.php';
+    $missing = 'resources/missing-' . bin2hex(random_bytes(8)) . '.php';
 
-    expect(fn (): mixed => Paths::requirePackageFile($missing))
+    expect(fn(): mixed => Paths::requirePackageFile($missing))
         ->toThrow(Error::class, Paths::packageFile($missing));
 });
 
@@ -113,46 +89,46 @@ it('uses bundled config when project config from list is missing', function (): 
 
 it('uses project config before vendor PHPForge resources', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-paths-'.uniqid('', true);
-    $vendorResources = $projectRoot.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'infocyph'.DIRECTORY_SEPARATOR.'phpforge'.DIRECTORY_SEPARATOR.'resources';
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-paths-' . uniqid('', true);
+    $vendorResources = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'infocyph' . DIRECTORY_SEPARATOR . 'phpforge' . DIRECTORY_SEPARATOR . 'resources';
 
     mkdir($vendorResources, 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'pint.json', '{}');
-    file_put_contents($vendorResources.DIRECTORY_SEPARATOR.'pint.json', '{}');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'pint.json', '{}');
+    file_put_contents($vendorResources . DIRECTORY_SEPARATOR . 'pint.json', '{}');
 
     chdir($projectRoot);
 
     try {
-        expect(Paths::config('pint.json'))->toBe($projectRoot.DIRECTORY_SEPARATOR.'pint.json');
+        expect(Paths::config('pint.json'))->toBe($projectRoot . DIRECTORY_SEPARATOR . 'pint.json');
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);
         }
 
-        removePathsTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
 it('falls back to vendor PHPForge resources for consuming projects', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-paths-'.uniqid('', true);
-    $vendorResources = $projectRoot.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'infocyph'.DIRECTORY_SEPARATOR.'phpforge'.DIRECTORY_SEPARATOR.'resources';
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-paths-' . uniqid('', true);
+    $vendorResources = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'infocyph' . DIRECTORY_SEPARATOR . 'phpforge' . DIRECTORY_SEPARATOR . 'resources';
 
     mkdir($vendorResources, 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
-    file_put_contents($vendorResources.DIRECTORY_SEPARATOR.'pint.json', '{}');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+    file_put_contents($vendorResources . DIRECTORY_SEPARATOR . 'pint.json', '{}');
 
     chdir($projectRoot);
 
     try {
-        expect(Paths::config('pint.json'))->toBe($vendorResources.DIRECTORY_SEPARATOR.'pint.json');
+        expect(Paths::config('pint.json'))->toBe($vendorResources . DIRECTORY_SEPARATOR . 'pint.json');
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);
         }
 
-        removePathsTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -176,16 +152,16 @@ it('prefers the vendor package captainhook config over bundled resources', funct
             chdir($originalCwd);
         }
 
-        removePathsTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
 it('hard fails for consuming projects when project and vendor configs are missing', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-paths-'.uniqid('', true);
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-paths-' . uniqid('', true);
 
     mkdir($projectRoot, 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
 
     chdir($projectRoot);
 
@@ -196,21 +172,21 @@ it('hard fails for consuming projects when project and vendor configs are missin
             chdir($originalCwd);
         }
 
-        removePathsTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
 it('ignores consuming-project resources and falls back to vendor PHPForge config', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-paths-'.uniqid('', true);
-    $resourcesPath = $projectRoot.DIRECTORY_SEPARATOR.'resources';
-    $vendorResources = $projectRoot.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'infocyph'.DIRECTORY_SEPARATOR.'phpforge'.DIRECTORY_SEPARATOR.'resources';
-    $vendorConfig = $vendorResources.DIRECTORY_SEPARATOR.'deptrac.yaml';
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-paths-' . uniqid('', true);
+    $resourcesPath = $projectRoot . DIRECTORY_SEPARATOR . 'resources';
+    $vendorResources = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'infocyph' . DIRECTORY_SEPARATOR . 'phpforge' . DIRECTORY_SEPARATOR . 'resources';
+    $vendorConfig = $vendorResources . DIRECTORY_SEPARATOR . 'deptrac.yaml';
 
     mkdir($resourcesPath, 0755, true);
     mkdir($vendorResources, 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
-    file_put_contents($resourcesPath.DIRECTORY_SEPARATOR.'deptrac.yaml', 'project resources');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+    file_put_contents($resourcesPath . DIRECTORY_SEPARATOR . 'deptrac.yaml', 'project resources');
     file_put_contents($vendorConfig, 'vendor resources');
 
     chdir($projectRoot);
@@ -222,18 +198,18 @@ it('ignores consuming-project resources and falls back to vendor PHPForge config
             chdir($originalCwd);
         }
 
-        removePathsTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
 it('uses source-tree resources only for the PHPForge project itself', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-paths-'.uniqid('', true);
-    $resourcesPath = $projectRoot.DIRECTORY_SEPARATOR.'resources';
-    $resourceFile = $resourcesPath.DIRECTORY_SEPARATOR.'pint.json';
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-paths-' . uniqid('', true);
+    $resourcesPath = $projectRoot . DIRECTORY_SEPARATOR . 'resources';
+    $resourceFile = $resourcesPath . DIRECTORY_SEPARATOR . 'pint.json';
 
     mkdir($resourcesPath, 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"infocyph/phpforge"}');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"infocyph/phpforge"}');
     file_put_contents($resourceFile, '{}');
 
     chdir($projectRoot);
@@ -245,7 +221,7 @@ it('uses source-tree resources only for the PHPForge project itself', function (
             chdir($originalCwd);
         }
 
-        removePathsTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -260,19 +236,19 @@ it('returns null when no project-only config exists', function (): void {
 
 it('resolves package files from the PHPForge package root', function (): void {
     expect(Paths::packageFile('bin/phpforge'))
-        ->toEndWith(DIRECTORY_SEPARATOR.'bin'.DIRECTORY_SEPARATOR.'phpforge');
+        ->toEndWith(DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpforge');
 });
 
 it('resolves project root from subdirectories with composer.json ancestor', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-paths-subdir-'.uniqid('', true);
-    $nested = $projectRoot.DIRECTORY_SEPARATOR.'a'.DIRECTORY_SEPARATOR.'b';
-    $vendorResources = $projectRoot.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'infocyph'.DIRECTORY_SEPARATOR.'phpforge'.DIRECTORY_SEPARATOR.'resources';
-    $configFile = $vendorResources.DIRECTORY_SEPARATOR.'pint.json';
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-paths-subdir-' . uniqid('', true);
+    $nested = $projectRoot . DIRECTORY_SEPARATOR . 'a' . DIRECTORY_SEPARATOR . 'b';
+    $vendorResources = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'infocyph' . DIRECTORY_SEPARATOR . 'phpforge' . DIRECTORY_SEPARATOR . 'resources';
+    $configFile = $vendorResources . DIRECTORY_SEPARATOR . 'pint.json';
 
     mkdir($nested, 0755, true);
     mkdir($vendorResources, 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
     file_put_contents($configFile, '{}');
 
     chdir($nested);
@@ -285,6 +261,6 @@ it('resolves project root from subdirectories with composer.json ancestor', func
             chdir($originalCwd);
         }
 
-        removePathsTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });

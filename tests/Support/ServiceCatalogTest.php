@@ -7,6 +7,26 @@ use Infocyph\PHPForge\Support\ServiceCatalog;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Yaml\Yaml;
 
+it('preserves workflow service input validation and error ordering', function (string $services, string $topologies, string $message): void {
+    $process = new Process([
+        PHP_BINARY,
+        dirname(__DIR__, 2) . '/.github/scripts/resolve-services.php',
+    ], null, [
+        'INTEGRATION_SERVICES_INPUT' => $services,
+        'SERVICE_TOPOLOGIES_INPUT' => $topologies,
+        'PHP_EXTENSIONS_INPUT' => '',
+    ]);
+    $process->run();
+
+    expect($process->getExitCode())->toBe(1)
+        ->and($process->getErrorOutput())->toBe($message . "\n")
+        ->and($process->getOutput())->toBe('');
+})->with([
+    'numeric service' => ['[1]', '{}', 'integration_services must be a JSON string array.'],
+    'numeric topology' => ['["redis"]', '{"redis":1}', 'service_topologies must be a JSON object of service-to-topology strings.'],
+    'invalid services precede invalid topologies' => ['[1]', '[]', 'integration_services must be a JSON string array.'],
+]);
+
 it('rejects numeric service keys and non-string topology values', function (): void {
     expect(ServiceCatalog::topologiesFromJson('{"0":"standalone"}'))->toBeNull()
         ->and(ServiceCatalog::topologiesFromJson('{"redis":0}'))->toBeNull()
@@ -76,12 +96,12 @@ it('resolves every supported non-standalone topology', function (): void {
 });
 
 it('keeps every catalog Compose profile represented in compose configuration', function (): void {
-    $compose = Yaml::parseFile(dirname(__DIR__, 2).'/resources/services/compose.yml');
+    $compose = Yaml::parseFile(dirname(__DIR__, 2) . '/resources/services/compose.yml');
     $profiles = [];
 
-    foreach ($compose['services'] ?? [] as $service) {
-        foreach ($service['profiles'] ?? [] as $profile) {
-            $profiles[$profile] = true;
+    foreach (fixtureArray(fixtureValue($compose, ['services'], true) ?? []) as $service) {
+        foreach (fixtureArray(fixtureValue($service, ['profiles'], true) ?? []) as $profile) {
+            $profiles[fixtureString($profile)] = true;
         }
     }
 
@@ -95,8 +115,8 @@ it('keeps every catalog Compose profile represented in compose configuration', f
 });
 
 it('exports every catalog environment variable in local and workflow orchestration', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $workflowEnvironment = $workflow['jobs']['run']['env'] ?? [];
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $workflowEnvironment = fixtureValue($workflow, ['jobs', 'run', 'env'], true) ?? [];
     $command = new ServiceCommand('up');
     $method = new ReflectionMethod(ServiceCommand::class, 'serviceEnvironment');
     $localEnvironment = $method->invoke($command, ServiceCatalog::names(), []);
@@ -104,7 +124,7 @@ it('exports every catalog environment variable in local and workflow orchestrati
     expect($workflowEnvironment)->toBeArray()
         ->and($localEnvironment)->toBeArray()
         ->and($localEnvironment)->not->toHaveKey('PHPFORGE_MSSQL_PASSWORD')
-        ->and($localEnvironment['IC_MSSQL_PASSWORD'] ?? null)->toBe($localEnvironment['IC_SERVICE_PASSWORD'] ?? null);
+        ->and(fixtureValue($localEnvironment, ['IC_MSSQL_PASSWORD'], true) ?? null)->toBe(fixtureValue($localEnvironment, ['IC_SERVICE_PASSWORD'], true) ?? null);
 
     foreach (ServiceCatalog::all() as $definition) {
         foreach ($definition['environment'] as $variable) {
@@ -115,26 +135,26 @@ it('exports every catalog environment variable in local and workflow orchestrati
 });
 
 it('keeps advanced workflow credential overrides connected to service environments', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $inputs = $workflow['on']['workflow_call']['inputs'] ?? [];
-    $environment = $workflow['jobs']['run']['env'] ?? [];
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $inputs = fixtureValue($workflow, ['on', 'workflow_call', 'inputs'], true) ?? [];
+    $environment = fixtureValue($workflow, ['jobs', 'run', 'env'], true) ?? [];
 
-    expect($inputs['service_db_name']['default'] ?? null)->toBe('phpforge')
-        ->and($inputs['service_db_user']['default'] ?? null)->toBe('phpforge')
-        ->and($inputs['service_password']['default'] ?? null)->toBe('Phpforge_123!')
+    expect(fixtureValue($inputs, ['service_db_name', 'default'], true) ?? null)->toBe('phpforge')
+        ->and(fixtureValue($inputs, ['service_db_user', 'default'], true) ?? null)->toBe('phpforge')
+        ->and(fixtureValue($inputs, ['service_password', 'default'], true) ?? null)->toBe('Phpforge_123!')
         ->and($inputs)->not->toHaveKey('service_db_password')
         ->and($inputs)->not->toHaveKey('mssql_password')
-        ->and($environment['PHPFORGE_SERVICE_DATABASE'] ?? null)->toBe('${{ inputs.service_db_name }}')
-        ->and($environment['PHPFORGE_SERVICE_USERNAME'] ?? null)->toBe('${{ inputs.service_db_user }}')
-        ->and($environment['PHPFORGE_SERVICE_PASSWORD'] ?? null)->toBe('${{ inputs.service_password }}')
+        ->and(fixtureValue($environment, ['PHPFORGE_SERVICE_DATABASE'], true) ?? null)->toBe('${{ inputs.service_db_name }}')
+        ->and(fixtureValue($environment, ['PHPFORGE_SERVICE_USERNAME'], true) ?? null)->toBe('${{ inputs.service_db_user }}')
+        ->and(fixtureValue($environment, ['PHPFORGE_SERVICE_PASSWORD'], true) ?? null)->toBe('${{ inputs.service_password }}')
         ->and($environment)->not->toHaveKey('PHPFORGE_MSSQL_PASSWORD')
-        ->and($environment['IC_MSSQL_PASSWORD'] ?? null)->toBe('${{ inputs.service_password }}')
-        ->and($environment['IC_REDIS_PASSWORD'] ?? null)->toBe('${{ inputs.service_password }}')
-        ->and($environment['IC_VALKEY_PASSWORD'] ?? null)->toBe('${{ inputs.service_password }}');
+        ->and(fixtureValue($environment, ['IC_MSSQL_PASSWORD'], true) ?? null)->toBe('${{ inputs.service_password }}')
+        ->and(fixtureValue($environment, ['IC_REDIS_PASSWORD'], true) ?? null)->toBe('${{ inputs.service_password }}')
+        ->and(fixtureValue($environment, ['IC_VALKEY_PASSWORD'], true) ?? null)->toBe('${{ inputs.service_password }}');
 });
 
 it('resolves canonical workflow service outputs including empty objects', function (): void {
-    $process = new Process([PHP_BINARY, dirname(__DIR__, 2).'/.github/scripts/resolve-services.php']);
+    $process = new Process([PHP_BINARY, dirname(__DIR__, 2) . '/.github/scripts/resolve-services.php']);
     $process->setEnv([
         'INTEGRATION_SERVICES_INPUT' => '["mysql","mongodb","sqlite"]',
         'SERVICE_TOPOLOGIES_INPUT' => '{"mysql":"replica","mongodb":"replica-set"}',
@@ -144,11 +164,11 @@ it('resolves canonical workflow service outputs including empty objects', functi
     $process->mustRun();
     $result = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
 
-    expect($result['compose_profiles'])->toBe('["mongodb-replica","mysql-replica"]')
-        ->and($result['php_extensions'])->toBe('curl, json, mongodb, pdo_mysql, pdo_sqlite')
-        ->and($result['has_external_services'])->toBe('true');
+    expect(fixtureValue($result, ['compose_profiles']))->toBe('["mongodb-replica","mysql-replica"]')
+        ->and(fixtureValue($result, ['php_extensions']))->toBe('curl, json, mongodb, pdo_mysql, pdo_sqlite')
+        ->and(fixtureValue($result, ['has_external_services']))->toBe('true');
 
-    $empty = new Process([PHP_BINARY, dirname(__DIR__, 2).'/.github/scripts/resolve-services.php']);
+    $empty = new Process([PHP_BINARY, dirname(__DIR__, 2) . '/.github/scripts/resolve-services.php']);
     $empty->setEnv([
         'INTEGRATION_SERVICES_INPUT' => '[]',
         'SERVICE_TOPOLOGIES_INPUT' => '{}',
@@ -156,11 +176,11 @@ it('resolves canonical workflow service outputs including empty objects', functi
     ]);
     $empty->mustRun();
 
-    expect(json_decode($empty->getOutput(), true, 512, JSON_THROW_ON_ERROR)['service_topologies'])->toBe('{}');
+    expect(fixtureValue(json_decode($empty->getOutput(), true, 512, JSON_THROW_ON_ERROR), ['service_topologies']))->toBe('{}');
 });
 
 it('keeps the pre-setup workflow resolver free of PHP 8.4-only array helpers', function (): void {
-    $script = (string) file_get_contents(dirname(__DIR__, 2).'/.github/scripts/resolve-services.php');
+    $script = fixtureFile(dirname(__DIR__, 2) . '/.github/scripts/resolve-services.php');
 
     expect($script)
         ->not->toContain('array_any(')
@@ -170,10 +190,10 @@ it('keeps the pre-setup workflow resolver free of PHP 8.4-only array helpers', f
 });
 
 it('maps every catalog probe to protocol-level readiness logic', function (): void {
-    $script = (string) file_get_contents(dirname(__DIR__, 2).'/resources/services/verify-and-wait.sh');
+    $script = fixtureFile(dirname(__DIR__, 2) . '/resources/services/verify-and-wait.sh');
 
     foreach (ServiceCatalog::all() as $definition) {
-        expect(preg_match('/^\s+[^\n]*\b'.preg_quote($definition['probe'], '/').'(?:\||\))/m', $script))->toBe(1);
+        expect(preg_match('/^\s+[^\n]*\b' . preg_quote($definition['probe'], '/') . '(?:\||\))/m', $script))->toBe(1);
     }
 
     expect($script)->toContain('phpforge_replication_probe')
@@ -196,8 +216,9 @@ it('maps every catalog probe to protocol-level readiness logic', function (): vo
     $availabilityGroupReady = strpos($script, 'wait_for mssql-availability-group');
     $availabilityGroupWrite = strpos($script, '$primary = new PDO((string) getenv("IC_MSSQL_PRIMARY_DSN")');
 
-    expect($availabilityGroupReady)->toBeInt()
-        ->and($availabilityGroupWrite)->toBeInt()->toBeGreaterThan($availabilityGroupReady);
+    PHPUnit\Framework\Assert::assertIsInt($availabilityGroupReady);
+    PHPUnit\Framework\Assert::assertIsInt($availabilityGroupWrite);
+    expect($availabilityGroupWrite)->toBeGreaterThan($availabilityGroupReady);
 });
 
 it('runs packaged and workflow readiness from outside the package directory', function (): void {
@@ -211,7 +232,7 @@ it('runs packaged and workflow readiness from outside the package directory', fu
     ];
 
     foreach (['resources/services/verify-and-wait.sh', '.github/scripts/verify-and-wait-services.sh'] as $path) {
-        $process = new Process(['bash', $projectRoot.'/'.$path], sys_get_temp_dir(), $environment);
+        $process = new Process(['bash', $projectRoot . '/' . $path], sys_get_temp_dir(), $environment);
         $process->mustRun();
 
         expect($process->getOutput())->toContain('sqlite ready');
@@ -219,88 +240,88 @@ it('runs packaged and workflow readiness from outside the package directory', fu
 });
 
 it('uses the versioned runtime manifest as the service image source of truth', function (): void {
-    $runtime = require dirname(__DIR__, 2).'/resources/runtime.php';
-    $compose = Yaml::parseFile(dirname(__DIR__, 2).'/resources/services/compose.yml');
+    $runtime = require dirname(__DIR__, 2) . '/resources/runtime.php';
+    $compose = Yaml::parseFile(dirname(__DIR__, 2) . '/resources/services/compose.yml');
     $profileImages = [];
 
     foreach (ServiceCatalog::all() as $name => $definition) {
         foreach ($definition['topologies'] as $profile) {
             if (is_string($profile)) {
-                $profileImages[$profile] = $runtime['service_images'][$name] ?? null;
+                $profileImages[$profile] = fixtureValue($runtime, ['service_images', $name], true) ?? null;
             }
         }
     }
 
-    foreach ($compose['services'] ?? [] as $name => $service) {
-        $expected = $runtime['service_support_images'][$name] ?? null;
+    foreach (fixtureArray(fixtureValue($compose, ['services'], true) ?? []) as $name => $service) {
+        $expected = fixtureValue($runtime, ['service_support_images', $name], true) ?? null;
 
         if (!is_string($expected)) {
-            $profile = $service['profiles'][0] ?? null;
+            $profile = fixtureValue($service, ['profiles', 0], true) ?? null;
             $expected = is_string($profile) ? ($profileImages[$profile] ?? null) : null;
         }
 
         expect($expected)->toBeString()
-            ->and($service['image'] ?? null)->toBe($expected);
+            ->and(fixtureValue($service, ['image'], true) ?? null)->toBe($expected);
     }
 
-    expect($runtime['php_versions'] ?? null)->toBe(['8.4', '8.5'])
-        ->and($runtime['service_client_versions']['mssql_odbc'] ?? null)->toBe('18')
-        ->and($runtime['service_images']['mssql'] ?? null)
+    expect(fixtureValue($runtime, ['php_versions'], true) ?? null)->toBe(['8.4', '8.5'])
+        ->and(fixtureValue($runtime, ['service_client_versions', 'mssql_odbc'], true) ?? null)->toBe('18')
+        ->and(fixtureValue($runtime, ['service_images', 'mssql'], true) ?? null)
         ->toBe('mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-22.04')
-        ->and(array_keys($runtime['service_images'] ?? []))->toBe(array_values(array_filter(
+        ->and(array_keys(fixtureArray(fixtureValue($runtime, ['service_images'], true) ?? [])))->toBe(array_values(array_filter(
             ServiceCatalog::names(),
-            static fn (string $service): bool => $service !== 'sqlite',
+            static fn(string $service): bool => $service !== 'sqlite',
         )))
-        ->and(implode("\n", $runtime['service_images'] ?? []))->not->toContain('bitnami/');
+        ->and(implode("\n", fixtureStringList(array_values(fixtureArray(fixtureValue($runtime, ['service_images'], true) ?? [])))))->not->toContain('bitnami/');
 });
 
 it('binds the published ScyllaDB admin API on every node', function (): void {
-    $compose = Yaml::parseFile(dirname(__DIR__, 2).'/resources/services/compose.yml');
+    $compose = Yaml::parseFile(dirname(__DIR__, 2) . '/resources/services/compose.yml');
 
     foreach (['scylladb', 'scylladb-primary', 'scylladb-replica-1', 'scylladb-replica-2'] as $name) {
-        $command = $compose['services'][$name]['command'];
-        $index = array_search('--api-address', $command, true);
+        $command = fixtureValue($compose, ['services', $name, 'command']);
+        $index = array_search('--api-address', fixtureArray($command), true);
 
-        expect($index)->toBeInt()
-            ->and($command[$index + 1] ?? null)->toBe('0.0.0.0');
+        PHPUnit\Framework\Assert::assertIsInt($index);
+        expect(fixtureValue($command, [$index + 1], true) ?? null)->toBe('0.0.0.0');
     }
 });
 
 it('bounds and sequences SQL Server availability-group startup', function (): void {
-    $compose = Yaml::parseFile(dirname(__DIR__, 2).'/resources/services/compose.yml');
-    $services = $compose['services'] ?? [];
-    $standalone = $services['mssql'] ?? [];
-    $primary = $services['mssql-primary'] ?? [];
-    $replica = $services['mssql-replica'] ?? [];
+    $compose = Yaml::parseFile(dirname(__DIR__, 2) . '/resources/services/compose.yml');
+    $services = fixtureValue($compose, ['services'], true) ?? [];
+    $standalone = fixtureValue($services, ['mssql'], true) ?? [];
+    $primary = fixtureValue($services, ['mssql-primary'], true) ?? [];
+    $replica = fixtureValue($services, ['mssql-replica'], true) ?? [];
 
-    expect($standalone['environment']['MSSQL_MEMORY_LIMIT_MB'] ?? null)
+    expect(fixtureValue($standalone, ['environment', 'MSSQL_MEMORY_LIMIT_MB'], true) ?? null)
         ->toBe('${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-3072}')
-        ->and($standalone['mem_limit'] ?? null)
+        ->and(fixtureValue($standalone, ['mem_limit'], true) ?? null)
         ->toBe('${PHPFORGE_MSSQL_CONTAINER_MEMORY_LIMIT:-3840m}')
-        ->and($primary['environment']['MSSQL_MEMORY_LIMIT_MB'] ?? null)
+        ->and(fixtureValue($primary, ['environment', 'MSSQL_MEMORY_LIMIT_MB'], true) ?? null)
         ->toBe('${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-3072}')
-        ->and($replica['environment']['MSSQL_MEMORY_LIMIT_MB'] ?? null)
+        ->and(fixtureValue($replica, ['environment', 'MSSQL_MEMORY_LIMIT_MB'], true) ?? null)
         ->toBe('${PHPFORGE_MSSQL_MEMORY_LIMIT_MB:-3072}')
-        ->and($primary['mem_limit'] ?? null)
+        ->and(fixtureValue($primary, ['mem_limit'], true) ?? null)
         ->toBe('${PHPFORGE_MSSQL_CONTAINER_MEMORY_LIMIT:-3840m}')
-        ->and($replica['mem_limit'] ?? null)
+        ->and(fixtureValue($replica, ['mem_limit'], true) ?? null)
         ->toBe('${PHPFORGE_MSSQL_CONTAINER_MEMORY_LIMIT:-3840m}')
-        ->and($primary['restart'] ?? null)->toBe('on-failure:3')
-        ->and($replica['restart'] ?? null)->toBe('on-failure:3')
-        ->and($replica['depends_on']['mssql-primary']['condition'] ?? null)->toBe('service_healthy');
+        ->and(fixtureValue($primary, ['restart'], true) ?? null)->toBe('on-failure:3')
+        ->and(fixtureValue($replica, ['restart'], true) ?? null)->toBe('on-failure:3')
+        ->and(fixtureValue($replica, ['depends_on', 'mssql-primary', 'condition'], true) ?? null)->toBe('service_healthy');
 });
 
 it('installs the versioned official MSSQL ODBC client only for MSSQL workflows', function (): void {
     $root = dirname(__DIR__, 2);
-    $workflow = Yaml::parseFile($root.'/.github/workflows/security-standards.yml');
-    $steps = $workflow['jobs']['run']['steps'] ?? [];
-    $stepsByName = array_column($steps, null, 'name');
+    $workflow = Yaml::parseFile($root . '/.github/workflows/security-standards.yml');
+    $steps = fixtureValue($workflow, ['jobs', 'run', 'steps'], true) ?? [];
+    $stepsByName = array_column(fixtureArray($steps), null, 'name');
     $installerStep = $stepsByName['Install Microsoft ODBC driver for SQL Server'] ?? [];
-    $installer = (string) file_get_contents($root.'/.github/scripts/install-mssql-odbc-driver.sh');
+    $installer = fixtureFile($root . '/.github/scripts/install-mssql-odbc-driver.sh');
 
-    expect($installerStep['if'] ?? null)
+    expect(fixtureValue($installerStep, ['if'], true) ?? null)
         ->toBe("contains(fromJson(needs.prepare.outputs.integration_services), 'mssql')")
-        ->and($installerStep['run'] ?? null)
+        ->and(fixtureValue($installerStep, ['run'], true) ?? null)
         ->toBe('bash .phpforge-workflow/.github/scripts/install-mssql-odbc-driver.sh')
         ->and($installer)->toContain('service_client_versions"]["mssql_odbc')
         ->toContain('https://packages.microsoft.com/config/')

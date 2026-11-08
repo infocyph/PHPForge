@@ -48,7 +48,7 @@ it('formats phpprobe checker tasks with friendly titles', function (): void {
 });
 
 it('formats deptrac tasks with config-file labels', function (): void {
-    $projectConfig = getcwd() . DIRECTORY_SEPARATOR . 'deptrac.yaml';
+    $projectConfig = fixtureString(getcwd()) . DIRECTORY_SEPARATOR . 'deptrac.yaml';
 
     expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/deptrac', 'analyse', '--config-file=' . $projectConfig]))
         ->toBe('Deptrac (Config: ' . str_replace('\\', '/', $projectConfig) . ')');
@@ -65,7 +65,7 @@ it('formats the regular Psalm binary with a friendly title', function (): void {
 });
 
 it('labels config paths clearly', function (): void {
-    $projectConfig = getcwd() . DIRECTORY_SEPARATOR . 'pest.xml';
+    $projectConfig = fixtureString(getcwd()) . DIRECTORY_SEPARATOR . 'pest.xml';
     $resolvedConfig = realpath($projectConfig);
 
     expect(TaskDisplay::heading([PHP_BINARY, 'vendor/bin/pest', '--configuration', $projectConfig]))

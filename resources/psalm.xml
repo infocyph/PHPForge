@@ -15,12 +15,17 @@
         <directory name="." />
         <ignoreFiles allowMissingFiles="true">
             <directory name="vendor" />
-            <directory name="tests" />
-            <directory name="resources" />
-            <directory name="bin" />
-            <directory name="benchmarks" />
         </ignoreFiles>
     </projectFiles>
+
+    <extraFiles>
+        <directory name="vendor/squizlabs/php_codesniffer/src" />
+    </extraFiles>
+
+    <plugins>
+        <pluginClass class="Psalm\PhpUnitPlugin\Plugin" />
+        <pluginClass class="AliesDev\PsalmPluginPest\Plugin" />
+    </plugins>
 
     <issueHandlers>
         <TaintedInput errorLevel="error" />

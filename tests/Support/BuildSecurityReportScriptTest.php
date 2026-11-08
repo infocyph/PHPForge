@@ -4,34 +4,13 @@ declare(strict_types=1);
 
 use Symfony\Component\Process\Process;
 
-function removeSecurityReportFixture(string $path): void
-{
-    if (!is_dir($path)) {
-        return;
-    }
-
-    $entries = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-
-    foreach ($entries as $entry) {
-        if ($entry->isDir()) {
-            rmdir($entry->getPathname());
-        } else {
-            unlink($entry->getPathname());
-        }
-    }
-
-    rmdir($path);
-}
-
 it('maps current workflow jobs and benchmark steps into the security report', function (): void {
     $projectRoot = dirname(__DIR__, 2);
-    $fixtureRoot = sys_get_temp_dir().'/phpforge-security-report-'.bin2hex(random_bytes(8));
-    $binDirectory = $fixtureRoot.'/bin';
-    $artifactDirectory = $fixtureRoot.'/.phpforge-report/in/benchmark';
-    $psalmVersion = Composer\InstalledVersions::getPrettyVersion('vimeo/psalm');
+    $fixtureRoot = sys_get_temp_dir() . '/phpforge-security-report-' . bin2hex(random_bytes(8));
+    $binDirectory = $fixtureRoot . '/bin';
+    $artifactDirectory = $fixtureRoot . '/.phpforge-report/in/benchmark';
+    $psalmVersion = fixtureString(Composer\InstalledVersions::getPrettyVersion('vimeo/psalm'));
+    $path = getenv('PATH');
 
     mkdir($binDirectory, 0777, true);
     mkdir($artifactDirectory, 0777, true);
@@ -71,20 +50,20 @@ it('maps current workflow jobs and benchmark steps into the security report', fu
     ];
 
     try {
-        file_put_contents($fixtureRoot.'/jobs.json', json_encode($jobs, JSON_THROW_ON_ERROR));
+        file_put_contents($fixtureRoot . '/jobs.json', json_encode($jobs, JSON_THROW_ON_ERROR));
         file_put_contents(
-            $artifactDirectory.'/benchmark-results-php-8.4.json',
+            $artifactDirectory . '/benchmark-results-php-8.4.json',
             json_encode([$benchmarkRow], JSON_THROW_ON_ERROR),
         );
         file_put_contents(
-            $artifactDirectory.'/benchmark-results-php-8.5.json',
+            $artifactDirectory . '/benchmark-results-php-8.5.json',
             json_encode([$benchmarkRow], JSON_THROW_ON_ERROR),
         );
-        file_put_contents($binDirectory.'/curl', <<<'BASH'
+        file_put_contents($binDirectory . '/curl', <<<'BASH'
 #!/usr/bin/env bash
 cat "$PHPFORGE_TEST_JOBS_JSON"
 BASH);
-        file_put_contents($binDirectory.'/composer', <<<'BASH'
+        file_put_contents($binDirectory . '/composer', <<<'BASH'
 #!/usr/bin/env bash
 if [ "${1:-}" = "list" ]; then
   echo "ic:bench:quick"
@@ -100,16 +79,16 @@ if [ "${1:-}" = "show" ]; then
 fi
 exit 1
 BASH);
-        chmod($binDirectory.'/curl', 0755);
-        chmod($binDirectory.'/composer', 0755);
+        chmod($binDirectory . '/curl', 0755);
+        chmod($binDirectory . '/composer', 0755);
 
-        $summaryPath = $fixtureRoot.'/step-summary.md';
+        $summaryPath = $fixtureRoot . '/step-summary.md';
         $process = new Process(
-            ['bash', $projectRoot.'/.github/scripts/build-security-report.sh'],
+            ['bash', $projectRoot . '/.github/scripts/build-security-report.sh'],
             $fixtureRoot,
             [
-                'PATH' => $binDirectory.PATH_SEPARATOR.(getenv('PATH') ?: ''),
-                'PHPFORGE_TEST_JOBS_JSON' => $fixtureRoot.'/jobs.json',
+                'PATH' => $binDirectory . PATH_SEPARATOR . ($path === false ? '' : $path),
+                'PHPFORGE_TEST_JOBS_JSON' => $fixtureRoot . '/jobs.json',
                 'PHPFORGE_TEST_PSALM_VERSION' => $psalmVersion,
                 'GITHUB_API_URL' => 'https://api.github.test',
                 'GITHUB_REPOSITORY' => 'infocyph/InterMix',
@@ -128,42 +107,42 @@ BASH);
         $process->mustRun();
 
         $report = json_decode(
-            (string) file_get_contents($fixtureRoot.'/.phpforge-report/out/security-summary.json'),
+            fixtureFile($fixtureRoot . '/.phpforge-report/out/security-summary.json'),
             true,
             512,
             JSON_THROW_ON_ERROR,
         );
         $summary = file_get_contents($summaryPath);
-        $psalm = array_values(array_filter($report['tools'], static fn(array $tool): bool => $tool['name'] === 'Psalm'));
+        $psalm = array_values(array_filter(fixtureArray(fixtureValue($report, ['tools'])), static fn(mixed $tool): bool => fixtureValue($tool, ['name']) === 'Psalm'));
 
         expect($psalm)->toBe([['name' => 'Psalm', 'package' => 'vimeo/psalm', 'version' => $psalmVersion]])
-            ->and($report['matrix_results'] ?? null)->toBe([
-            [
-                'php_version' => '8.4',
-                'code_analysis_prefer_lowest' => 'success',
-                'code_analysis_prefer_stable' => 'success',
-                'security_analysis' => 'success',
-            ],
-            [
-                'php_version' => '8.5',
-                'code_analysis_prefer_lowest' => 'success',
-                'code_analysis_prefer_stable' => 'success',
-                'security_analysis' => 'success',
-            ],
-        ])->and($report['enabled'] ?? null)->toBe([
-            'qa' => true,
-            'analysis' => true,
-            'benchmark' => true,
-        ])->and(array_column($report['check_results'] ?? [], 'source_job'))->toBe([
-            'QA - PHP 8.4 - prefer-lowest',
-            'QA - PHP 8.4 - prefer-stable',
-            'Analysis - PHP 8.4',
-            'QA - PHP 8.5 - prefer-lowest',
-            'QA - PHP 8.5 - prefer-stable',
-            'Analysis - PHP 8.5',
-        ])->and(count($report['benchmark_results'] ?? []))->toBe(2)
-            ->and(array_column($report['benchmark_results'] ?? [], 'php_version'))->toBe(['8.4', '8.5'])
-            ->and($report['rollup'] ?? null)->toBe([
+            ->and(fixtureValue($report, ['matrix_results'], true) ?? null)->toBe([
+                [
+                    'php_version' => '8.4',
+                    'code_analysis_prefer_lowest' => 'success',
+                    'code_analysis_prefer_stable' => 'success',
+                    'security_analysis' => 'success',
+                ],
+                [
+                    'php_version' => '8.5',
+                    'code_analysis_prefer_lowest' => 'success',
+                    'code_analysis_prefer_stable' => 'success',
+                    'security_analysis' => 'success',
+                ],
+            ])->and(fixtureValue($report, ['enabled'], true) ?? null)->toBe([
+                'qa' => true,
+                'analysis' => true,
+                'benchmark' => true,
+            ])->and(array_column(fixtureArray(fixtureValue($report, ['check_results'], true) ?? []), 'source_job'))->toBe([
+                'QA - PHP 8.4 - prefer-lowest',
+                'QA - PHP 8.4 - prefer-stable',
+                'Analysis - PHP 8.4',
+                'QA - PHP 8.5 - prefer-lowest',
+                'QA - PHP 8.5 - prefer-stable',
+                'Analysis - PHP 8.5',
+            ])->and(count(fixtureArray(fixtureValue($report, ['benchmark_results'], true) ?? [])))->toBe(2)
+            ->and(array_column(fixtureArray(fixtureValue($report, ['benchmark_results'], true) ?? []), 'php_version'))->toBe(['8.4', '8.5'])
+            ->and(fixtureValue($report, ['rollup'], true) ?? null)->toBe([
                 'code_analysis_prefer_lowest' => 'success',
                 'code_analysis_prefer_stable' => 'success',
                 'security_analysis' => 'success',
@@ -178,8 +157,8 @@ BASH);
             ->toContain('| InterMixBench | benchDispatch | 0 | 10 | 3 | 1.000mb | 1.000μs | 0.10% |')
             ->toContain('Artifact: security-report/security-summary.json')
             ->not->toContain('Security SVG Report')
-            ->and(is_file($fixtureRoot.'/.phpforge-report/out/security-report.svg'))->toBeFalse();
+            ->and(is_file($fixtureRoot . '/.phpforge-report/out/security-report.svg'))->toBeFalse();
     } finally {
-        removeSecurityReportFixture($fixtureRoot);
+        removeFixtureDirectory($fixtureRoot);
     }
 });
