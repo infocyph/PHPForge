@@ -78,6 +78,19 @@ it('registers CI options on the actual root Composer command', function (): void
         ->toContain('--without-analysis');
 });
 
+it('dispatches Composer command shortcuts using their registered names', function (string $script, string $heading): void {
+    $project = dirname(__DIR__, 2);
+    $process = new Process([PHP_BINARY, $project . '/vendor/bin/composer', $script], $project);
+    $process->setTimeout(30);
+    $process->run();
+
+    expect($process->getExitCode())->toBe(0, $process->getOutput() . $process->getErrorOutput())
+        ->and($process->getOutput())->toContain($heading);
+})->with([
+    'doctor' => ['ic:doctor', 'PHPForge Doctor'],
+    'list-config' => ['ic:list-config', 'PHPForge Config Resolution'],
+]);
+
 it('checks stable runtime constraints without the Composer command runtime', function (): void {
     $result = runPhpforgeCli(['release-constraints']);
 

@@ -114,13 +114,19 @@ $standaloneCommand = match ($commandName) {
 };
 
 if ($standaloneCommand !== null) {
+    $registeredName = $standaloneCommand->getName();
+
+    if ($registeredName === null) {
+        throw new LogicException('The standalone command must have a registered name.');
+    }
+
     $application = new Application('PHPForge');
     $application->setAutoExit(false);
     $application->addCommand($standaloneCommand);
 
     exit($application->run(new ArgvInput([
         $scriptName,
-        $commandName,
+        $registeredName,
         ...$arguments,
     ])));
 }
