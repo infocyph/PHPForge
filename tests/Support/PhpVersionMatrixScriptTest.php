@@ -7,6 +7,8 @@ use Symfony\Component\Yaml\Yaml;
 
 /**
  * @return array<string, string>
+ *
+ * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\ProcessFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException|RuntimeException
  */
 function phpVersionMatrixOutputs(string $requestedVersions): array
 {
@@ -18,7 +20,7 @@ function phpVersionMatrixOutputs(string $requestedVersions): array
 
     try {
         $process = new Process(
-            ['bash', dirname(__DIR__, 2).'/.github/scripts/resolve-php-matrix.sh'],
+            ['bash', dirname(__DIR__, 2) . '/.github/scripts/resolve-php-matrix.sh'],
             dirname(__DIR__, 2),
             [
                 'GITHUB_OUTPUT' => $outputPath,
@@ -70,81 +72,81 @@ it('produces a successful empty matrix when every PHP version is unsupported', f
 });
 
 it('guards every PHP workflow job with the filtered matrix result', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
     $benchmarkSetupSteps = array_values(array_filter(
-        $workflow['jobs']['benchmark']['steps'] ?? [],
+        fixtureArray(fixtureValue($workflow, ['jobs', 'benchmark', 'steps'], true) ?? []),
         static fn(mixed $step): bool => is_array($step) && ($step['uses'] ?? null) === 'shivammathur/setup-php@v2',
     ));
 
-    expect($workflow['jobs']['prepare']['outputs']['has_supported_php_versions'] ?? null)
+    expect(fixtureValue($workflow, ['jobs', 'prepare', 'outputs', 'has_supported_php_versions'], true) ?? null)
         ->toBe('${{ steps.matrix.outputs.has_supported_php_versions }}')
-        ->and($workflow['jobs']['run']['if'] ?? null)
+        ->and(fixtureValue($workflow, ['jobs', 'run', 'if'], true) ?? null)
         ->toContain("needs.prepare.outputs.has_supported_php_versions == 'true'")
-        ->and($workflow['jobs']['clean-install']['if'] ?? null)
+        ->and(fixtureValue($workflow, ['jobs', 'clean-install', 'if'], true) ?? null)
         ->toContain("needs.prepare.outputs.has_supported_php_versions == 'true'")
-        ->and($workflow['jobs']['analyze']['if'] ?? null)
+        ->and(fixtureValue($workflow, ['jobs', 'analyze', 'if'], true) ?? null)
         ->toContain("needs.prepare.outputs.has_supported_php_versions == 'true'")
-        ->and($workflow['jobs']['benchmark']['if'] ?? null)
+        ->and(fixtureValue($workflow, ['jobs', 'benchmark', 'if'], true) ?? null)
         ->toContain("needs.prepare.outputs.has_supported_php_versions == 'true'")
-        ->and($workflow['jobs']['benchmark']['name'] ?? null)
+        ->and(fixtureValue($workflow, ['jobs', 'benchmark', 'name'], true) ?? null)
         ->toBe('Benchmark')
-        ->and($benchmarkSetupSteps[0]['name'] ?? null)
+        ->and(fixtureValue($benchmarkSetupSteps, [0, 'name'], true) ?? null)
         ->toBe('Setup benchmark - PHP ${{ matrix.php-version }}')
-        ->and($workflow['jobs']['security-report']['if'] ?? null)
+        ->and(fixtureValue($workflow, ['jobs', 'security-report', 'if'], true) ?? null)
         ->toContain("needs.prepare.outputs.has_supported_php_versions == 'true'")
-        ->and($workflow['jobs']['security-report']['name'] ?? null)
+        ->and(fixtureValue($workflow, ['jobs', 'security-report', 'name'], true) ?? null)
         ->toBe('Security Report')
-        ->and($workflow['jobs']['svg-report'] ?? null)
+        ->and(fixtureValue($workflow, ['jobs', 'svg-report'], true) ?? null)
         ->toBeNull();
 });
 
 it('publishes a Markdown security report summary without an SVG artifact', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $inputs = $workflow['on']['workflow_call']['inputs'] ?? [];
-    $steps = $workflow['jobs']['security-report']['steps'] ?? [];
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $inputs = fixtureValue($workflow, ['on', 'workflow_call', 'inputs'], true) ?? [];
+    $steps = fixtureValue($workflow, ['jobs', 'security-report', 'steps'], true) ?? [];
     $uploadSteps = array_values(array_filter(
-        $steps,
+        fixtureArray($steps),
         static fn(mixed $step): bool => is_array($step) && ($step['uses'] ?? null) === 'actions/upload-artifact@v7',
     ));
 
-    expect($inputs['run_svg_report']['description'] ?? null)
+    expect(fixtureValue($inputs, ['run_svg_report', 'description'], true) ?? null)
         ->toContain('Legacy input name retained for compatibility')
         ->and($uploadSteps)->toHaveCount(1)
-        ->and($uploadSteps[0]['with']['path'] ?? null)
+        ->and(fixtureValue($uploadSteps, [0, 'with', 'path'], true) ?? null)
         ->toBe('.phpforge-report/out/security-summary.json')
-        ->and($uploadSteps[0]['with']['path'] ?? null)
+        ->and(fixtureValue($uploadSteps, [0, 'with', 'path'], true) ?? null)
         ->not->toContain('.svg');
 });
 
 it('preserves topology-aware integration DSNs in workflow YAML', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $environment = $workflow['jobs']['run']['env'] ?? [];
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $environment = fixtureValue($workflow, ['jobs', 'run', 'env'], true) ?? [];
 
-    expect($environment['IC_SQLITE_MEMORY_DSN'] ?? null)->toBe('sqlite::memory:')
-        ->and($environment['IC_MONGODB_DSN'] ?? null)->toContain('directConnection=true')
-        ->and($environment['IC_MONGODB_REPLICA_SET'] ?? null)->toContain('phpforge-rs');
+    expect(fixtureValue($environment, ['IC_SQLITE_MEMORY_DSN'], true) ?? null)->toBe('sqlite::memory:')
+        ->and(fixtureValue($environment, ['IC_MONGODB_DSN'], true) ?? null)->toContain('directConnection=true')
+        ->and(fixtureValue($environment, ['IC_MONGODB_REPLICA_SET'], true) ?? null)->toContain('phpforge-rs');
 });
 
 it('enables APCu for CLI when it is present in the resolved extension list', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $steps = $workflow['jobs']['run']['steps'] ?? [];
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $steps = fixtureValue($workflow, ['jobs', 'run', 'steps'], true) ?? [];
     $setupSteps = array_values(array_filter(
-        $steps,
+        fixtureArray($steps),
         static fn(mixed $step): bool => is_array($step) && ($step['uses'] ?? null) === 'shivammathur/setup-php@v2',
     ));
 
     expect($setupSteps)->toHaveCount(1)
-        ->and($setupSteps[0]['with']['extensions'] ?? null)
+        ->and(fixtureValue($setupSteps, [0, 'with', 'extensions'], true) ?? null)
         ->toBe('${{ needs.prepare.outputs.php_extensions }}')
-        ->and($setupSteps[0]['with']['ini-values'] ?? null)
+        ->and(fixtureValue($setupSteps, [0, 'with', 'ini-values'], true) ?? null)
         ->toBe("\${{ contains(needs.prepare.outputs.php_extensions, 'apcu') && 'apc.enable_cli=1, apcu.enable_cli=1' || '' }}");
 });
 
 it('derives automatic extension installation only from Composer requirements', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $steps = $workflow['jobs']['prepare']['steps'] ?? [];
-    $stepsByName = array_column($steps, null, 'name');
-    $script = $stepsByName['Resolve service profiles and PHP extensions']['run'] ?? '';
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $steps = fixtureValue($workflow, ['jobs', 'prepare', 'steps'], true) ?? [];
+    $stepsByName = array_column(fixtureArray($steps), null, 'name');
+    $script = fixtureValue($stepsByName, ['Resolve service profiles and PHP extensions', 'run'], true) ?? '';
 
     expect($script)
         ->toContain('foreach (["require", "require-dev"] as $section)')
@@ -153,10 +155,10 @@ it('derives automatic extension installation only from Composer requirements', f
 });
 
 it('reports container diagnostics when service startup itself fails', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $steps = $workflow['jobs']['run']['steps'] ?? [];
-    $stepsByName = array_column($steps, null, 'name');
-    $script = $stepsByName['Start selected services']['run'] ?? '';
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $steps = fixtureValue($workflow, ['jobs', 'run', 'steps'], true) ?? [];
+    $stepsByName = array_column(fixtureArray($steps), null, 'name');
+    $script = fixtureValue($stepsByName, ['Start selected services', 'run'], true) ?? '';
 
     expect($script)->toContain('if ! start_mssql_first || ! "${compose[@]}" up -d; then')
         ->toContain('service_diagnostics')
@@ -169,8 +171,8 @@ it('reports container diagnostics when service startup itself fails', function (
 
 it('exposes the default-on workflow controls and compact service controls', function (): void {
     $root = dirname(__DIR__, 2);
-    $workflow = Yaml::parseFile($root.'/.github/workflows/phpforge.yml');
-    $template = Yaml::parseFile($root.'/resources/workflows/security-standards.yml');
+    $workflow = Yaml::parseFile($root . '/.github/workflows/phpforge.yml');
+    $template = Yaml::parseFile($root . '/resources/workflows/security-standards.yml');
     $expected = [
         'run_qa' => true,
         'run_analysis' => true,
@@ -181,75 +183,75 @@ it('exposes the default-on workflow controls and compact service controls', func
         'service_topologies' => '{}',
     ];
 
-    expect($workflow['jobs']['security-standards']['with'] ?? null)->toBe($expected)
-        ->and($template['jobs']['phpforge']['with'] ?? null)->toBe($expected);
+    expect(fixtureValue($workflow, ['jobs', 'security-standards', 'with'], true) ?? null)->toBe($expected)
+        ->and(fixtureValue($template, ['jobs', 'phpforge', 'with'], true) ?? null)->toBe($expected);
 });
 
 it('cancels superseded push and pull request workflow runs', function (): void {
     $root = dirname(__DIR__, 2);
-    $reusableWorkflow = Yaml::parseFile($root.'/.github/workflows/security-standards.yml');
-    $projectWorkflow = Yaml::parseFile($root.'/.github/workflows/phpforge.yml');
-    $template = Yaml::parseFile($root.'/resources/workflows/security-standards.yml');
+    $reusableWorkflow = Yaml::parseFile($root . '/.github/workflows/security-standards.yml');
+    $projectWorkflow = Yaml::parseFile($root . '/.github/workflows/phpforge.yml');
+    $template = Yaml::parseFile($root . '/resources/workflows/security-standards.yml');
     $expected = [
         'group' => '${{ github.workflow_ref }}-${{ github.event_name }}',
         'cancel-in-progress' => true,
     ];
 
-    expect($reusableWorkflow['concurrency'] ?? null)->toBe($expected)
-        ->and($projectWorkflow['concurrency'] ?? null)->toBeNull()
-        ->and($template['concurrency'] ?? null)->toBeNull();
+    expect(fixtureValue($reusableWorkflow, ['concurrency'], true) ?? null)->toBe($expected)
+        ->and(fixtureValue($projectWorkflow, ['concurrency'], true) ?? null)->toBeNull()
+        ->and(fixtureValue($template, ['concurrency'], true) ?? null)->toBeNull();
 });
 
 it('keeps QA analysis benchmarks and SARIF publication independently switchable', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $inputs = $workflow['on']['workflow_call']['inputs'] ?? [];
-    $analysisSteps = $workflow['jobs']['analyze']['steps'] ?? [];
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $inputs = fixtureValue($workflow, ['on', 'workflow_call', 'inputs'], true) ?? [];
+    $analysisSteps = fixtureValue($workflow, ['jobs', 'analyze', 'steps'], true) ?? [];
     $sarifSteps = array_values(array_filter(
-        $analysisSteps,
+        fixtureArray($analysisSteps),
         static fn(mixed $step): bool => is_array($step) && ($step['uses'] ?? null) === 'github/codeql-action/upload-sarif@v4',
     ));
 
-    expect($inputs['run_qa']['default'] ?? null)->toBeTrue()
-        ->and($inputs['run_analysis']['default'] ?? null)->toBeTrue()
-        ->and($inputs['upload_sarif']['default'] ?? null)->toBeTrue()
-        ->and($inputs['run_benchmark']['default'] ?? null)->toBeTrue()
-        ->and($workflow['jobs']['run']['if'] ?? null)->toContain('inputs.run_qa')
-        ->and($workflow['jobs']['analyze']['if'] ?? null)->toContain('inputs.run_analysis')
-        ->and($workflow['jobs']['benchmark']['if'] ?? null)->toContain('inputs.run_benchmark')
+    expect(fixtureValue($inputs, ['run_qa', 'default'], true) ?? null)->toBeTrue()
+        ->and(fixtureValue($inputs, ['run_analysis', 'default'], true) ?? null)->toBeTrue()
+        ->and(fixtureValue($inputs, ['upload_sarif', 'default'], true) ?? null)->toBeTrue()
+        ->and(fixtureValue($inputs, ['run_benchmark', 'default'], true) ?? null)->toBeTrue()
+        ->and(fixtureValue($workflow, ['jobs', 'run', 'if'], true) ?? null)->toContain('inputs.run_qa')
+        ->and(fixtureValue($workflow, ['jobs', 'analyze', 'if'], true) ?? null)->toContain('inputs.run_analysis')
+        ->and(fixtureValue($workflow, ['jobs', 'benchmark', 'if'], true) ?? null)->toContain('inputs.run_benchmark')
         ->and($sarifSteps)->toHaveCount(2)
-        ->and($sarifSteps[0]['if'] ?? null)->toContain('inputs.upload_sarif')
-        ->and($sarifSteps[1]['if'] ?? null)->toContain('inputs.upload_sarif');
+        ->and(fixtureValue($sarifSteps, [0, 'if'], true) ?? null)->toContain('inputs.upload_sarif')
+        ->and(fixtureValue($sarifSteps, [1, 'if'], true) ?? null)->toContain('inputs.upload_sarif');
 });
 
 it('fails workflow Pest runs when tests are skipped by default', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $inputs = $workflow['on']['workflow_call']['inputs'] ?? [];
-    $steps = $workflow['jobs']['run']['steps'] ?? [];
-    $stepsByName = array_column($steps, null, 'name');
-    $environment = $stepsByName['Run quality suite once']['env'] ?? [];
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $inputs = fixtureValue($workflow, ['on', 'workflow_call', 'inputs'], true) ?? [];
+    $steps = fixtureValue($workflow, ['jobs', 'run', 'steps'], true) ?? [];
+    $stepsByName = array_column(fixtureArray($steps), null, 'name');
+    $environment = fixtureValue($stepsByName, ['Run quality suite once', 'env'], true) ?? [];
 
-    expect($inputs['fail_on_skipped_tests']['default'] ?? null)->toBeTrue()
-        ->and($environment['IC_PEST_FAIL_ON_SKIPPED'] ?? null)
+    expect(fixtureValue($inputs, ['fail_on_skipped_tests', 'default'], true) ?? null)->toBeTrue()
+        ->and(fixtureValue($environment, ['IC_PEST_FAIL_ON_SKIPPED'], true) ?? null)
         ->toBe('${{ inputs.fail_on_skipped_tests }}');
 });
 
 it('bounds each workflow quality tool and exposes the timeout input', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $inputs = $workflow['on']['workflow_call']['inputs'] ?? [];
-    $steps = $workflow['jobs']['run']['steps'] ?? [];
-    $stepsByName = array_column($steps, null, 'name');
-    $environment = $stepsByName['Run quality suite once']['env'] ?? [];
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $inputs = fixtureValue($workflow, ['on', 'workflow_call', 'inputs'], true) ?? [];
+    $steps = fixtureValue($workflow, ['jobs', 'run', 'steps'], true) ?? [];
+    $stepsByName = array_column(fixtureArray($steps), null, 'name');
+    $environment = fixtureValue($stepsByName, ['Run quality suite once', 'env'], true) ?? [];
 
-    expect($inputs['quality_task_timeout_seconds']['default'] ?? null)->toBe(300)
-        ->and($environment['IC_TEST_TASK_TIMEOUT'] ?? null)
+    expect(fixtureValue($inputs, ['quality_task_timeout_seconds', 'default'], true) ?? null)->toBe(300)
+        ->and(fixtureValue($environment, ['IC_TEST_TASK_TIMEOUT'], true) ?? null)
         ->toBe('${{ inputs.quality_task_timeout_seconds }}');
 });
 
 it('passes CI flags as options to the registered Composer command', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $steps = $workflow['jobs']['run']['steps'] ?? [];
-    $stepsByName = array_column($steps, null, 'name');
-    $script = $stepsByName['Run quality suite once']['run'] ?? '';
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $steps = fixtureValue($workflow, ['jobs', 'run', 'steps'], true) ?? [];
+    $stepsByName = array_column(fixtureArray($steps), null, 'name');
+    $script = fixtureValue($stepsByName, ['Run quality suite once', 'run'], true) ?? '';
 
     expect($script)->toContain('args=(--without-analysis)')
         ->toContain('args+=(--prefer-lowest)')
@@ -259,21 +261,22 @@ it('passes CI flags as options to the registered Composer command', function ():
 });
 
 it('installs dependencies before analyzers produce gates, sarif, and native failure diagnostics', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $steps = $workflow['jobs']['analyze']['steps'] ?? [];
-    $stepsByName = array_column($steps, null, 'name');
-    $stepNames = array_column($steps, 'name');
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $steps = fixtureValue($workflow, ['jobs', 'analyze', 'steps'], true) ?? [];
+    $stepsByName = array_column(fixtureArray($steps), null, 'name');
+    $stepNames = array_column(fixtureArray($steps), 'name');
 
     $installIndex = array_search('Install dependencies', $stepNames, true);
     $analyzerIndex = array_search('Run audit and analyzers', $stepNames, true);
-    $analyzerScript = $stepsByName['Run audit and analyzers']['run'] ?? '';
-    $enforcementScript = $stepsByName['Enforce analyzer results']['run'] ?? '';
+    $analyzerScript = fixtureValue($stepsByName, ['Run audit and analyzers', 'run'], true) ?? '';
+    $enforcementScript = fixtureValue($stepsByName, ['Enforce analyzer results', 'run'], true) ?? '';
 
-    expect($installIndex)->toBeInt()
-        ->and($analyzerIndex)->toBeInt()->toBeGreaterThan($installIndex)
-        ->and(substr_count($analyzerScript, 'bin/phpstan'))
+    PHPUnit\Framework\Assert::assertIsInt($installIndex);
+    PHPUnit\Framework\Assert::assertIsInt($analyzerIndex);
+    expect($analyzerIndex)->toBeGreaterThan($installIndex)
+        ->and(substr_count(fixtureString($analyzerScript), 'bin/phpstan'))
         ->toBe(2)
-        ->and(substr_count($analyzerScript, 'bin/psalm"'))
+        ->and(substr_count(fixtureString($analyzerScript), 'bin/psalm"'))
         ->toBe(1)
         ->and($analyzerScript)->toContain('--threads=1')
         ->and($analyzerScript)->toContain('--output-format=console')
@@ -299,19 +302,19 @@ it('installs dependencies before analyzers produce gates, sarif, and native fail
 });
 
 it('groups analyzer failures by tool and renders status tables', function (): void {
-    $workflow = Yaml::parseFile(dirname(__DIR__, 2).'/.github/workflows/security-standards.yml');
-    $steps = $workflow['jobs']['analyze']['steps'] ?? [];
-    $stepsByName = array_column($steps, null, 'name');
-    $script = $stepsByName['Enforce analyzer results']['run'] ?? '';
-    $directory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-analysis-output-'.bin2hex(random_bytes(6));
-    $summaryPath = $directory.DIRECTORY_SEPARATOR.'summary.md';
+    $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
+    $steps = fixtureValue($workflow, ['jobs', 'analyze', 'steps'], true) ?? [];
+    $stepsByName = array_column(fixtureArray($steps), null, 'name');
+    $script = fixtureValue($stepsByName, ['Enforce analyzer results', 'run'], true) ?? '';
+    $directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-analysis-output-' . bin2hex(random_bytes(6));
+    $summaryPath = $directory . DIRECTORY_SEPARATOR . 'summary.md';
 
     mkdir($directory, 0755, true);
-    file_put_contents($directory.DIRECTORY_SEPARATOR.'phpstan-results.log', 'src/Example.php:12: PHPStan failure');
-    file_put_contents($directory.DIRECTORY_SEPARATOR.'psalm-results.log', 'src/Example.php:18: Psalm failure');
+    file_put_contents($directory . DIRECTORY_SEPARATOR . 'phpstan-results.log', 'src/Example.php:12: PHPStan failure');
+    file_put_contents($directory . DIRECTORY_SEPARATOR . 'psalm-results.log', 'src/Example.php:18: Psalm failure');
 
     try {
-        $script = strtr($script, [
+        $script = strtr(fixtureString($script), [
             '${{ steps.analyzers.outputs.audit_status }}' => '0',
             '${{ steps.analyzers.outputs.phpstan_status }}' => '1',
             '${{ steps.analyzers.outputs.sarif_status }}' => '0',
@@ -320,7 +323,7 @@ it('groups analyzer failures by tool and renders status tables', function (): vo
         $process = new Process(['bash', '-c', $script], $directory, ['GITHUB_STEP_SUMMARY' => $summaryPath]);
         $process->run();
         $output = $process->getOutput();
-        $summary = file_get_contents($summaryPath);
+        $summary = fixtureFile($summaryPath);
 
         expect($process->getExitCode())->toBe(1)
             ->and($output)->toContain('Analysis Summary')
@@ -336,7 +339,7 @@ it('groups analyzer failures by tool and renders status tables', function (): vo
             ->and($summary)->toContain('| PHPStan | FAIL |')
             ->and($summary)->toContain('| Psalm | FAIL |');
     } finally {
-        foreach (glob($directory.DIRECTORY_SEPARATOR.'*') ?: [] as $file) {
+        foreach (fixtureGlob($directory . DIRECTORY_SEPARATOR . '*') as $file) {
             if (is_file($file)) {
                 unlink($file);
             }
@@ -346,7 +349,7 @@ it('groups analyzer failures by tool and renders status tables', function (): vo
 });
 
 it('resolves benchmark config from the project root or the correct PHPForge package location', function (): void {
-    $script = file_get_contents(dirname(__DIR__, 2).'/.github/scripts/run-benchmark.sh');
+    $script = file_get_contents(dirname(__DIR__, 2) . '/.github/scripts/run-benchmark.sh');
 
     expect($script)->toBeString()
         ->and($script)->toContain('package_name="$(composer config name --no-plugins --no-scripts')
@@ -358,7 +361,7 @@ it('resolves benchmark config from the project root or the correct PHPForge pack
 });
 
 it('skips the default benchmark run when the consuming project has no benchmark directory', function (): void {
-    $script = file_get_contents(dirname(__DIR__, 2).'/.github/scripts/run-benchmark.sh');
+    $script = file_get_contents(dirname(__DIR__, 2) . '/.github/scripts/run-benchmark.sh');
 
     expect($script)->toBeString()
         ->and($script)->toContain('benchmark_path=""')

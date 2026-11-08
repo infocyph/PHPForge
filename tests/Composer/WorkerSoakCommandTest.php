@@ -10,7 +10,10 @@ use Symfony\Component\Process\Process;
 
 /**
  * @param array<string, mixed> $input
+ *
  * @return array{exit_code:int,output:string}
+ *
+ * @throws \Symfony\Component\Console\Exception\LogicException|\Symfony\Component\Console\Exception\ExceptionInterface
  */
 function runWorkerSoakCommand(array $input): array
 {
@@ -34,7 +37,7 @@ function runWorkerSoakCommand(array $input): array
 }
 
 it('soak tests a generic long-running worker and writes bounded rss telemetry', function (): void {
-    $report = tempnam(sys_get_temp_dir(), 'phpforge-soak-report-');
+    $report = fixtureTempFile('phpforge-soak-report-');
     unlink($report);
 
     try {
@@ -46,12 +49,12 @@ it('soak tests a generic long-running worker and writes bounded rss telemetry', 
             '--max-growth-mb' => '8',
             '--report' => $report,
         ]);
-        $decoded = json_decode((string) file_get_contents($report), true);
+        $decoded = json_decode(fixtureFile($report), true);
 
         expect($result['exit_code'])->toBe(0)
-            ->and($decoded['status'] ?? null)->toBe('passed')
-            ->and($decoded['samples'] ?? 0)->toBeGreaterThan(0)
-            ->and($decoded['command_name'] ?? null)->toBe(basename(PHP_BINARY));
+            ->and(fixtureValue($decoded, ['status'], true) ?? null)->toBe('passed')
+            ->and(fixtureValue($decoded, ['samples'], true) ?? 0)->toBeGreaterThan(0)
+            ->and(fixtureValue($decoded, ['command_name'], true) ?? null)->toBe(basename(PHP_BINARY));
     } finally {
         if (is_file($report)) {
             unlink($report);
@@ -113,8 +116,8 @@ it('rechecks missing RSS on the next sample before classifying the failure', fun
         'grace_period' => 0.0, 'max_rss' => null, 'max_growth' => null,
     ]);
 
-    expect($result['failure'])->toBe($expected)
-        ->and($result['samples'])->toBe([])
+    expect(fixtureValue($result, ['failure']))->toBe($expected)
+        ->and(fixtureValue($result, ['samples']))->toBe([])
         ->and($checks)->toBe(2);
 })->with([
     'worker exits after the initial RSS read' => [false, 'Worker exited before the 1.00 second soak duration (exit code 23).'],
@@ -125,7 +128,7 @@ it('recovers from one missing RSS sample without losing subsequent telemetry', f
     $reads = 0;
     $process = $this->createMock(Process::class);
     $process->method('getPid')->willReturnCallback(static function () use (&$reads): int {
-        return ++$reads === 1 ? PHP_INT_MAX : getmypid();
+        return ++$reads === 1 ? PHP_INT_MAX : fixtureInt(getmypid());
     });
     $process->method('isRunning')->willReturn(true);
     $result = new ReflectionMethod(WorkerSoakCommand::class, 'monitor')->invoke(new WorkerSoakCommand(), $process, [
@@ -133,7 +136,12 @@ it('recovers from one missing RSS sample without losing subsequent telemetry', f
         'grace_period' => 0.0, 'max_rss' => null, 'max_growth' => null,
     ]);
 
-    expect($result['failure'])->toBeNull()
-        ->and($result['samples'])->not->toBeEmpty()
-        ->and(min($result['samples']))->toBeGreaterThan(0);
+    $samples = fixtureArray(fixtureValue($result, ['samples']));
+
+    if ($samples === []) {
+        PHPUnit\Framework\Assert::fail('The recovered worker must provide an RSS sample.');
+    }
+
+    expect(fixtureValue($result, ['failure']))->toBeNull()
+        ->and(min($samples))->toBeGreaterThan(0);
 });

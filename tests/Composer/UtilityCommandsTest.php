@@ -2,47 +2,26 @@
 
 declare(strict_types=1);
 
+use Infocyph\PHPForge\Composer\ActiveConfigCommand;
 use Infocyph\PHPForge\Composer\CleanCommand;
 use Infocyph\PHPForge\Composer\DoctorCommand;
-use Infocyph\PHPForge\Composer\ActiveConfigCommand;
 use Infocyph\PHPForge\Composer\ListConfigCommand;
 use Infocyph\PHPForge\Composer\PublishCommunityTemplatesCommand;
 use Infocyph\PHPForge\Composer\VersionCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputArgument as Argument;
-use Symfony\Component\Console\Input\InputOption as Option;
 use Symfony\Component\Console\Input\InputDefinition;
+use Symfony\Component\Console\Input\InputOption as Option;
 use Symfony\Component\Console\Output\BufferedOutput;
-
-function removeUtilityCommandsTree(string $path): void
-{
-    if (!is_dir($path)) {
-        return;
-    }
-
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-
-    foreach ($iterator as $item) {
-        if ($item->isDir()) {
-            rmdir($item->getPathname());
-
-            continue;
-        }
-
-        unlink($item->getPathname());
-    }
-
-    rmdir($path);
-}
 
 /**
  * @param array<string, mixed> $input
- * @param list<Option> $options
+ * @param list<Argument|Option> $options
+ *
  * @return array{exit_code: int, output: string}
+ *
+ * @throws UnexpectedValueException
  */
 function runComposerCommand(Command $command, array $input = [], array $options = []): array
 {
@@ -52,7 +31,7 @@ function runComposerCommand(Command $command, array $input = [], array $options 
     $output = new BufferedOutput();
 
     return [
-        'exit_code' => $execute->invoke($command, $arrayInput, $output),
+        'exit_code' => fixtureInt($execute->invoke($command, $arrayInput, $output)),
         'output' => $output->fetch(),
     ];
 }
@@ -66,18 +45,18 @@ it('prints version command output', function (): void {
 });
 
 it('exposes root diagnostic Composer scripts', function (): void {
-    $composer = json_decode((string) file_get_contents(__DIR__ . '/../../composer.json'), true);
+    $composer = json_decode(fixtureFile(__DIR__ . '/../../composer.json'), true);
 
     expect(is_array($composer))->toBeTrue()
-        ->and($composer['scripts']['ic:doctor'] ?? null)->toBe('@php bin/phpforge doctor')
-        ->and($composer['scripts']['ic:list-config'] ?? null)->toBe('@php bin/phpforge list-config')
-        ->and($composer['scripts']['ic:kb:build'] ?? null)->toBe('@php bin/phpforge kb:build')
-        ->and($composer['scripts']['ic:kb:query'] ?? null)->toBe('@php bin/phpforge kb:query')
-        ->and($composer['scripts']['ic:commit-message'] ?? null)->toBe('@php bin/phpforge commit-message')
-        ->and($composer['scripts']['ic:hooks'] ?? null)->toBe('@php bin/run-task.php hooks')
-        ->and($composer['scripts']['ic:skipper'] ?? null)->toBe('@php bin/phpforge skipper')
-        ->and($composer['scripts']['ic:test:references'] ?? null)->toBe('@php bin/run-task.php test:references')
-        ->and($composer['scripts']['ic:stage'] ?? null)->toBe('@php bin/phpforge stage');
+        ->and(fixtureValue($composer, ['scripts', 'ic:doctor'], true) ?? null)->toBe('@php bin/phpforge doctor')
+        ->and(fixtureValue($composer, ['scripts', 'ic:list-config'], true) ?? null)->toBe('@php bin/phpforge list-config')
+        ->and(fixtureValue($composer, ['scripts', 'ic:kb:build'], true) ?? null)->toBe('@php bin/phpforge kb:build')
+        ->and(fixtureValue($composer, ['scripts', 'ic:kb:query'], true) ?? null)->toBe('@php bin/phpforge kb:query')
+        ->and(fixtureValue($composer, ['scripts', 'ic:commit-message'], true) ?? null)->toBe('@php bin/phpforge commit-message')
+        ->and(fixtureValue($composer, ['scripts', 'ic:hooks'], true) ?? null)->toBe('@php bin/run-task.php hooks')
+        ->and(fixtureValue($composer, ['scripts', 'ic:skipper'], true) ?? null)->toBe('@php bin/phpforge skipper')
+        ->and(fixtureValue($composer, ['scripts', 'ic:test:references'], true) ?? null)->toBe('@php bin/run-task.php test:references')
+        ->and(fixtureValue($composer, ['scripts', 'ic:stage'], true) ?? null)->toBe('@php bin/phpforge stage');
 });
 
 it('lists config inventory as json', function (): void {
@@ -90,7 +69,7 @@ it('lists config inventory as json', function (): void {
 
     expect($result['exit_code'])->toBe(0)
         ->and(is_array($decoded))->toBeTrue()
-        ->and(array_values(array_filter($decoded, static fn (mixed $row): bool => is_array($row) && (($row['file'] ?? null) === 'phpprobe.json'))) !== [])->toBeTrue();
+        ->and(array_values(array_filter(fixtureArray($decoded), static fn(mixed $row): bool => is_array($row) && (($row['file'] ?? null) === 'phpprobe.json'))) !== [])->toBeTrue();
 });
 
 it('renders a labelled config resolution table for people', function (): void {
@@ -120,14 +99,14 @@ it('reports active configs across supported tools as json', function (): void {
     );
     $decoded = json_decode($result['output'], true);
     $phpstan = is_array($decoded)
-        ? array_values(array_filter($decoded, static fn (mixed $row): bool => is_array($row) && (($row['tool'] ?? null) === 'phpstan')))
+        ? array_values(array_filter($decoded, static fn(mixed $row): bool => is_array($row) && (($row['tool'] ?? null) === 'phpstan')))
         : [];
 
     expect($result['exit_code'])->toBe(0)
         ->and(is_array($decoded))->toBeTrue()
         ->and($phpstan)->not->toBe([])
         ->and($phpstan[0]['config_file'] ?? null)->toBe('phpstan.neon.dist')
-        ->and($phpstan[0]['effective']['memory_limit'] ?? null)->toBe('1G');
+        ->and(fixtureValue($phpstan, [0, 'effective', 'memory_limit'], true) ?? null)->toBe('1G');
 });
 
 it('filters active config output by selected file and parameter', function (): void {
@@ -145,10 +124,10 @@ it('filters active config output by selected file and parameter', function (): v
 
     expect($result['exit_code'])->toBe(0)
         ->and(is_array($decoded))->toBeTrue()
-        ->and(count($decoded))->toBe(1)
-        ->and($decoded[0]['tool'] ?? null)->toBe('phpstan')
-        ->and($decoded[0]['parameter'] ?? null)->toBe('cognitive_complexity')
-        ->and($decoded[0]['value']['function'] ?? null)->toBe(12);
+        ->and(count(fixtureArray($decoded)))->toBe(1)
+        ->and(fixtureValue($decoded, [0, 'tool'], true) ?? null)->toBe('phpstan')
+        ->and(fixtureValue($decoded, [0, 'parameter'], true) ?? null)->toBe('cognitive_complexity')
+        ->and(fixtureValue($decoded, [0, 'value', 'function'], true) ?? null)->toBe(12);
 });
 
 it('accepts double-dash-prefixed active config file selections', function (): void {
@@ -166,25 +145,25 @@ it('accepts double-dash-prefixed active config file selections', function (): vo
 
     expect($result['exit_code'])->toBe(0)
         ->and(is_array($decoded))->toBeTrue()
-        ->and(count($decoded))->toBe(1)
-        ->and($decoded[0]['tool'] ?? null)->toBe('phpstan');
+        ->and(count(fixtureArray($decoded)))->toBe(1)
+        ->and(fixtureValue($decoded, [0, 'tool'], true) ?? null)->toBe('phpstan');
 });
 
 it('removes known tool outputs via clean command', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-utility-clean-'.uniqid('', true);
-    $cacheDir = $projectRoot.DIRECTORY_SEPARATOR.'.phpunit.cache';
-    $knowledgeDir = $projectRoot.DIRECTORY_SEPARATOR.'phpforge';
-    $sarifFile = $projectRoot.DIRECTORY_SEPARATOR.'phpstan-results.sarif';
-    $psalmSarifFile = $projectRoot.DIRECTORY_SEPARATOR.'psalm-results.sarif';
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-utility-clean-' . uniqid('', true);
+    $cacheDir = $projectRoot . DIRECTORY_SEPARATOR . '.phpunit.cache';
+    $knowledgeDir = $projectRoot . DIRECTORY_SEPARATOR . 'phpforge';
+    $sarifFile = $projectRoot . DIRECTORY_SEPARATOR . 'phpstan-results.sarif';
+    $psalmSarifFile = $projectRoot . DIRECTORY_SEPARATOR . 'psalm-results.sarif';
 
     mkdir($cacheDir, 0755, true);
     mkdir($knowledgeDir, 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
-    file_put_contents($cacheDir.DIRECTORY_SEPARATOR.'cache.txt', 'cache');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+    file_put_contents($cacheDir . DIRECTORY_SEPARATOR . 'cache.txt', 'cache');
     file_put_contents($sarifFile, '{}');
     file_put_contents($psalmSarifFile, '{}');
-    file_put_contents($knowledgeDir.DIRECTORY_SEPARATOR.'knowledge.json', '{}');
+    file_put_contents($knowledgeDir . DIRECTORY_SEPARATOR . 'knowledge.json', '{}');
 
     chdir($projectRoot);
 
@@ -202,16 +181,16 @@ it('removes known tool outputs via clean command', function (): void {
             chdir($originalCwd);
         }
 
-        removeUtilityCommandsTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
 it('reports normalize plugin status in doctor json diagnostics', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-utility-doctor-'.uniqid('', true);
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-utility-doctor-' . uniqid('', true);
 
     mkdir($projectRoot, 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', json_encode([
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', json_encode([
         'name' => 'example/project',
         'config' => [
             'allow-plugins' => [
@@ -220,7 +199,7 @@ it('reports normalize plugin status in doctor json diagnostics', function (): vo
                 'pestphp/pest-plugin' => true,
             ],
         ],
-    ], JSON_PRETTY_PRINT));
+    ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 
     chdir($projectRoot);
 
@@ -234,13 +213,13 @@ it('reports normalize plugin status in doctor json diagnostics', function (): vo
 
         expect($result['exit_code'])->toBe(0)
             ->and(is_array($decoded))->toBeTrue()
-            ->and(($decoded['plugins']['ergebnis/composer-normalize'] ?? null))->toBeTrue();
+            ->and((fixtureValue($decoded, ['plugins', 'ergebnis/composer-normalize'], true) ?? null))->toBeTrue();
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);
         }
 
-        removeUtilityCommandsTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -261,11 +240,11 @@ it('renders scannable doctor status markers and a health summary', function (): 
 
 it('recognizes a local reusable security workflow', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-utility-doctor-local-workflow-'.uniqid('', true);
-    $workflowPath = $projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'workflows'.DIRECTORY_SEPARATOR.'security-standards.yml';
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-utility-doctor-local-workflow-' . uniqid('', true);
+    $workflowPath = $projectRoot . DIRECTORY_SEPARATOR . '.github' . DIRECTORY_SEPARATOR . 'workflows' . DIRECTORY_SEPARATOR . 'security-standards.yml';
 
     mkdir(dirname($workflowPath), 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
     file_put_contents($workflowPath, "on:\n  workflow_call:\n");
 
     chdir($projectRoot);
@@ -279,24 +258,26 @@ it('recognizes a local reusable security workflow', function (): void {
         $decoded = json_decode($result['output'], true);
 
         expect($result['exit_code'])->toBe(0)
-            ->and($decoded['workflow']['ref'] ?? null)->toBe('local')
-            ->and($decoded['workflow']['warnings'] ?? null)->toBe([]);
+            ->and(fixtureValue($decoded, ['workflow', 'ref'], true) ?? null)->toBe('local')
+            ->and(fixtureValue($decoded, ['workflow', 'warnings'], true) ?? null)->toBe([]);
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);
         }
 
-        removeUtilityCommandsTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
 it('parses and validates canonical service workflow inputs in doctor diagnostics', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-utility-doctor-workflow-'.uniqid('', true);
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-utility-doctor-workflow-' . uniqid('', true);
 
-    mkdir($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'workflows', 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'workflows'.DIRECTORY_SEPARATOR.'security-standards.yml', <<<'YAML'
+    mkdir($projectRoot . DIRECTORY_SEPARATOR . '.github' . DIRECTORY_SEPARATOR . 'workflows', 0755, true);
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+    file_put_contents(
+        $projectRoot . DIRECTORY_SEPARATOR . '.github' . DIRECTORY_SEPARATOR . 'workflows' . DIRECTORY_SEPARATOR . 'security-standards.yml',
+        <<<'YAML'
 name: "Security & Standards"
 
 jobs:
@@ -320,26 +301,28 @@ YAML
 
         expect($result['exit_code'])->toBe(0)
             ->and(is_array($decoded))->toBeTrue()
-            ->and(($decoded['workflow']['inputs']['integration_services'] ?? null))->toBe('["sqlite"]')
-            ->and(($decoded['workflow']['inputs']['service_topologies'] ?? null))->toBe('{}')
-            ->and(($decoded['workflow']['warnings'] ?? []))->toBe([]);
+            ->and((fixtureValue($decoded, ['workflow', 'inputs', 'integration_services'], true) ?? null))->toBe('["sqlite"]')
+            ->and((fixtureValue($decoded, ['workflow', 'inputs', 'service_topologies'], true) ?? null))->toBe('{}')
+            ->and((fixtureValue($decoded, ['workflow', 'warnings'], true) ?? []))->toBe([]);
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);
         }
 
-        removeUtilityCommandsTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
 it('reports invalid canonical service workflow configuration', function (string $services, string $topologies, string $warning): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-utility-doctor-invalid-'.uniqid('', true);
-    $workflowPath = $projectRoot.DIRECTORY_SEPARATOR.'.github'.DIRECTORY_SEPARATOR.'workflows'.DIRECTORY_SEPARATOR.'security-standards.yml';
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-utility-doctor-invalid-' . uniqid('', true);
+    $workflowPath = $projectRoot . DIRECTORY_SEPARATOR . '.github' . DIRECTORY_SEPARATOR . 'workflows' . DIRECTORY_SEPARATOR . 'security-standards.yml';
 
     mkdir(dirname($workflowPath), 0755, true);
-    file_put_contents($projectRoot.DIRECTORY_SEPARATOR.'composer.json', '{"name":"example/project"}');
-    file_put_contents($workflowPath, <<<YAML
+    file_put_contents($projectRoot . DIRECTORY_SEPARATOR . 'composer.json', '{"name":"example/project"}');
+    file_put_contents(
+        $workflowPath,
+        <<<YAML
 name: Doctor fixture
 jobs:
   phpforge:
@@ -359,13 +342,13 @@ YAML
         );
         $decoded = json_decode($result['output'], true, 512, JSON_THROW_ON_ERROR);
 
-        expect(implode("\n", $decoded['workflow']['warnings'] ?? []))->toContain($warning);
+        expect(implode("\n", fixtureStringList(fixtureValue($decoded, ['workflow', 'warnings'], true) ?? [])))->toContain($warning);
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);
         }
 
-        removeUtilityCommandsTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 })->with([
     'malformed list' => ['{"mysql":true}', '{}', 'integration_services must be a JSON string array'],
@@ -384,20 +367,19 @@ it('reports unavailable compose for selected external services', function (): vo
     try {
         expect($method->invoke($command))->toBeFalse();
     } finally {
-        putenv($previousPath === false ? 'PATH' : 'PATH='.$previousPath);
+        putenv($previousPath === false ? 'PATH' : 'PATH=' . $previousPath);
     }
 });
 
 it('publishes generic community template files to project root', function (): void {
     $originalCwd = getcwd();
-    $projectRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-community-templates-'.uniqid('', true);
-    $githubRoot = $projectRoot.DIRECTORY_SEPARATOR.'.github';
-    $issueTemplateRoot = $githubRoot.DIRECTORY_SEPARATOR.'ISSUE_TEMPLATE';
-    $pullRequestTemplateRoot = $githubRoot.DIRECTORY_SEPARATOR.'PULL_REQUEST_TEMPLATE';
+    $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-community-templates-' . uniqid('', true);
+    $githubRoot = $projectRoot . DIRECTORY_SEPARATOR . '.github';
+    $issueTemplateRoot = $githubRoot . DIRECTORY_SEPARATOR . 'ISSUE_TEMPLATE';
 
     mkdir($issueTemplateRoot, 0755, true);
     file_put_contents(
-        $projectRoot.DIRECTORY_SEPARATOR.'composer.json',
+        $projectRoot . DIRECTORY_SEPARATOR . 'composer.json',
         '{"name":"example/project"}',
     );
 
@@ -438,7 +420,7 @@ it('publishes generic community template files to project root', function (): vo
             );
 
         foreach ($expectedFiles as $file) {
-            $path = $projectRoot.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $file);
+            $path = $projectRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file);
 
             expect(is_file($path))
                 ->toBeTrue(sprintf('Expected community template was not published: %s', $file));
@@ -448,6 +430,6 @@ it('publishes generic community template files to project root', function (): vo
             chdir($originalCwd);
         }
 
-        removeUtilityCommandsTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });

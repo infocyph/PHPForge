@@ -2,31 +2,16 @@
 
 declare(strict_types=1);
 
+use Infocyph\PHPForge\Composer\CommandProvider;
 use Infocyph\PHPForge\Support\KnowledgeBase;
 use Infocyph\PHPForge\Support\KnowledgeCli;
 use Infocyph\PHPForge\Support\KnowledgeExplainer;
 use Infocyph\PHPForge\Support\KnowledgeQuery;
-use Infocyph\PHPForge\Composer\CommandProvider;
 use Symfony\Component\Process\Process;
 
-function removeKnowledgeFixture(string $path): void
-{
-    if (!is_dir($path)) {
-        return;
-    }
-
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-
-    foreach ($iterator as $item) {
-        $item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
-    }
-
-    rmdir($path);
-}
-
+/**
+ * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\ProcessFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+ */
 function makeKnowledgeFixture(): string
 {
     $root = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-knowledge-' . uniqid('', true);
@@ -62,6 +47,9 @@ PHP);
     return $root;
 }
 
+/**
+ * @throws RuntimeException
+ */
 function writeTraversalKnowledgeFixture(string $root): string
 {
     $document = new KnowledgeBase()->build()['document'];
@@ -108,14 +96,14 @@ it('builds and reuses a deterministic mixed-file knowledge base', function (): v
 
     try {
         $first = new KnowledgeBase()->build();
-        $firstAnalysis = file_get_contents($root . '/phpforge/analysis.json');
+        $firstAnalysis = fixtureFile($root . '/phpforge/analysis.json');
         $second = new KnowledgeBase()->build();
         $document = $first['document'];
         $nodes = array_column($document['nodes'], null, 'id');
-        $manifest = json_decode((string) file_get_contents($root . '/phpforge/manifest.json'), true, 64, JSON_THROW_ON_ERROR);
-        $analysis = json_decode((string) file_get_contents($root . '/phpforge/analysis.json'), true, 64, JSON_THROW_ON_ERROR);
-        $report = file_get_contents($root . '/phpforge/GRAPH_REPORT.md');
-        $html = file_get_contents($root . '/phpforge/graph.html');
+        $manifest = json_decode(fixtureFile($root . '/phpforge/manifest.json'), true, 64, JSON_THROW_ON_ERROR);
+        $analysis = json_decode(fixtureFile($root . '/phpforge/analysis.json'), true, 64, JSON_THROW_ON_ERROR);
+        $report = fixtureFile($root . '/phpforge/GRAPH_REPORT.md');
+        $html = fixtureFile($root . '/phpforge/graph.html');
 
         expect($first['reused'])->toBeFalse()
             ->and($second['reused'])->toBeTrue()
@@ -132,26 +120,26 @@ it('builds and reuses a deterministic mixed-file knowledge base', function (): v
             ->and($nodes)->not->toHaveKey('file:.env')
             ->and($nodes['file:README.md']['attributes']['extraction'])->toBe('content-index')
             ->and($nodes['content:README.md:0']['attributes']['content'])->toBe("# Example\n")
-            ->and($manifest['schema'])->toBe('phpforge.knowledge-manifest')
-            ->and($manifest['fingerprint'])->toBe($document['fingerprint'])
-            ->and($analysis['schema'])->toBe('phpforge.knowledge-analysis')
-            ->and($analysis['schema_version'])->toBe(2)
-            ->and($analysis['node_count'])->toBe(count($document['nodes']))
-            ->and($analysis['central_nodes'])->not->toBe([])
-            ->and($analysis['communities'])->not->toBe([])
-            ->and($analysis['god_nodes'])->not->toBe([])
-            ->and($analysis['graph_health']['dangling_edges'])->toBe(0)
-            ->and($analysis['certainties']['extracted'])->toBeGreaterThan(0)
+            ->and(fixtureValue($manifest, ['schema']))->toBe('phpforge.knowledge-manifest')
+            ->and(fixtureValue($manifest, ['fingerprint']))->toBe(fixtureValue($document, ['fingerprint']))
+            ->and(fixtureValue($analysis, ['schema']))->toBe('phpforge.knowledge-analysis')
+            ->and(fixtureValue($analysis, ['schema_version']))->toBe(2)
+            ->and(fixtureValue($analysis, ['node_count']))->toBe(count(fixtureArray(fixtureValue($document, ['nodes']))))
+            ->and(fixtureValue($analysis, ['central_nodes']))->not->toBe([])
+            ->and(fixtureValue($analysis, ['communities']))->not->toBe([])
+            ->and(fixtureValue($analysis, ['god_nodes']))->not->toBe([])
+            ->and(fixtureValue($analysis, ['graph_health', 'dangling_edges']))->toBe(0)
+            ->and(fixtureValue($analysis, ['certainties', 'extracted']))->toBeGreaterThan(0)
             ->and($report)->toContain('# PHPForge Knowledge Report', '## Community Hubs', '## God Nodes', '## Surprising Connections', '## Suggested Questions')
             ->and($html)->toContain('<meta name="generator" content="PHPForge knowledgebase">', 'PHPForge Knowledge Graph', 'All communities')
-            ->and(file_get_contents($root . '/phpforge/analysis.json'))->toBe($firstAnalysis)
+            ->and(fixtureFile($root . '/phpforge/analysis.json'))->toBe($firstAnalysis)
             ->and($first['document'])->toBe($second['document']);
     } finally {
         if (is_string($original)) {
             chdir($original);
         }
 
-        removeKnowledgeFixture($root);
+        removeFixtureDirectory($root);
     }
 });
 
@@ -165,14 +153,14 @@ it('refuses to overwrite an unrelated companion artifact', function (): void {
     try {
         expect(fn(): array => new KnowledgeBase()->build())
             ->toThrow(RuntimeException::class, 'Refusing to overwrite non-PHPForge artifact')
-            ->and(file_get_contents($root . DIRECTORY_SEPARATOR . 'phpforge/manifest.json'))->toBe('{"application":"mine"}')
+            ->and(fixtureFile($root . DIRECTORY_SEPARATOR . 'phpforge/manifest.json'))->toBe('{"application":"mine"}')
             ->and(file_exists($root . DIRECTORY_SEPARATOR . 'phpforge/knowledge.json'))->toBeFalse();
     } finally {
         if (is_string($original)) {
             chdir($original);
         }
 
-        removeKnowledgeFixture($root);
+        removeFixtureDirectory($root);
     }
 });
 
@@ -185,13 +173,13 @@ it('refuses to overwrite an unrelated file even when force is requested', functi
     try {
         expect(fn(): array => new KnowledgeBase()->build(output: 'existing.json', force: true))
             ->toThrow(RuntimeException::class, 'unsupported schema')
-            ->and(file_get_contents($root . DIRECTORY_SEPARATOR . 'existing.json'))->toBe('{"unrelated":true}');
+            ->and(fixtureFile($root . DIRECTORY_SEPARATOR . 'existing.json'))->toBe('{"unrelated":true}');
     } finally {
         if (is_string($original)) {
             chdir($original);
         }
 
-        removeKnowledgeFixture($root);
+        removeFixtureDirectory($root);
     }
 });
 
@@ -212,7 +200,7 @@ it('invalidates the persisted knowledge base after source changes', function ():
             chdir($original);
         }
 
-        removeKnowledgeFixture($root);
+        removeFixtureDirectory($root);
     }
 });
 
@@ -238,7 +226,7 @@ it('retrieves matching symbols and their related context', function (): void {
             chdir($original);
         }
 
-        removeKnowledgeFixture($root);
+        removeFixtureDirectory($root);
     }
 });
 
@@ -314,7 +302,7 @@ it('retrieves depth-aware architectural paths with relation and direction filter
             chdir($original);
         }
 
-        removeKnowledgeFixture($root);
+        removeFixtureDirectory($root);
     }
 });
 
@@ -345,7 +333,7 @@ it('reports token-budget truncation and supports depth-first traversal', functio
             chdir($original);
         }
 
-        removeKnowledgeFixture($root);
+        removeFixtureDirectory($root);
     }
 });
 
@@ -374,18 +362,18 @@ it('accepts depth-aware traversal controls through the knowledge CLI', function 
         $result = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
 
         expect($exitCode)->toBe(0)
-            ->and($result['retrieval']['mode'])->toBe('dfs')
-            ->and($result['retrieval']['depth'])->toBe(3)
-            ->and($result['retrieval']['direction'])->toBe('outgoing')
-            ->and($result['retrieval']['context'])->toBe('architecture')
-            ->and($result['retrieval']['relations'])->toBe(['calls', 'instantiates', 'references'])
-            ->and(array_column($result['context_nodes'], 'id'))->toContain('class-like:Example\\Storage');
+            ->and(fixtureValue($result, ['retrieval', 'mode']))->toBe('dfs')
+            ->and(fixtureValue($result, ['retrieval', 'depth']))->toBe(3)
+            ->and(fixtureValue($result, ['retrieval', 'direction']))->toBe('outgoing')
+            ->and(fixtureValue($result, ['retrieval', 'context']))->toBe('architecture')
+            ->and(fixtureValue($result, ['retrieval', 'relations']))->toBe(['calls', 'instantiates', 'references'])
+            ->and(array_column(fixtureArray(fixtureValue($result, ['context_nodes'])), 'id'))->toContain('class-like:Example\\Storage');
     } finally {
         if (is_string($original)) {
             chdir($original);
         }
 
-        removeKnowledgeFixture($root);
+        removeFixtureDirectory($root);
     }
 });
 
@@ -449,13 +437,14 @@ it('discovers the running Ollama model and labels model output as inferred', fun
             ], JSON_THROW_ON_ERROR);
         },
     );
+
     try {
         $result = $explainer->explain($query);
         $payload = json_decode($requests[1]['payload'], true, 64, JSON_THROW_ON_ERROR);
 
         expect($requests[0]['url'])->toBe('http://127.0.0.1:11434/api/ps')
             ->and($requests[1]['url'])->toBe('http://127.0.0.1:11434/api/chat')
-            ->and($payload['model'])->toBe('hf.co/example/codestral:latest')
+            ->and(fixtureValue($payload, ['model']))->toBe('hf.co/example/codestral:latest')
             ->and($result['certainty'])->toBe('inferred')
             ->and($result['provider'])->toBe('ollama')
             ->and($result['model'])->toBe('hf.co/example/codestral:latest')
@@ -594,7 +583,7 @@ it('rejects AI evidence outside the retrieved graph slice', function (): void {
         'context_nodes' => [],
         'edges' => [],
     ], model: 'fixture-model'))->toThrow(RuntimeException::class, 'outside the retrieved graph slice')
-        ->and($captured['url'])->toBe('http://127.0.0.1:11434/api/chat')
-        ->and($captured['headers'])->toContain('Content-Type: application/json')
-        ->and($captured['payload'])->not->toBeEmpty();
+        ->and(fixtureValue($captured, ['url']))->toBe('http://127.0.0.1:11434/api/chat')
+        ->and(fixtureValue($captured, ['headers']))->toContain('Content-Type: application/json')
+        ->and(fixtureValue($captured, ['payload']))->not->toBeEmpty();
 });

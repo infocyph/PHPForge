@@ -4,41 +4,17 @@ declare(strict_types=1);
 
 use Infocyph\PHPForge\Support\SkipDirectiveScanner;
 
-function removeSkipDirectiveScannerTree(string $path): void
-{
-    if (!is_dir($path)) {
-        return;
-    }
-
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-
-    foreach ($iterator as $entry) {
-        if ($entry->isDir()) {
-            rmdir($entry->getPathname());
-
-            continue;
-        }
-
-        unlink($entry->getPathname());
-    }
-
-    rmdir($path);
-}
-
 function skipDirectiveScannerRoot(): string
 {
-    $root = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-skipper-'.bin2hex(random_bytes(6));
-    mkdir($root.DIRECTORY_SEPARATOR.'src', 0755, true);
+    $root = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-skipper-' . bin2hex(random_bytes(6));
+    mkdir($root . DIRECTORY_SEPARATOR . 'src', 0755, true);
 
     return $root;
 }
 
 it('finds inline quality suppressions and explicit test skips', function (): void {
     $root = skipDirectiveScannerRoot();
-    file_put_contents($root.DIRECTORY_SEPARATOR.'src'.DIRECTORY_SEPARATOR.'Suppressed.php', <<<'PHP'
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Suppressed.php', <<<'PHP'
 <?php
 
 // @phpstan-ignore-next-line
@@ -118,16 +94,16 @@ PHP);
             ->toContain('todo()')
             ->toContain('@noRector');
     } finally {
-        removeSkipDirectiveScannerTree($root);
+        removeFixtureDirectory($root);
     }
 });
 
 it('honors each active tool configuration without hiding findings from other tools', function (): void {
     $root = skipDirectiveScannerRoot();
-    mkdir($root.DIRECTORY_SEPARATOR.'excluded', 0755, true);
-    mkdir($root.DIRECTORY_SEPARATOR.'tests'.DIRECTORY_SEPARATOR.'ignored', 0755, true);
-    mkdir($root.DIRECTORY_SEPARATOR.'rector-only', 0755, true);
-    file_put_contents($root.DIRECTORY_SEPARATOR.'src'.DIRECTORY_SEPARATOR.'Visible.php', <<<'PHP'
+    mkdir($root . DIRECTORY_SEPARATOR . 'excluded', 0755, true);
+    mkdir($root . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'ignored', 0755, true);
+    mkdir($root . DIRECTORY_SEPARATOR . 'rector-only', 0755, true);
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Visible.php', <<<'PHP'
 <?php
 
 // @probe-skip commented_out_code_without_reason until=2026-12-31
@@ -135,7 +111,7 @@ it('honors each active tool configuration without hiding findings from other too
 // @phpstan-ignore-line
 /** @psalm-suppress UndefinedVariable */
 PHP);
-    file_put_contents($root.DIRECTORY_SEPARATOR.'excluded'.DIRECTORY_SEPARATOR.'Hidden.php', <<<'PHP'
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'excluded' . DIRECTORY_SEPARATOR . 'Hidden.php', <<<'PHP'
 <?php
 
 // @probe-skip commented_out_code_without_reason until=2026-12-31
@@ -143,19 +119,19 @@ PHP);
 // @phpstan-ignore-line
 /** @psalm-suppress UndefinedVariable */
 PHP);
-    file_put_contents($root.DIRECTORY_SEPARATOR.'tests'.DIRECTORY_SEPARATOR.'ActiveTest.php', <<<'PHP'
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'ActiveTest.php', <<<'PHP'
 <?php
 
 // @phpstan-ignore-line
 test('active')->skip();
 PHP);
-    file_put_contents($root.DIRECTORY_SEPARATOR.'tests'.DIRECTORY_SEPARATOR.'ignored'.DIRECTORY_SEPARATOR.'IgnoredTest.php', <<<'PHP'
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'ignored' . DIRECTORY_SEPARATOR . 'IgnoredTest.php', <<<'PHP'
 <?php
 
 test('ignored')->skip();
 PHP);
-    file_put_contents($root.DIRECTORY_SEPARATOR.'rector-only'.DIRECTORY_SEPARATOR.'Ignored.php', "<?php\n/** @noRector */\n");
-    file_put_contents($root.DIRECTORY_SEPARATOR.'phpprobe.json', <<<'JSON'
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'rector-only' . DIRECTORY_SEPARATOR . 'Ignored.php', "<?php\n/** @noRector */\n");
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'phpprobe.json', <<<'JSON'
 {
   "preset": "default",
   "comments": {"exclude": ["excluded"]},
@@ -165,26 +141,26 @@ PHP);
   }
 }
 JSON);
-    file_put_contents($root.DIRECTORY_SEPARATOR.'phpcs.xml.dist', <<<'XML'
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'phpcs.xml.dist', <<<'XML'
 <?xml version="1.0"?>
 <ruleset name="test"><exclude-pattern>*/excluded/*</exclude-pattern></ruleset>
 XML);
-    file_put_contents($root.DIRECTORY_SEPARATOR.'phpstan.neon.dist', <<<'NEON'
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'phpstan.neon.dist', <<<'NEON'
 parameters:
     excludePaths:
         analyseAndScan:
             - excluded/*
             - tests/*
 NEON);
-    file_put_contents($root.DIRECTORY_SEPARATOR.'psalm.xml', <<<'XML'
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'psalm.xml', <<<'XML'
 <?xml version="1.0"?>
 <psalm xmlns="https://getpsalm.org/schema/config"><projectFiles><directory name="."/><ignoreFiles><directory name="excluded"/></ignoreFiles></projectFiles></psalm>
 XML);
-    file_put_contents($root.DIRECTORY_SEPARATOR.'pest.xml', <<<'XML'
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'pest.xml', <<<'XML'
 <?xml version="1.0"?>
 <phpunit><testsuites><testsuite name="tests"><directory>tests</directory><exclude>tests/ignored</exclude></testsuite></testsuites></phpunit>
 XML);
-    file_put_contents($root.DIRECTORY_SEPARATOR.'rector.php', <<<'PHP'
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'rector.php', <<<'PHP'
 <?php
 
 use Rector\Config\RectorConfig;
@@ -212,25 +188,25 @@ PHP);
                 static fn(array $finding): bool => $finding['file'] === 'tests/ActiveTest.php' && $finding['tool'] === 'Pest',
             )))->toHaveCount(1);
     } finally {
-        removeSkipDirectiveScannerTree($root);
+        removeFixtureDirectory($root);
     }
 });
 
 it('ignores directive-shaped strings, unrelated methods, dependencies, and generated workflow sources', function (): void {
     $root = skipDirectiveScannerRoot();
-    mkdir($root.DIRECTORY_SEPARATOR.'vendor', 0755, true);
-    mkdir($root.DIRECTORY_SEPARATOR.'.phpforge-workflow', 0755, true);
-    mkdir($root.DIRECTORY_SEPARATOR.'bootstrap'.DIRECTORY_SEPARATOR.'cache', 0755, true);
-    file_put_contents($root.DIRECTORY_SEPARATOR.'src'.DIRECTORY_SEPARATOR.'Clean.php', <<<'PHP'
+    mkdir($root . DIRECTORY_SEPARATOR . 'vendor', 0755, true);
+    mkdir($root . DIRECTORY_SEPARATOR . '.phpforge-workflow', 0755, true);
+    mkdir($root . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'cache', 0755, true);
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Clean.php', <<<'PHP'
 <?php
 
 $examples = ['@phpstan-ignore', '@psalm-suppress', 'phpcs:ignore'];
 $queue->skip();
 $task->todo();
 PHP);
-    file_put_contents($root.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'Ignored.php', "<?php\n// @phpstan-ignore-line\n");
-    file_put_contents($root.DIRECTORY_SEPARATOR.'.phpforge-workflow'.DIRECTORY_SEPARATOR.'Ignored.php', "<?php\n/** @psalm-suppress all */\n");
-    file_put_contents($root.DIRECTORY_SEPARATOR.'bootstrap'.DIRECTORY_SEPARATOR.'cache'.DIRECTORY_SEPARATOR.'Ignored.php', "<?php\n// phpcs:ignore\n");
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'Ignored.php', "<?php\n// @phpstan-ignore-line\n");
+    file_put_contents($root . DIRECTORY_SEPARATOR . '.phpforge-workflow' . DIRECTORY_SEPARATOR . 'Ignored.php', "<?php\n/** @psalm-suppress all */\n");
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . 'Ignored.php', "<?php\n// phpcs:ignore\n");
 
     try {
         $scan = (new SkipDirectiveScanner())->scan($root);
@@ -239,13 +215,13 @@ PHP);
             ->and($scan['files'])->toBe(1)
             ->and($scan['findings'])->toBe([]);
     } finally {
-        removeSkipDirectiveScannerTree($root);
+        removeFixtureDirectory($root);
     }
 });
 
 it('keeps detecting skips through nested calls without treating unrelated methods as test skips', function (): void {
     $root = skipDirectiveScannerRoot();
-    file_put_contents($root.DIRECTORY_SEPARATOR.'src'.DIRECTORY_SEPARATOR.'Nested.php', <<<'PHP'
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Nested.php', <<<'PHP'
 <?php
 
 test('nested', fn () => strlen(trim('value')))->with([['value' => ')']])->skip();
@@ -261,7 +237,7 @@ PHP);
             ->and(array_column($scan['findings'], 'directive'))->toBe(['->skip()', '->todo()'])
             ->and(array_column($scan['findings'], 'line'))->toBe([3, 4]);
     } finally {
-        removeSkipDirectiveScannerTree($root);
+        removeFixtureDirectory($root);
     }
 });
 
@@ -285,7 +261,7 @@ it('groups actionable findings by tool and fails closed for an unreadable root',
         ],
         'errors' => [],
     ]);
-    $invalid = $scanner->scan(sys_get_temp_dir().DIRECTORY_SEPARATOR.'missing-'.bin2hex(random_bytes(6)));
+    $invalid = $scanner->scan(sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'missing-' . bin2hex(random_bytes(6)));
 
     expect($output)->toContain('Skip directive scan summary:')
         ->toContain('Files checked:  3')

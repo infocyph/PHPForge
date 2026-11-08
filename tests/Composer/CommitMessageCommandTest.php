@@ -11,31 +11,11 @@ use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Process\Process;
 
-function removeCommitMessageTree(string $path): void
-{
-    if (!is_dir($path)) {
-        return;
-    }
-
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-
-    foreach ($iterator as $item) {
-        if ($item->isDir()) {
-            rmdir($item->getPathname());
-
-            continue;
-        }
-
-        unlink($item->getPathname());
-    }
-
-    rmdir($path);
-}
-
-/** @return array{exit_code: int, output: string} */
+/**
+ * @return array{exit_code: int, output: string}
+ *
+ * @throws \Symfony\Component\Console\Exception\InvalidArgumentException|UnexpectedValueException
+ */
 function runCommitMessageCommand(CommitMessageCommand $command, string $messageFile): array
 {
     $execute = new ReflectionMethod($command, 'execute');
@@ -46,12 +26,16 @@ function runCommitMessageCommand(CommitMessageCommand $command, string $messageF
     $output = new BufferedOutput();
 
     return [
-        'exit_code' => $execute->invoke($command, $input, $output),
+        'exit_code' => fixtureInt($execute->invoke($command, $input, $output)),
         'output' => $output->fetch(),
     ];
 }
 
-/** @param list<string> $command */
+/**
+ * @param list<string> $command
+ *
+ * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\ProcessFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+ */
 function runCommitMessageGit(array $command, string $root): void
 {
     (new Process($command, $root))->mustRun();
@@ -123,8 +107,8 @@ it('uses the gitx instruction and staged diff in the Gemini request', function (
         );
         $message = $generator->generate("diff --git a/a.php b/a.php\n+new line\n");
         $payload = json_decode($captured['payload'] ?? '', true, 512, JSON_THROW_ON_ERROR);
-        $encodedDiff = $payload['contents'][0]['parts'][1]['inline_data']['data'] ?? null;
-        $instruction = $payload['system_instruction']['parts'][0]['text'] ?? null;
+        $encodedDiff = fixtureValue($payload, ['contents', 0, 'parts', 1, 'inline_data', 'data'], true) ?? null;
+        $instruction = fixtureValue($payload, ['system_instruction', 'parts', 0, 'text'], true) ?? null;
         $bundledInstruction = file_get_contents(__DIR__ . '/../../resources/commit-message-instructions.b64');
         $compactInstruction = is_string($bundledInstruction)
             ? preg_replace('/\s+/', '', $bundledInstruction)
@@ -172,9 +156,9 @@ it('sends complete staged diffs larger than one megabyte', function (): void {
         );
         $generator->generate($diff);
         $payload = json_decode($capturedPayload, true, 512, JSON_THROW_ON_ERROR);
-        $encodedDiff = $payload['contents'][0]['parts'][1]['inline_data']['data'] ?? null;
+        $encodedDiff = fixtureValue($payload, ['contents', 0, 'parts', 1, 'inline_data', 'data'], true) ?? null;
         $decodedDiff = is_string($encodedDiff) ? base64_decode($encodedDiff, true) : false;
-        $requestText = $payload['contents'][0]['parts'][0]['text'] ?? null;
+        $requestText = fixtureValue($payload, ['contents', 0, 'parts', 0, 'text'], true) ?? null;
 
         expect(strlen($diff))->toBeGreaterThan(1_000_000)
             ->and($decodedDiff)->toBeString()
@@ -224,7 +208,7 @@ it('preserves an existing commit message without calling Gemini', function (): v
 
         expect($result['exit_code'])->toBe(0)
             ->and($result['output'])->toContain('already supplied')
-            ->and(file_get_contents($messageFile))->toBe("fix(core): keep this message\n");
+            ->and(fixtureFile($messageFile))->toBe("fix(core): keep this message\n");
     } finally {
         restoreCommitMessageEnvironment('GEMINI_API_KEY', $originalKey);
         unlink($messageFile);
@@ -250,7 +234,7 @@ it('writes a generated message before Git comment lines', function (): void {
             geminiResponse(':sparkles: feat(hooks): generate commit messages'),
         );
         $result = runCommitMessageCommand(new CommitMessageCommand(generator: $generator), $messageFile);
-        $message = file_get_contents($messageFile);
+        $message = fixtureFile($messageFile);
 
         expect($result['exit_code'])->toBe(0)
             ->and($result['output'])->toContain('Generated commit message with Gemini')
@@ -263,7 +247,7 @@ it('writes a generated message before Git comment lines', function (): void {
             chdir($originalCwd);
         }
 
-        removeCommitMessageTree($root);
+        removeFixtureDirectory($root);
     }
 });
 
@@ -289,7 +273,7 @@ it('keeps commits usable when Gemini is unavailable', function (): void {
 
         expect($result['exit_code'])->toBe(0)
             ->and($result['output'])->toContain('generation skipped: network unavailable')
-            ->and(file_get_contents($messageFile))->toBe('');
+            ->and(fixtureFile($messageFile))->toBe('');
     } finally {
         restoreCommitMessageEnvironment('GEMINI_API_KEY', $originalKey);
 
@@ -297,16 +281,16 @@ it('keeps commits usable when Gemini is unavailable', function (): void {
             chdir($originalCwd);
         }
 
-        removeCommitMessageTree($root);
+        removeFixtureDirectory($root);
     }
 });
 
 it('enables the Gemini generator in both CaptainHook configurations', function (): void {
     foreach (['captainhook.json', 'resources/captainhook.json'] as $file) {
-        $config = json_decode((string) file_get_contents(__DIR__ . '/../../' . $file), true, 512, JSON_THROW_ON_ERROR);
-        $hook = $config['prepare-commit-msg'] ?? null;
+        $config = json_decode(fixtureFile(__DIR__ . '/../../' . $file), true, 512, JSON_THROW_ON_ERROR);
+        $hook = fixtureValue($config, ['prepare-commit-msg'], true) ?? null;
 
-        expect($hook['enabled'] ?? null)->toBeTrue()
-            ->and($hook['actions'][0]['action'] ?? null)->toBe('composer ic:commit-message "{$ARG|value-of:message-file}"');
+        expect(fixtureValue($hook, ['enabled'], true) ?? null)->toBeTrue()
+            ->and(fixtureValue($hook, ['actions', 0, 'action'], true) ?? null)->toBe('composer ic:commit-message "{$ARG|value-of:message-file}"');
     }
 });

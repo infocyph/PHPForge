@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Infocyph\PHPForge\Support\BenchmarkResult;
 
 /**
- * @return array<string, mixed>
+ * @return array{schema_version:int,generated_at:string,environment:array<string,mixed>,workloads:list<array{result:array{latency_ms:array<string,float>,...},...}>}
  */
 function phpforgeBenchmarkDocument(float $rpm = 60_000.0, string $fingerprint = 'runner-a'): array
 {
@@ -73,10 +73,12 @@ function phpforgeBenchmarkDocument(float $rpm = 60_000.0, string $fingerprint = 
 
 /**
  * @param array<string, mixed> $document
+ *
+ * @throws RuntimeException
  */
 function writePhpforgeBenchmarkDocument(array $document): string
 {
-    $path = tempnam(sys_get_temp_dir(), 'phpforge-benchmark-');
+    $path = fixtureTempFile('phpforge-benchmark-');
     file_put_contents($path, json_encode($document, JSON_THROW_ON_ERROR));
 
     return $path;

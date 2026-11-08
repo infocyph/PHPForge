@@ -10,7 +10,8 @@ use PHP_CodeSniffer\Util\Tokens;
 
 final class ForbiddenFunctionsSniff extends GenericForbiddenFunctionsSniff
 {
-    public function process(File $phpcsFile, int $stackPtr)
+    #[\Override]
+    public function process(File $phpcsFile, int $stackPtr): void
     {
         if ($this->isAllowedExit($phpcsFile, $stackPtr)) {
             return;
@@ -21,6 +22,7 @@ final class ForbiddenFunctionsSniff extends GenericForbiddenFunctionsSniff
 
     private function isAllowedExit(File $phpcsFile, int $stackPtr): bool
     {
+        /** @var array<int, array{code: int|string, type: string, content: string, parenthesis_closer?: mixed}> $tokens */
         $tokens = $phpcsFile->getTokens();
 
         if ($tokens[$stackPtr]['code'] !== T_EXIT || strtolower($tokens[$stackPtr]['content']) !== 'exit') {
@@ -33,11 +35,17 @@ final class ForbiddenFunctionsSniff extends GenericForbiddenFunctionsSniff
 
         $openParenthesis = $phpcsFile->findNext(Tokens::EMPTY_TOKENS, $stackPtr + 1, null, true);
 
-        if ($openParenthesis === false || $tokens[$openParenthesis]['code'] !== T_OPEN_PARENTHESIS) {
+        if ($openParenthesis === false || $tokens[$openParenthesis]['type'] !== 'T_OPEN_PARENTHESIS') {
             return false;
         }
 
-        $closeParenthesis = $tokens[$openParenthesis]['parenthesis_closer'] ?? null;
+        $openingToken = $tokens[$openParenthesis];
+
+        if (!isset($openingToken['parenthesis_closer'])) {
+            return false;
+        }
+
+        $closeParenthesis = $openingToken['parenthesis_closer'];
 
         if (!is_int($closeParenthesis)) {
             return false;

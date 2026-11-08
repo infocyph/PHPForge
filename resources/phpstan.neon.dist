@@ -1,11 +1,15 @@
 includes:
     - %currentWorkingDirectory%/vendor/tomasvotruba/cognitive-complexity/config/extension.neon
+    - %currentWorkingDirectory%/vendor/pestphp/pest-plugin-phpstan/extension.neon
+    - %currentWorkingDirectory%/vendor/phpstan/phpstan-phpunit/extension.neon
 
 parameters:
     customRulesetUsed: true
     level: max
     paths:
         - %currentWorkingDirectory%
+    bootstrapFiles:
+        - %currentWorkingDirectory%/vendor/squizlabs/php_codesniffer/autoload.php
     excludePaths:
         analyseAndScan:
             - %currentWorkingDirectory%/vendor/*
@@ -20,11 +24,6 @@ parameters:
             - %currentWorkingDirectory%/storage/*
             - %currentWorkingDirectory%/bootstrap/cache/*
             - %currentWorkingDirectory%/var/cache/*
-            - %currentWorkingDirectory%/tests/*
-            - %currentWorkingDirectory%/resources/*
-            - %currentWorkingDirectory%/bin/*
-            - %currentWorkingDirectory%/benchmarks/*
-            - %currentWorkingDirectory%/examples/*
     cognitive_complexity:
         class: 80
         function: 12

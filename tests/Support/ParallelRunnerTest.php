@@ -8,12 +8,12 @@ use Symfony\Component\Console\Output\BufferedOutput;
 function withParallelRunnerEnv(string $name, ?string $value, callable $callback): void
 {
     $previous = getenv($name);
-    putenv($value === null ? $name : $name.'='.$value);
+    putenv($value === null ? $name : $name . '=' . $value);
 
     try {
         $callback();
     } finally {
-        putenv($previous === false ? $name : $name.'='.$previous);
+        putenv($previous === false ? $name : $name . '=' . $previous);
     }
 }
 
@@ -57,7 +57,7 @@ it('terminates and reports a task that exceeds its configured timeout', function
 });
 
 it('lets every started peer finish when another task fails', function (): void {
-    $marker = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-peer-'.uniqid('', true);
+    $marker = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-peer-' . uniqid('', true);
     $output = new BufferedOutput();
     $tasks = [
         [PHP_BINARY, '-r', 'usleep(50000); exit(7);'],
@@ -67,7 +67,7 @@ it('lets every started peer finish when another task fails', function (): void {
     $exitCode = (new ParallelRunner($output))->run([], $tasks, 2);
 
     expect($exitCode)->toBe(7)
-        ->and(file_get_contents($marker))->toBe('done');
+        ->and(fixtureFile($marker))->toBe('done');
 
     unlink($marker);
 });
@@ -82,7 +82,11 @@ it('renders completed tasks in declaration order', function (): void {
     (new ParallelRunner($output))->run([], $tasks, 2);
     $rendered = $output->fetch();
 
-    expect(strpos($rendered, 'first-marker'))->toBeLessThan(strpos($rendered, 'second-marker'));
+    $first = strpos($rendered, 'first-marker');
+    $second = strpos($rendered, 'second-marker');
+    PHPUnit\Framework\Assert::assertIsInt($first);
+    PHPUnit\Framework\Assert::assertIsInt($second);
+    expect($first)->toBeLessThan($second);
 });
 
 it('keeps successful task output concise', function (): void {
@@ -114,8 +118,8 @@ it('renders successful tasks only in the summary and every failed task with comp
 });
 
 it('renders PHPProbe 1.3 aggregate failures with reference integrity details', function (): void {
-    $directory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'phpforge-phpprobe-output-'.bin2hex(random_bytes(6));
-    $probe = $directory.DIRECTORY_SEPARATOR.'phpprobe';
+    $directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-phpprobe-output-' . bin2hex(random_bytes(6));
+    $probe = $directory . DIRECTORY_SEPARATOR . 'phpprobe';
     mkdir($directory, 0755, true);
     file_put_contents($probe, <<<'PHP'
 <?php

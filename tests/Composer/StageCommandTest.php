@@ -2,39 +2,21 @@
 
 declare(strict_types=1);
 
-use Infocyph\PHPForge\Composer\StageCommand;
 use Infocyph\PHPForge\Composer\CommandProvider;
+use Infocyph\PHPForge\Composer\StageCommand;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputArgument as Argument;
 use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Process\Process;
 
-function removeStageCommandTree(string $path): void
-{
-    if (!is_dir($path)) {
-        return;
-    }
-
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-
-    foreach ($iterator as $item) {
-        if ($item->isDir()) {
-            rmdir($item->getPathname());
-
-            continue;
-        }
-
-        unlink($item->getPathname());
-    }
-
-    rmdir($path);
-}
-
-/** @return array{exit_code: int, output: string} */
+/**
+ * @param list<string> $paths
+ *
+ * @return array{exit_code: int, output: string}
+ *
+ * @throws \Symfony\Component\Console\Exception\LogicException|\Symfony\Component\Console\Exception\InvalidArgumentException|UnexpectedValueException
+ */
 function runStageCommand(array $paths): array
 {
     $command = new StageCommand();
@@ -46,12 +28,16 @@ function runStageCommand(array $paths): array
     $output = new BufferedOutput();
 
     return [
-        'exit_code' => $execute->invoke($command, $input, $output),
+        'exit_code' => fixtureInt($execute->invoke($command, $input, $output)),
         'output' => $output->fetch(),
     ];
 }
 
-/** @param list<string> $command */
+/**
+ * @param list<string> $command
+ *
+ * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\ProcessFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+ */
 function runStageGit(array $command, string $root): string
 {
     $process = new Process($command, $root);
@@ -60,6 +46,9 @@ function runStageGit(array $command, string $root): string
     return $process->getOutput();
 }
 
+/**
+ * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\ProcessFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+ */
 function createStageCommandFixture(): string
 {
     $root = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-stage-' . uniqid('', true);
@@ -70,7 +59,9 @@ function createStageCommandFixture(): string
     mkdir($source, 0755, true);
     file_put_contents($root . DIRECTORY_SEPARATOR . 'composer.json', "{\"require\":{},\"name\":\"example/project\"}\n");
     file_put_contents($source . DIRECTORY_SEPARATOR . 'Example.php', "<?php\n\ndeclare(strict_types=1);\n");
-    file_put_contents($bin . DIRECTORY_SEPARATOR . 'composer', <<<'PHP'
+    file_put_contents(
+        $bin . DIRECTORY_SEPARATOR . 'composer',
+        <<<'PHP'
 #!/usr/bin/env php
 <?php
 
@@ -124,7 +115,7 @@ it('normalizes Composer files, validates PHP syntax, and stages all successful c
             chdir($originalCwd);
         }
 
-        removeStageCommandTree($root);
+        removeFixtureDirectory($root);
     }
 });
 
@@ -152,6 +143,6 @@ it('prevents every selected and generated file from being staged when PHP syntax
             chdir($originalCwd);
         }
 
-        removeStageCommandTree($root);
+        removeFixtureDirectory($root);
     }
 });

@@ -98,8 +98,8 @@ it('accepts an empty interactive service selection', function (): void {
     fclose($stream);
 
     expect($selection)->toBeArray()
-        ->and($selection['services'])->toBe([])
-        ->and($selection['topologies'])->toBe([])
+        ->and(fixtureValue($selection, ['services']))->toBe([])
+        ->and(fixtureValue($selection, ['topologies']))->toBe([])
         ->and($output->fetch())->not->toContain('is invalid');
 });
 
@@ -139,7 +139,7 @@ it('does not persist service selections during init', function (): void {
 });
 
 it('pins QA and release workflows to the selected PHPForge ref', function (): void {
-    $contents = file_get_contents(dirname(__DIR__, 2) . '/resources/workflows/security-standards.yml');
+    $contents = fixtureFile(dirname(__DIR__, 2) . '/resources/workflows/security-standards.yml');
     $updated = WorkflowWrapper::update($contents, 'v3.0.0', [
         'integration_services' => "'[]'",
         'service_topologies' => "'{}'",
@@ -164,7 +164,7 @@ it('keeps release instructions in the referenced PHPForge workflow source', func
         $output = new BufferedOutput();
 
         expect($method->invoke($command, $input, $output))->toBe(0)
-            ->and(file_get_contents($projectRoot . '/.github/workflows/security-standards.yml'))->toContain('release.yml@v3.0.0')
+            ->and(fixtureFile($projectRoot . '/.github/workflows/security-standards.yml'))->toContain('release.yml@v3.0.0')
             ->and(is_file($projectRoot . '/.github/release-notes-instructions.md'))->toBeFalse();
     } finally {
         if (is_string($originalCwd)) {

@@ -21,30 +21,6 @@ function mirrorTaskCatalogConfig(string $projectRoot, string $file): string
     return $target;
 }
 
-function removeTaskCatalogTree(string $path): void
-{
-    if (!is_dir($path)) {
-        return;
-    }
-
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-
-    foreach ($iterator as $item) {
-        if ($item->isDir()) {
-            rmdir($item->getPathname());
-
-            continue;
-        }
-
-        unlink($item->getPathname());
-    }
-
-    rmdir($path);
-}
-
 function withTaskCatalogEnv(string $name, ?string $value, callable $callback): void
 {
     $previous = getenv($name);
@@ -155,7 +131,7 @@ it('checks consumer references without scanning installed dependencies', functio
             ->and($process->getOutput() . $process->getErrorOutput())->toContain('MissingConsumerBase')
             ->and($process->getOutput() . $process->getErrorOutput())->not->toContain('MissingDependency');
     } finally {
-        removeTaskCatalogTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -371,7 +347,7 @@ it('uses the bundled phpbench config directly for consuming projects', function 
             chdir($originalCwd);
         }
 
-        removeTaskCatalogTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -393,7 +369,7 @@ it('skips benchmark tasks when the project has no benchmarks directory', functio
             chdir($originalCwd);
         }
 
-        removeTaskCatalogTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -424,7 +400,7 @@ it('uses the bundled pest config directly for consuming projects', function (): 
             chdir($originalCwd);
         }
 
-        removeTaskCatalogTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -462,14 +438,14 @@ it('skips Pest when the project has no tests directory', function (): void {
             chdir($originalCwd);
         }
 
-        removeTaskCatalogTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
 it('uses the project captainhook config when present', function (): void {
     $command = TaskCatalog::hooks()[0];
 
-    expect($command)->toContain('--configuration=' . getcwd() . DIRECTORY_SEPARATOR . 'captainhook.json');
+    expect($command)->toContain('--configuration=' . fixtureString(getcwd()) . DIRECTORY_SEPARATOR . 'captainhook.json');
 });
 
 it('falls back to the vendor package captainhook config', function (): void {
@@ -490,7 +466,7 @@ it('falls back to the vendor package captainhook config', function (): void {
             chdir($originalCwd);
         }
 
-        removeTaskCatalogTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -523,7 +499,7 @@ it('uses the bundled phpstan config directly for consuming projects', function (
             chdir($originalCwd);
         }
 
-        removeTaskCatalogTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -550,6 +526,6 @@ it('prefers project phpstan.neon over phpstan.neon.dist', function (): void {
             chdir($originalCwd);
         }
 
-        removeTaskCatalogTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });

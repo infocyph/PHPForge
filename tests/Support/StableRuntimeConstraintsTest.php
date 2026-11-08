@@ -7,10 +7,12 @@ use Infocyph\PHPForge\Support\StableRuntimeConstraints;
 
 /**
  * @param array<string, mixed> $manifest
+ *
+ * @throws RuntimeException
  */
 function writePhpforgeComposerManifest(array $manifest): string
 {
-    $path = tempnam(sys_get_temp_dir(), 'phpforge-composer-');
+    $path = fixtureTempFile('phpforge-composer-');
     file_put_contents($path, json_encode($manifest, JSON_THROW_ON_ERROR));
 
     return $path;
@@ -18,23 +20,24 @@ function writePhpforgeComposerManifest(array $manifest): string
 
 it('requires the PHP 8.5 array helper polyfill used by analyzers on PHP 8.4', function (): void {
     $composer = json_decode(
-        (string) file_get_contents(dirname(__DIR__, 2).'/composer.json'),
+        fixtureFile(dirname(__DIR__, 2) . '/composer.json'),
         true,
         512,
         JSON_THROW_ON_ERROR,
     );
     $lock = json_decode(
-        (string) file_get_contents(dirname(__DIR__, 2).'/composer.lock'),
+        fixtureFile(dirname(__DIR__, 2) . '/composer.lock'),
         true,
         512,
         JSON_THROW_ON_ERROR,
     );
-    $constraint = (string) ($composer['require']['symfony/polyfill-php85'] ?? '');
+    $constraint = fixtureString(fixtureValue($composer, ['require', 'symfony/polyfill-php85'], true) ?? '');
     $lockedVersion = '';
 
-    foreach ([...$lock['packages'], ...$lock['packages-dev']] as $package) {
-        if (($package['name'] ?? '') === 'symfony/polyfill-php85') {
-            $lockedVersion = (string) ($package['version'] ?? '');
+    foreach ([...fixtureArray(fixtureValue($lock, ['packages'])), ...fixtureArray(fixtureValue($lock, ['packages-dev']))] as $package) {
+        if ((fixtureValue($package, ['name'], true) ?? '') === 'symfony/polyfill-php85') {
+            $lockedVersion = fixtureString(fixtureValue($package, ['version'], true) ?? '');
+
             break;
         }
     }
@@ -47,12 +50,12 @@ it('requires the PHP 8.5 array helper polyfill used by analyzers on PHP 8.4', fu
 
 it('requires PHPProbe 1.3 or newer within the current major version', function (): void {
     $composer = json_decode(
-        (string) file_get_contents(dirname(__DIR__, 2).'/composer.json'),
+        fixtureFile(dirname(__DIR__, 2) . '/composer.json'),
         true,
         512,
         JSON_THROW_ON_ERROR,
     );
-    $constraint = (string) ($composer['require']['infocyph/phpprobe'] ?? '');
+    $constraint = fixtureString(fixtureValue($composer, ['require', 'infocyph/phpprobe'], true) ?? '');
 
     expect($constraint)->not->toBeEmpty()
         ->and(Semver::satisfies('1.3.1', $constraint))->toBeTrue();

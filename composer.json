@@ -27,6 +27,7 @@
     "require": {
         "php": "^8.4",
         "composer-plugin-api": "^2.9",
+        "alies-dev/psalm-plugin-pest": "^1.0.0",
         "brianium/paratest": "^7.27.5",
         "captainhook/captainhook": "^5.29.2",
         "deptrac/deptrac": "^4.7.2",
@@ -35,8 +36,11 @@
         "laravel/pint": "^1.32.1",
         "pestphp/pest": "^5.3.5",
         "pestphp/pest-plugin-drift": "^5.0.0",
+        "pestphp/pest-plugin-phpstan": "^5.3.1",
         "phpbench/phpbench": "^1.7.0",
         "phpstan/phpstan": "^2.3.5",
+        "phpstan/phpstan-phpunit": "^2.1.1",
+        "psalm/plugin-phpunit": "^0.21.1",
         "rector/rector": "^2.8.4",
         "squizlabs/php_codesniffer": "^4.0.4",
         "symfony/console": "^8.1.11",
@@ -56,6 +60,15 @@
         },
         "files": [
             "src/Support/PhpParserCompatibility.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PHPForge\\": "resources/PHPForge/",
+            "PHP_CodeSniffer\\": "vendor/squizlabs/php_codesniffer/src/"
+        },
+        "files": [
+            "tests/Support/FixtureData.php"
         ]
     },
     "bin": [

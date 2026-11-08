@@ -9,30 +9,6 @@ use Composer\Script\Event;
 use Composer\Script\ScriptEvents;
 use Infocyph\PHPForge\Composer\Plugin;
 
-function removePluginTestTree(string $path): void
-{
-    if (!is_dir($path)) {
-        return;
-    }
-
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST,
-    );
-
-    foreach ($iterator as $item) {
-        if ($item->isDir()) {
-            rmdir($item->getPathname());
-
-            continue;
-        }
-
-        unlink($item->getPathname());
-    }
-
-    rmdir($path);
-}
-
 it('installs hooks from the vendor package config when project config is absent', function (): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'phpforge-plugin-' . uniqid('', true);
@@ -64,7 +40,7 @@ it('installs hooks from the vendor package config when project config is absent'
             ->toThrow(RuntimeException::class)
             ->and(is_file($projectConfig))
             ->toBeFalse()
-            ->and(file_get_contents($installLog))
+            ->and(fixtureFile($installLog))
             ->toContain('--configuration=' . $vendorPackage . DIRECTORY_SEPARATOR . 'captainhook.json')
             ->toContain('--bootstrap=../../autoload.php')
             ->not->toContain('phpforge/vendor/autoload.php')
@@ -75,7 +51,7 @@ it('installs hooks from the vendor package config when project config is absent'
             chdir($originalCwd);
         }
 
-        removePluginTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -103,13 +79,13 @@ it('does not publish or refresh the engineering skill on install hook run', func
         $plugin = new Plugin();
 
         expect(fn() => $plugin->installHooks($event))->not->toThrow(RuntimeException::class);
-        expect(file_get_contents($skillTarget))->toBe("old contents\n");
+        expect(fixtureFile($skillTarget))->toBe("old contents\n");
     } finally {
         if (is_string($originalCwd)) {
             chdir($originalCwd);
         }
 
-        removePluginTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -134,7 +110,7 @@ it('keeps strict hook installation when project captainhook config exists', func
             chdir($originalCwd);
         }
 
-        removePluginTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -158,7 +134,7 @@ it('skips dev-only hook installation during no-dev autoload dumps', function ():
             chdir($originalCwd);
         }
 
-        removePluginTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -182,7 +158,7 @@ it('skips hook installation outside a git checkout', function (): void {
             chdir($originalCwd);
         }
 
-        removePluginTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -220,7 +196,7 @@ it('reports only Composer plugins that are not explicitly allowed', function ():
             chdir($originalCwd);
         }
 
-        removePluginTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });
 
@@ -247,6 +223,6 @@ it('does not report recommendations when all Composer plugins are allowed', func
             chdir($originalCwd);
         }
 
-        removePluginTestTree($projectRoot);
+        removeFixtureDirectory($projectRoot);
     }
 });

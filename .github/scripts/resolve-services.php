@@ -4,6 +4,7 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
+/** @var array<string, array{topologies: array<string, string|null>, extensions: list<string>, external: bool, ...}> $catalog */
 $catalog = require $root . '/resources/services/catalog.php';
 $servicesJson = getenv('INTEGRATION_SERVICES_INPUT');
 $servicesJson = in_array($servicesJson, [false, '', '0'], true) ? '[]' : $servicesJson;
@@ -13,34 +14,39 @@ $configuredExtensions = getenv('PHP_EXTENSIONS_INPUT');
 $configuredExtensions = in_array($configuredExtensions, [false, '', '0'], true) ? '' : $configuredExtensions;
 $services = json_decode($servicesJson, true);
 $topologiesObject = json_decode($topologiesJson);
-$containsNonString = static function (array $values): bool {
-    foreach ($values as $value) {
+/**
+ * @param array<array-key, mixed> $values
+ * @return array<array-key, string>
+ */
+$stringValues = static function (array $values, string $message): array {
+    $strings = [];
+
+    foreach ($values as $key => $value) {
         if (!is_string($value)) {
-            return true;
+            fwrite(STDERR, $message . "\n");
+            exit(1);
         }
+
+        $strings[$key] = $value;
     }
 
-    return false;
+    return $strings;
 };
 
-if (!is_array($services) || !array_is_list($services) || $containsNonString($services)) {
+if (!is_array($services) || !array_is_list($services)) {
     fwrite(STDERR, "integration_services must be a JSON string array.\n");
     exit(1);
 }
+
+$services = $stringValues($services, 'integration_services must be a JSON string array.');
 
 if (!$topologiesObject instanceof stdClass) {
     fwrite(STDERR, "service_topologies must be a JSON object of service-to-topology strings.\n");
     exit(1);
 }
 
-$topologies = get_object_vars($topologiesObject);
-
-if ($containsNonString($topologies)) {
-    fwrite(STDERR, "service_topologies must be a JSON object of service-to-topology strings.\n");
-    exit(1);
-}
-
 $services = array_values(array_unique($services));
+$topologies = $stringValues(get_object_vars($topologiesObject), 'service_topologies must be a JSON object of service-to-topology strings.');
 $selected = array_fill_keys($services, true);
 $profiles = [];
 $extensions = [];
@@ -68,7 +74,7 @@ foreach ($services as $service) {
 
     $profile = $catalog[$service]['topologies'][$topology];
 
-    if (is_string($profile) && $profile !== '') {
+    if ($profile !== null) {
         $profiles[$profile] = true;
     }
 
