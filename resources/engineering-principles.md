@@ -1,14 +1,66 @@
 # PHPForge Engineering Instructions
 
+## Execution Checkpoints
+
+These checkpoints apply to every task, including read-only investigations. Detailed rules remain authoritative; the checklist and map do not replace them. Tables carry the same authority as prose: “all” requires every listed condition; “any” requires at least one.
+
+**Rule IDs:** Each ID identifies a rule group, including its conditions, exceptions and examples. Cite the ID and a short ruling phrase for individual requirements. Keep IDs stable when moving or editing rules; never renumber existing IDs or reuse retired ones.
+
+### Before Implementation
+
+**EXEC-01**
+
+- Before choosing an implementation, define the outcome, authorized scope and preserved behavior/contracts; identify applicable document, repository-agent, tooling and CI requirements.
+- Track `rule ID + ruling → affected behavior/boundary → required evidence → status` in task notes or an existing plan. Create a repository artifact only if the task requires one.
+- Always cover scope, contracts, security, ownership, abstraction, gates and verification; include persistence, concurrency, worker lifecycle and performance where touched.
+- Distinguish blocking rules, conditional guidance and non-blocking review triggers. Apply stated conditions; preferences and review thresholds are not automatic defects. Justify every not-applicable ruling; convenience, time or context limits are insufficient.
+- For read-only tasks, check the investigation and evidence; source-mutating commands are not required.
+
+### During Implementation And Context Recovery
+
+**EXEC-02**
+
+- Update the checklist as findings, affected callers, scope or verification needs change.
+- After compaction or resuming work, recover the checklist and recheck applicable source sections before trusting a summary; retain unresolved requirements and missing evidence.
+- Review automated edits and detector changes against [FLOW-02](#quality-gate-issue-resolution). Resolve conflicting blocking rules through [CORE-01](#core-policy-and-change-discipline); do not silently drop one.
+
+### Before Reporting Completion
+
+**EXEC-03**
+
+- Check the final diff and affected callers against the checklist: public behavior, security, ownership, configuration, scan scope and thresholds.
+- Record verification commands, results and covered revision or working-tree state; check diagnostics and exit status when failure behavior matters.
+- Give each applicable ruling evidence and a status: verified, failed, blocked or pending. Planned checks, results invalidated by changes and unavailable tools are not verification.
+- Complete required validation before claiming completion. Report any failed, blocked or pending blocking ruling and its exact limitation instead of claiming success.
+- Concisely report changes, material decisions, verification, unresolved risks and limitations; distinguish local results, hosted CI and publication where relevant.
+
+### Section Map
+
+| Concern | Rule family |
+| --- | --- |
+| Scope, priorities and contracts | [CORE](#engineering-scope-and-decision-rules) |
+| Root-cause fixes, detectors and checks | [FLOW](#tooling-and-workflow) |
+| Throughput, benchmarks and budgets | [PERF](#performance-objective-measurement-and-acceptance) |
+| Runtimes, APIs, style and documentation | [COMPAT](#runtime-compatibility-standards-and-public-contracts) |
+| Trust boundaries, types and branching | [TYPE](#types-validation-and-control-flow) |
+| Cohesion, complexity, types and extension boundaries | [STRUCT](#classes-methods-files-and-abstraction) |
+| Requests, loading, HTTP and serialization | [REQUEST](#request-processing-data-loading-and-serialization) |
+| Collections, iteration and resource lifetime | [MEM](#collections-iteration-and-memory) |
+| Security, clocks, identifiers, OTP and cryptography | [SEC](#security-identity-and-cryptography) |
+| Persistence, remote I/O, retries and caches | [DATA](#database-external-services-and-caching) |
+| Events, logs and diagnostics | [OBS](#events-logging-and-observability) |
+| Composer, configuration and paths | [CONFIG](#dependencies-configuration-and-code-loading) |
+| Workers, shutdown, deployment and operations | [OPS](#runtime-processes-deployment-and-operations) |
+
 ## Engineering Scope And Decision Rules
 
 ### Core Policy And Change Discipline
 
+**CORE-01**
+
 - Stay framework-agnostic unless the project clearly requires otherwise.
 - Treat correctness, security, data integrity and operational stability as non-negotiable constraints.
-- The primary performance objective is the highest sustainable number of successful requests per minute (`RPM`) on production-equivalent infrastructure.
-- Among correct, secure and stable implementations, choose the implementation with the highest measured sustained throughput.
-- Optimize the complete execution path rather than isolated syntax, minimum resource usage or architectural fashion.
+- Maximize measured sustained successful RPM on production-equivalent infrastructure, subject to the decision order below. Apply [PERF-01](#sustained-throughput-objective) to the complete execution path.
 - Prefer simple, explicit and measurable solutions.
 - Avoid speculative architecture, unnecessary abstractions and unnecessary layers.
 - Follow project conventions unless they conflict with correctness, security, throughput or a clearly better design.
@@ -20,17 +72,20 @@
 - When a PSR-compliant and project-specific design provide equivalent behavior and sustained RPM, prefer the interoperable PSR contract.
 - Apply `SOLID` pragmatically. Prefer composition over inheritance only when it creates a real contract, substitution boundary or reduction in total complexity.
 - Be skeptical of defaults, conventions and abstractions that introduce hidden runtime or operational costs.
-- When sustained throughput is practically equivalent, choose the implementation with lower complexity, lower operating cost and more predictable behavior.
+- When sustained throughput is practically equivalent, choose the implementation with lower complexity, lower operating cost, more predictable behavior and safer operations.
 - When uncertain, choose the simpler design that is easier to benchmark, profile, operate and change.
-- Use deterministic local tooling for deterministic work; reserve agent context and reasoning for decisions that actually require judgment.
-- Optimize agent token usage by eliminating redundant context, repeated inspection, unnecessary output and avoidable tool work; never trade correctness, verification depth or solution quality for fewer tokens.
+- Apply [FLOW-09](#reasoning-and-context-efficiency) to deterministic work and agent judgment, and [FLOW-12](#efficiency-safety-rule) to token, context, output and tool efficiency.
 - Interpret specific rules as refinements of general rules.
-- When rules appear to conflict, apply them in this order:
-  - correctness, security, authorization, data integrity and operational stability,
-  - explicit public, protocol and interoperability contracts,
-  - the more specific domain or boundary rule,
-  - the highest sustainable successful RPM within defined budgets,
-  - and then lower total complexity, operating cost and maintenance burden.
+When rules conflict, apply this priority order:
+
+| Priority | Requirement |
+| --- | --- |
+| 1 | Correctness, security, authorization, data integrity and operational stability |
+| 2 | Explicit public, protocol and interoperability contracts |
+| 3 | The more specific domain or boundary rule |
+| 4 | Highest sustainable successful RPM within defined budgets |
+| 5 | Lower total complexity, operating cost and maintenance burden |
+
 - Do not use a general performance or simplification rule to override a stricter security, compatibility, quality-gate or protocol requirement.
 - When two applicable blocking requirements cannot both be satisfied, do not silently choose one or claim completion.
 - Redesign the change or report the conflict for an explicit project decision.
@@ -46,6 +101,8 @@
 - Do not hide unrelated refactoring inside feature or bug-fix work.
 
 ### Universal Applicability
+
+**CORE-02**
 
 - Apply these instructions to all first-party PHP code, including:
   - applications,
@@ -93,9 +150,260 @@
 - Benchmark cold and warm loading for packages used during bootstrap.
 - Soak-test repeated execution and state reset for packages intended for persistent workers.
 
+## Tooling And Workflow
+
+**FLOW-01**
+
+- Respect repository tooling and quality checks such as formatting, static analysis, refactoring, tests, mutation testing, profiling and benchmarks.
+- Parallelize independent read-only tools at the orchestration layer; do not launch duplicate or nested copies of the same checker merely to increase concurrency.
+- Keep source-mutating processors sequential unless disjoint ownership and atomic publication are proven.
+- Bound task concurrency and diagnostic output, let every started peer finish, and render results in deterministic declaration order.
+- Reuse one successful analyzer execution for both gating and machine-readable reporting when the tool can produce both results.
+- Use the project’s existing automation instead of manually enforcing style.
+- Configure automated formatting for the declared PER Coding Style or established repository standard.
+- Keep formatting checks separate from semantic and performance validation.
+- Use static analysis at the strongest practical level supported by the project.
+- Treat findings from tests, static analysis, formatters, linters, mutation testing, security scanners, compatibility checks, complexity checks, coverage gates, performance gates and other quality detectors as issues to resolve at their root cause.
+
+### Quality-Gate Issue Resolution
+
+**FLOW-02**
+
+- Fix the code, configuration, test or contract that causes a valid finding.
+- When a domain-specific section prohibits suppression, baselines, exclusions or exemptions more strictly, the stricter domain rule applies.
+- The false-positive exception below does not override an explicit no-suppression rule elsewhere in this document.
+- Do not make a failing quality gate pass by:
+  - weakening or disabling the detector,
+  - reducing its configured scope,
+  - increasing a threshold,
+  - lowering a required analysis level,
+  - removing or weakening an assertion,
+  - deleting a relevant test,
+  - excluding affected files, paths, symbols or rules,
+  - adding or expanding a baseline,
+  - adding suppressions, ignore directives, allowlists or exemptions,
+  - marking a failure as expected without correcting its cause,
+  - changing CI to skip the check,
+  - or bypassing the gate manually.
+- Do not move problematic code outside the detector's scan path merely to avoid a finding.
+- Do not replace a precise rule with a broader or weaker rule solely to make existing code pass.
+- Do not change production behavior, public contracts or security controls merely to satisfy a detector when the detector is misconfigured.
+- When a finding appears incorrect:
+  - reproduce it with the smallest relevant case,
+  - verify the detector's documented semantics,
+  - verify project configuration and supported runtime versions,
+  - and correct the detector configuration only when evidence shows that the configuration itself is wrong.
+- Treat detector configuration changes as code changes:
+  - keep them narrowly scoped,
+  - explain the reason,
+  - review their effect on all existing checks,
+  - and verify that they do not hide other valid findings.
+- Do not introduce inline suppression for a false positive unless no correct code or configuration fix exists and explicit approval is given.
+- Any approved suppression must be:
+  - as narrow as possible,
+  - tied to a specific detector and finding,
+  - documented with the technical reason,
+  - covered by tests where relevant,
+  - and assigned a review or removal condition.
+- Do not use a baseline to absorb new violations.
+- Do not update an existing baseline as part of ordinary feature or bug-fix work.
+- Resolve new findings before merging.
+- When legacy violations already exist, ensure the change does not add to them and fix any touched violation within the active scope where practical.
+- If a required detector cannot run, report the exact reason and do not claim the quality gate passed.
+- A clean result is valid only when the intended detector, rules, scope and thresholds remain active.
+- Run compatibility and deprecation checks against every supported PHP version and the next intended upgrade target.
+- Add or update tests for affected behavior, boundaries, failures and contracts.
+- Add benchmarks only for meaningful, stable, performance-sensitive behavior.
+- Follow any additional mandatory post-implementation or documentation workflow in [AGENTS.md](vendor/infocyph/phpforge/resources/AGENTS.md) when that file exists.
+- Review automated changes for correctness.
+- Keep automated changes within scope.
+- Do not accept generated or automated refactoring without reviewing the resulting behavior.
+- Report which formatting, analysis, tests, profiling and benchmarks were run.
+- Clearly state anything that could not be verified.
+
+### Agent Execution, Tool And Token Efficiency
+
+**FLOW-03**
+
+- Treat agent token consumption, context size, tool calls and execution time as engineering resources.
+- Apply the [Efficiency Safety Rule](#efficiency-safety-rule) to every reduction in context, tool work or execution time; preserve source understanding, test and compatibility coverage, and required performance evidence.
+- Prefer deterministic local tooling over token-heavy manual inspection or reasoning when it provides equivalent or better evidence.
+- Use the cheapest authoritative mechanism that can answer the question correctly.
+- Prefer, where applicable:
+  1. PHPForge built-in commands and detectors available in the installed project version,
+  2. existing project scripts and repository automation,
+  3. native PHP and Composer commands,
+  4. Git and established system commands,
+  5. targeted source inspection,
+  6. small task-specific scripts,
+  7. broad manual reconstruction or speculative reasoning.
+- This order is a workflow preference, not permission to skip required inspection or verification.
+- Use a lower-ranked mechanism when a higher-ranked tool:
+  - cannot answer the question,
+  - lacks required context,
+  - requires independent verification,
+  - or would make the task less correct or less efficient.
+- Search before reading broadly.
+- Inspect before designing.
+- Reuse before creating.
+- Edit before rewriting.
+- Verify before reporting.
+
+### PHPForge Command Preference
+
+**FLOW-04**
+
+- Before performing repetitive or repository-wide PHP analysis manually, determine whether the installed PHPForge version already provides an equivalent command, detector or workflow.
+- Prefer PHPForge built-in capabilities for supported operations such as:
+  - structural inspection,
+  - class, file and abstraction review,
+  - cognitive-complexity analysis,
+  - dependency analysis,
+  - documentation and PHPDoc checks,
+  - comment-policy checks,
+  - code-quality checks,
+  - compatibility checks,
+  - validation,
+  - refactoring support,
+  - profiling or benchmark support,
+  - and other project-defined PHPForge operations.
+- Treat the installed project's PHPForge version and its command help or documentation as the source of truth.
+- Do not assume a PHPForge command, option, detector or behavior exists without checking the installed version when uncertain.
+- Prefer one PHPForge operation that provides the required evidence over several manual repository scans or custom parsing passes.
+- Do not duplicate PHPForge analysis with a custom implementation unless:
+  - PHPForge does not support the required operation,
+  - its result is insufficient for the active task,
+  - a narrowly scoped alternative is materially cheaper while remaining equally authoritative,
+  - or independent verification is required.
+- Do not replace or bypass a PHPForge detector merely because another implementation is easier for the agent to interpret.
+- Resolve PHPForge findings according to the quality-gate rules.
+- Use PHPForge's documented automation and [AGENTS.md](vendor/infocyph/phpforge/resources/AGENTS.md) workflow when applicable.
+
+### Repository And System Command Preference
+
+**FLOW-05**
+
+- Prefer existing repository commands and native tools for deterministic repository and runtime questions.
+- Prefer Git for changed files, diffs, history, blame, tracked-file discovery and change scope.
+- Prefer fast repository search tools for symbol and text lookup, caller discovery, configuration references and duplicate-pattern searches.
+- Prefer filesystem commands for bounded discovery, file counts, path inspection and metadata.
+- Prefer PHP commands for syntax validation, runtime and extension capability checks, INI inspection and deterministic PHP-level calculations.
+- Prefer Composer commands for dependency information and relationships, platform requirements, autoload information and package versions.
+- Prefer the configured formatter, static analyzer, test runner, mutation tool, security scanner, benchmark and profiler over manually approximating the same result.
+- Do not create a temporary custom script for an operation already performed correctly by PHPForge, repository tooling, PHP, Composer, Git or an established system command.
+- When a small custom script is still the most efficient correct option:
+  - keep it narrowly scoped,
+  - do not make it production architecture unless required,
+  - and remove temporary analysis artifacts when the task is complete.
+
+### Search And Inspection Efficiency
+
+**FLOW-06**
+
+- Prefer the smallest sufficient context needed for a correct decision.
+- Identify likely files, symbols, callers, tests and configuration before reading broad portions of the repository.
+- Prefer targeted symbol lookups, reference searches, file ranges, diffs, failing diagnostics, test files, configuration sections and command summaries over repeatedly loading complete files or directories.
+- Read a complete file when full context is necessary for ownership, lifecycle, side effects, security, public contracts, concurrency or architectural decisions.
+- Do not repeatedly reread unchanged content already inspected during the same task unless:
+  - the file changed,
+  - earlier context is insufficient,
+  - or verification requires the exact current content.
+- Reuse established facts and decisions from the current task instead of rediscovering them.
+- Revalidate a fact when the relevant source or runtime state changed or when relying on the earlier result creates correctness risk.
+- Avoid recursively exploring unrelated directories, dependencies or architectural alternatives without evidence that they affect the active task.
+- Stop investigating an already resolved branch when additional inspection cannot materially change the implementation or verification decision.
+- Do not use context minimization to skip relevant callers, implementations, contracts or side effects.
+
+### Command And Tool Output Discipline
+
+**FLOW-07**
+
+- Keep command output proportional to the question being answered.
+- Prefer summaries, changed files, matching lines, failing checks, relevant diagnostics, machine-readable output and bounded result sets over unrestricted verbose output.
+- Filter large output only when omitted information cannot affect the engineering decision.
+- Do not truncate, filter or summarize output in a way that could hide failures, security findings, compatibility issues, affected callers, test failures, performance regressions or required context.
+- Do not repeatedly run an expensive unchanged command unless:
+  - relevant code changed,
+  - the previous result was inconclusive,
+  - state may have changed,
+  - or final verification requires another run.
+- Batch related independent searches or checks when doing so reduces repeated setup and context without hiding failures.
+- Prefer one well-scoped command over several speculative commands.
+
+### Implementation Efficiency
+
+**FLOW-08**
+
+- Prefer the smallest correct diff.
+- Modify the existing cohesive owner instead of creating a new file or abstraction unless the structural rules justify one.
+- Prefer targeted edits over whole-file rewrites when surrounding content does not need to change.
+- Do not generate several complete competing implementations when repository constraints already determine the appropriate approach.
+- Narrow alternatives using existing contracts, project conventions, supported runtimes, measured constraints and current architecture before designing multiple solutions.
+- Check for an existing owner, utility, PHPForge capability, repository helper or contract before creating a new implementation.
+- Do not reproduce unchanged code merely to show context.
+- Keep intermediate plans proportional to task complexity.
+- Proceed directly after obtaining sufficient context for simple, low-risk changes.
+- Use more detailed planning when the task materially affects architecture, public contracts, security, data migration, concurrency, persistence, performance-sensitive paths or coordinated multi-file behavior.
+
+### Reasoning And Context Efficiency
+
+**FLOW-09**
+
+- Use agent reasoning for trade-offs, architecture, ownership, semantics, security implications and decisions that require judgment.
+- Use tools for facts that tools can determine directly.
+- Do not spend reasoning tokens reconstructing information that can be obtained authoritatively from PHPForge, the repository, Git, PHP, Composer, configured analyzers, configured tests, runtime diagnostics or benchmark tooling.
+- Summarize large intermediate findings compactly and retain only details required for subsequent decisions.
+- Preserve exact source details when implementation correctness depends on them.
+- Do not replace necessary source inspection with an approximate summary.
+- Avoid repeatedly restating the user's requirements, the same implementation plan, unchanged code, complete file contents, complete command output or conclusions already established in the same task.
+
+### Verification Efficiency
+
+**FLOW-10**
+
+- During implementation, run the narrowest relevant checks that provide useful feedback.
+- After implementation, run every required broader validation defined by:
+  - the repository,
+  - PHPForge,
+  - [AGENTS.md](vendor/infocyph/phpforge/resources/AGENTS.md),
+  - CI configuration,
+  - or the active task.
+- Prefer targeted tests and detectors while iterating, then run the required complete validation before completion.
+- Do not skip a required detector because another detector appears to cover similar behavior.
+- Do not rerun an unchanged expensive validation after every trivial edit when a narrower deterministic check can safely guide iteration.
+- Rerun affected validation after relevant changes and perform required final validation before reporting completion.
+
+### Response Efficiency
+
+**FLOW-11**
+
+- Follow [Before Reporting Completion](#before-reporting-completion) for required evidence and reporting; keep the response complete and decision-oriented.
+- Do not reproduce unchanged files, large command outputs, repeated requirements, source already available to the user or unnecessary internal reasoning unless it materially helps review, use or maintenance.
+- Include code, commands, diagnostics and explanation when they are necessary to understand or verify the solution.
+
+### Efficiency Safety Rule
+
+**FLOW-12**
+
+- Token, context, command and execution efficiency must never be achieved by:
+  - guessing instead of inspecting,
+  - assuming instead of verifying,
+  - skipping relevant files or callers,
+  - skipping required tests,
+  - weakening quality detectors,
+  - reducing security analysis,
+  - omitting required edge cases,
+  - ignoring public contracts,
+  - avoiding necessary benchmarks,
+  - hiding command failures,
+  - or returning an incomplete solution.
+- When two workflows provide equivalent correctness, verification and solution quality, prefer the one with fewer tokens, less repeated context, fewer redundant reads, fewer redundant tool calls, less unnecessary output, fewer repository scans, less custom processing and shorter execution time.
+
 ## Performance Objective, Measurement And Acceptance
 
 ### Sustained Throughput Objective
+
+**PERF-01**
 
 - The primary performance metric is sustained successful requests per minute (`RPM`).
 - Use successful requests per second (`RPS`) when convenient and convert consistently:
@@ -130,11 +438,13 @@
   - correct responses,
   - and no progressive degradation during the benchmark period.
 - Prefer the implementation that produces the highest median sustained successful RPM across repeated representative runs.
-- When two implementations provide practically equivalent RPM, choose the one with lower complexity, lower operating cost and safer operations.
+- For practically equivalent RPM, apply [CORE-01](#core-policy-and-change-discipline).
 - Do not require a dedicated benchmark for every trivial, semantically equivalent reduction in work.
 - Require representative measurement for architectural changes, hot paths, repeated operations and changes likely to affect request throughput.
 
 ### Application And Library Throughput
+
+**PERF-02**
 
 - Optimize library APIs for repeated use, not only one isolated invocation.
 - Keep common operations allocation-conscious and avoid unnecessary object graphs, wrappers and conversions.
@@ -155,9 +465,10 @@
 
 ### Performance Measurement
 
+**PERF-03**
+
 - Measure before and after every meaningful performance-sensitive change.
 - Establish a reproducible production-equivalent RPM baseline before optimization.
-- The primary result is sustained successful `RPM`; also record `RPS`.
 - Measure complete end-to-end requests rather than only isolated functions.
 - Confirm every benchmark candidate returns equivalent correct output.
 - Run benchmarks at several concurrency levels to produce a throughput curve.
@@ -174,9 +485,10 @@
   - allocator pressure,
   - and queue accumulation.
 - Warm OPcache, Composer metadata, generated configuration and relevant application caches before measuring warm-state production throughput.
-- Measure cold-start behavior separately when restarts, deployments or autoscaling are operationally frequent.
+- Compare cold-start and warm-runtime performance separately. Include cold starts as a distinct production scenario when restarts, deployments or autoscaling are operationally frequent.
 - Measure lazy first-use cost separately from warm memoized or reused execution.
 - Include representative optional-feature usage so eager and lazy strategies are compared against the real request mix.
+- Cover representative data volume and distribution, request mix, repeated call frequency, dependency latency, database state, cache hits and misses, and success, failure and retry paths.
 - Use multiple runs and compare median sustained successful RPM.
 - Record variance and reject conclusions when the difference is within normal measurement noise.
 - Confirm the load generator, client CPU and network path are not the bottleneck.
@@ -193,12 +505,13 @@
   - `p50`, `p95` and `p99` latency,
   - CPU utilization,
   - peak and steady-state memory,
-  - PHP worker utilization,
+  - worker utilization, including PHP workers,
   - queue depth,
-  - database connections,
+  - database connection usage,
   - query count,
   - cache hit rate,
   - and external-service calls.
+- Where relevant, also record error rate, allocation or memory-growth rate, queue growth, rows examined and returned, lock and transaction duration, and dependency latency.
 - Measure the complete production-like stack, including:
   - web server,
   - PHP runtime,
@@ -213,14 +526,15 @@
   - and required external dependencies.
 - Use microbenchmarks only to investigate a known hot operation.
 - Do not use a microbenchmark as proof that complete request RPM improved.
-- Control PHP version, extensions, OPcache settings, Composer mode, hardware, operating system, database state and datasets.
+- Match production PHP major and minor version, extensions, Composer mode, OPcache settings, runtime model, operating system, hardware class, database and cache configuration, and relevant infrastructure. Control PHP version, extensions, OPcache settings, Composer mode, hardware, operating system, database state and datasets between candidates.
 - Disable Xdebug and non-production debugging extensions unless measuring their intentional production use.
 - Record benchmark commands, configuration and environment details so results can be reproduced.
 - Test scaling behavior across representative input sizes and data distributions.
-- Include expected failure, miss and retry paths when they materially affect production traffic.
 - Do not claim a throughput improvement from a single run, short burst or invalid response.
 
-**Benchmark Diagnostics**
+#### Benchmark Diagnostics
+
+**PERF-04**
 
 - When several benchmark phases run in one PHP process, use `memory_reset_peak_usage()` where supported to isolate phase-specific peak-memory measurements.
 - Do not call memory-measurement functions in ordinary hot request paths unless production telemetry explicitly requires them.
@@ -228,6 +542,8 @@
 - Include extension versions and relevant native-client versions in benchmark records.
 
 ### Required Benchmark Coverage
+
+**PERF-05**
 
 - Maintain separate production-equivalent benchmarks for workload classes relevant to the project.
 - Include, where applicable:
@@ -263,12 +579,15 @@
 - Optimize scenarios that dominate total production request volume.
 - Keep benchmark fixtures deterministic and large enough to expose realistic query, allocation and memory behavior.
 
-### Optimization And Acceptance Rules
+<a id="optimization-and-acceptance-rules"></a>
+
+### Optimization Rules
+
+**PERF-06**
 
 - Optimize algorithms, query count, I/O, allocations, copying, serialization and data movement before cosmetic syntax.
-- Apply low-risk, semantically equivalent reductions in work without requiring a benchmark for every occurrence.
-- Prefer `isset()` over `array_key_exists()` when null and missing are intentionally equivalent.
-- Prefer direct access and one-pass processing over callback-heavy pipelines that create avoidable intermediate arrays on hot or large datasets.
+- Apply low-risk, semantically equivalent reductions in work without requiring a benchmark for every occurrence. Retain the representative measurements required by [Sustained Throughput Objective](#sustained-throughput-objective).
+- Use [Collections, Iteration And Memory](#collections-iteration-and-memory) for lookup, traversal and reuse rules, and [Caching](#caching) for cache construction and invalidation requirements.
 - Prefer reuse of an already computed value when recomputation is non-trivial and the cached value has a clear bounded lifetime.
 - Do not add caching, indexes or precomputation when their construction, allocation and invalidation cost is likely to exceed reuse.
 - Treat generic PHP microbenchmarks as evidence, not universal law. Confirm important decisions on the project's PHP version and representative workload.
@@ -285,9 +604,12 @@
 - Document non-obvious performance code with the reason, evidence and constraints that justify it.
 - Revert an optimization when its measured benefit is insignificant or its complexity creates a greater maintenance or correctness risk.
 
+### Acceptance And Regression Budgets
+
+**PERF-07**
+
 - Treat these instructions as engineering guardrails; only representative measurements prove that an implementation is performant.
-- The primary acceptance metric is median sustained successful requests per minute (`RPM`) across repeated production-equivalent runs.
-- Count only complete, correct, authorized and valid responses as successful throughput.
+- Apply [Sustained Throughput Objective](#sustained-throughput-objective), [Performance Measurement](#performance-measurement) and [Required Benchmark Coverage](#required-benchmark-coverage) to every performance acceptance decision. They define successful throughput, representative baselines, repeated runs, metrics, environment and workload coverage.
 - Define measurable performance budgets for each important:
   - request path,
   - command,
@@ -309,60 +631,12 @@ throughput_budget:
     max_queue_growth: 0
 ```
 
-- Establish a production-representative baseline before changing a performance-sensitive path.
-- Validate performance against representative:
-  - data volume,
-  - data distribution,
-  - concurrency,
-  - request mix,
-  - repeated call frequency,
-  - dependency latency,
-  - cache-hit and cache-miss states,
-  - database state,
-  - success paths,
-  - failure paths,
-  - and retry behavior.
-- Measure complete end-to-end behavior in addition to isolated functions or library calls.
-- For reusable libraries, measure both:
-  - isolated operation throughput,
-  - and the effect on representative host-application RPM.
-- Do not claim application-level throughput from a component-only microbenchmark.
-- Track at minimum where relevant:
-  - successful `RPS`,
-  - successful `RPM`,
-  - total completed requests,
-  - failed requests,
-  - error rate,
-  - timeout rate,
-  - response-validation failures,
-  - benchmark duration,
-  - concurrency,
-  - `p50`, `p95` and `p99` latency,
-  - CPU utilization,
-  - peak and steady-state memory,
-  - allocation or memory-growth rate,
-  - worker utilization,
-  - queue depth and queue growth,
-  - query count,
-  - rows examined and returned,
-  - lock duration,
-  - transaction duration,
-  - database connection usage,
-  - external calls and dependency latency,
-  - and cache hit rate.
 - Add automated performance-regression checks only where the workload and environment are stable enough to produce a reliable signal.
 - Define an acceptable regression tolerance for each benchmark.
 - For stable, business-critical benchmarks, use a default maximum tolerated median RPM regression of `2%` unless measured variance requires a different threshold.
 - Do not fail builds for differences that remain within established benchmark variance.
 - Treat a material sustained RPM regression as a blocking defect unless explicitly approved.
-- Do not approve a change merely because it reduces:
-  - CPU,
-  - memory,
-  - allocations,
-  - file count,
-  - object count,
-  - or single-request latency
-  when sustained successful RPM decreases.
+- Do not approve lower sustained successful RPM merely for reductions in CPU, memory, allocations, file count, object count or single-request latency.
 - Do not approve higher RPM when:
   - output correctness differs,
   - authorization or validation is bypassed,
@@ -375,7 +649,6 @@ throughput_budget:
   - or downstream systems become unstable.
 - Treat `p95` and `p99` latency as safety constraints rather than the primary optimization target.
 - A latency increase may be accepted when sustained RPM materially improves and latency remains within the defined safety budget.
-- Do not accept a short-burst throughput increase when steady-state RPM is lower or the system progressively degrades.
 - Use static analysis to enforce structural rules, but never treat static-analysis success as performance validation.
 - Use query-plan analysis for important database paths.
 - Use load testing for concurrency-sensitive and capacity-sensitive paths.
@@ -385,22 +658,7 @@ throughput_budget:
   - daemons,
   - repeated library execution,
   - and processes where memory growth or resource leakage is possible.
-- Compare cold-start and warm-runtime performance separately.
 - Use warm-state sustained RPM as the primary production metric unless cold starts are operationally frequent.
-- Test with the same:
-  - PHP major and minor version,
-  - extensions,
-  - Composer mode,
-  - OPcache configuration,
-  - runtime model,
-  - operating system,
-  - hardware class,
-  - database configuration,
-  - cache configuration,
-  - and relevant infrastructure
-  used in production.
-- Confirm that the load generator, client CPU and network path are not the benchmark bottleneck.
-- Record benchmark and load-test commands, configuration and environment details so results can be reproduced.
 - Verify critical throughput and stability metrics after deployment through production telemetry or a controlled production-like canary.
 - Define rollback or mitigation criteria for:
   - RPM regression,
@@ -430,13 +688,12 @@ throughput_budget:
   - or additional bootstrap work.
 - Do not approve automated bulk transformations affecting hot paths without representative before-and-after RPM measurements.
 - Treat large elapsed-time or RPM regressions as blocking defects even when formatting, static analysis, style checks and unit tests pass.
-- Prefer the highest justified sustainable successful RPM over theoretical, short-lived or benchmark-only speed.
-- Treat resource growth as acceptable when it produces a material RPM improvement and remains within explicit stability and capacity budgets.
-- Never trade correctness, security, authorization, data integrity or operational stability for benchmark throughput.
 
 ## Runtime Compatibility, Standards And Public Contracts
 
 ### Runtime Support And Upgrade Policy
+
+**COMPAT-01**
 
 - Treat the selected PHP version, enabled extensions, build type and important INI settings as part of the executable contract.
 - Run production workloads on an actively supported PHP branch and keep current with compatible patch releases.
@@ -470,6 +727,8 @@ throughput_budget:
 
 ### Public API And Language Compatibility
 
+**COMPAT-02**
+
 - Treat public function and method parameter names as compatibility-sensitive because callers may use named arguments.
 - Do not rename public parameters in a backward-compatible release unless named-argument compatibility is explicitly excluded.
 - Declare properties explicitly and do not rely on dynamic properties.
@@ -492,6 +751,8 @@ throughput_budget:
 
 ### Coding Style And File Basics
 
+**COMPAT-03**
+
 - Follow PSR-1 for basic code interoperability.
 - For new or intentionally reformatted code, follow the project-declared major version of PER Coding Style.
 - Prefer the latest approved PER Coding Style major version supported by the project's PHP baseline.
@@ -513,6 +774,8 @@ throughput_budget:
 - Retain PSR-12 only where an established project or toolchain still requires it; prefer PER Coding Style for current PHP syntax.
 
 ### Comments, PHPDoc And Documentation Examples
+
+**COMPAT-04**
 
 - Treat comments and PHPDoc as maintained engineering contracts, not decoration.
 - Write comments correctly when the code is introduced; do not defer comment quality until release cleanup or CI remediation.
@@ -569,11 +832,16 @@ Use this form for code-bearing configuration documentation:
 
 ### PHP-FIG Standards Selection And Status
 
-- Treat accepted PSRs as stable interoperability contracts.
-- Treat PERs as versioned recommendations that may evolve; pin the intended major version.
-- Do not make Draft or Review specifications mandatory project requirements without explicit approval and risk assessment.
-- Do not present Abandoned proposals as PHP-FIG standards.
-- Do not choose Deprecated standards for new code.
+**COMPAT-05**
+
+| Specification or status | Required treatment |
+| --- | --- |
+| Accepted PSR | Treat as a stable interoperability contract. |
+| PER | Treat as an evolving, versioned recommendation; pin the intended major version. |
+| Draft or Review | Do not make a mandatory project requirement without explicit approval **and** risk assessment. |
+| Abandoned | Do not present as a PHP-FIG standard. |
+| Deprecated | Do not choose for new code. |
+
 - Use PSR-4 instead of deprecated PSR-0.
 - Use PER Coding Style for current new code instead of deprecated PSR-2.
 - Preserve an older accepted contract only when compatibility with existing consumers requires it.
@@ -584,6 +852,8 @@ Use this form for code-bearing configuration documentation:
 ## Types, Validation And Control Flow
 
 ### Type Safety And Data Boundaries
+
+**TYPE-01**
 
 - Add `declare(strict_types=1);` to first-party PHP files unless project compatibility explicitly prevents it.
 - Prefer strict comparisons (`===`, `!==`) by default.
@@ -623,6 +893,8 @@ array_search($value, $items, true);
 
 ### Control Flow, Branching And Exceptions
 
+**TYPE-02**
+
 - Use guard clauses and early returns to keep the primary execution path clear.
 - Avoid deep nesting.
 - Avoid unnecessary `else` branches after `return`, `throw`, `continue` or `break`.
@@ -643,6 +915,8 @@ array_search($value, $items, true);
 
 ### Cohesion, Size And Complexity
 
+**STRUCT-01**
+
 - Keep methods, functions and closures small, cohesive and clear.
 - Interpret `small` as one cohesive responsibility with understandable control flow, not as a line-count target.
 - Split code when responsibilities, branch count or execution paths become difficult to reason about.
@@ -655,10 +929,8 @@ array_search($value, $items, true);
 - Treat static mutable state carefully, especially in long-running workers and application servers.
 - Keep dependencies explicit.
 - Avoid service locators and hidden dependency resolution.
-- Add docblocks only when they communicate information PHP types cannot express clearly.
-- Do not add docblocks that merely repeat method names or native type declarations.
-- Do not use references as a presumed optimization.
-- Use references only when reference semantics are functionally required.
+- Apply [COMPAT-04](#comments-phpdoc-and-documentation-examples) to explanatory docblocks and type refinements.
+- Use references only when functionally required, never as a presumed optimization.
 - Do not extract every small block into another method.
 - Keep cohesive low-level operations local when extraction would add dispatch without improving:
   - ownership,
@@ -666,7 +938,6 @@ array_search($value, $items, true);
   - testability,
   - invariants,
   - or readability.
-- Avoid chains of tiny method calls inside measured hot loops when equivalent local code is clearer and materially faster.
 - Do not introduce DTOs, value objects, wrappers or custom collections into a hot path solely for stylistic consistency when they add allocations without enforcing a useful contract.
 
 Use the following default limits:
@@ -704,7 +975,9 @@ cognitive_complexity:
 
 ### Structural Simplification, Type Budget And Call-Hop Reduction
 
-**Default Ownership Rule**
+#### Default Ownership Rule
+
+**STRUCT-02**
 
 - Prefer the smallest coherent structure that preserves:
   - correctness,
@@ -726,7 +999,9 @@ cognitive_complexity:
 - Do not remove a meaningful boundary or a measured optimization merely to reduce class, method or file counts.
 - Preserve deliberate, bounded duplication or precomputation when it materially improves sustained RPM and its consistency and lifecycle are controlled.
 
-**Source-File And Type-Count Review**
+#### Source-File And Type-Count Review
+
+**STRUCT-03**
 
 - Review a library when its production source-file count appears disproportionate to its:
   - executable code,
@@ -751,7 +1026,9 @@ cognitive_complexity:
 - Co-locate tightly coupled, single-use implementation details only when the project structure supports it and separate files add navigation or declaration overhead without architectural value.
 - Do not create separate files for trivial wrappers that add no validation, behavior, contract, adaptation or operational value.
 
-**New Type Justification**
+#### New Type Justification
+
+**STRUCT-04**
 
 - Every new production class, interface, enum, trait, DTO, result, wrapper, handler and source file must justify its independent existence.
 - Test-only fakes, fixtures, data providers and framework-required support files may remain separate when they have a clear test or integration responsibility.
@@ -809,7 +1086,9 @@ cognitive_complexity:
 - Reject abstractions whose expected value is speculative or smaller than their ongoing operational and cognitive cost.
 - Record the justification when adding a new public type or a non-trivial internal abstraction.
 
-**Remove Unnecessary Abstractions**
+#### Remove Unnecessary Abstractions
+
+**STRUCT-05**
 
 Remove or consolidate:
 
@@ -841,7 +1120,9 @@ Remove or consolidate:
 - Redundant names such as `Default`, `Base` or `Impl` when one implementation exists and no alternate implementation is part of the contract.
 - Paired files such as `UserServiceInterface` and `UserService` when the interface has no concrete architectural purpose.
 
-**Keep Small Classes When They Represent**
+#### Keep Small Classes When They Represent
+
+**STRUCT-06**
 
 - A small class is not automatically unnecessary.
 - Keep a small class when it represents:
@@ -871,65 +1152,32 @@ Remove or consolidate:
   - or independently testable policy with a real independent contract.
 - A small class should remain only when its independent semantic or architectural value exceeds its file, dependency, navigation and dispatch cost.
 
-**Private Method Preference**
+#### Private Method Preference
 
-- Prefer private methods when behavior:
-  - has one clear owner,
-  - shares the same lifecycle as its owner,
-  - uses the same dependencies,
-  - is not independently configurable,
-  - is not reused by unrelated capabilities,
-  - is not independently replaceable,
-  - does not cross a security, authorization, transaction, persistence or provider boundary,
-  - is not part of the supported public API,
-  - does not need independently managed state,
-  - and exists primarily to name, organize or simplify the owner's internal algorithm.
+**STRUCT-07**
+
+| Decision | Condition logic | Conditions |
+| --- | --- | --- |
+| Prefer a private method | All | One clear owner; same lifecycle and dependencies as that owner; not independently configurable or replaceable; not reused by unrelated capabilities; no independently managed state; no security, authorization, transaction, persistence or provider boundary; outside the supported public API; primarily organizes, names or simplifies the owner's algorithm. |
+| Split a class | Any | Multiple reasons to change; unrelated dependencies; separate lifecycle requirements; independently replaceable behavior; responsibilities understandable and useful outside the original owner. |
+| Inline a private method | All | Used once; trivial; names no important concept; enforces no invariant; isolates no meaningful decision; only adds a call hop. |
+| Keep or extract a private method | Any | Names an important concept; isolates a complex decision; prevents meaningful duplication; improves readability; enforces an invariant; makes the caller materially easier to understand. |
+
 - Do not split a cohesive class only because it contains many private methods.
 - Private-method preference does not override class cohesion or cognitive-complexity limits.
 - Do not retain unrelated responsibilities in one class merely to avoid introducing a justified collaborator.
 - Keep tightly related, single-use behavior together when it has one owner and doing so does not create mixed responsibilities or excessive branching.
-- Split a class when it has:
-  - multiple reasons to change,
-  - unrelated dependencies,
-  - separate lifecycle requirements,
-  - independently replaceable behavior,
-  - or responsibilities that remain understandable and useful outside the original owner.
-- Inline a private method when it:
-  - is used once,
-  - performs a trivial operation,
-  - does not name an important concept,
-  - enforces no invariant,
-  - isolates no meaningful decision,
-  - and only adds another call hop.
-- Keep or extract a private method when it:
-  - names an important concept,
-  - isolates a complex decision,
-  - prevents meaningful duplication,
-  - improves readability,
-  - enforces an invariant,
-  - or keeps the caller materially easier to understand.
 - Reject a refactoring that lowers local cognitive complexity while increasing total system complexity.
 
-**Class Consolidation Rules**
+#### Class Consolidation Rules
 
-- Merge classes when they:
-  - have the same lifecycle,
-  - use substantially the same dependencies,
-  - change for the same reason,
-  - cannot be meaningfully used independently,
-  - and become clearer as one cohesive type.
-- Consolidate field, claim or rule validators when they share:
-  - one owner,
-  - one lifecycle,
-  - one configuration model,
-  - and one public capability.
-- Keep such validators separate only when they are:
-  - independently configurable,
-  - independently reusable,
-  - independently replaceable,
-  - supplied by consumers,
-  - part of a deliberate extension contract,
-  - or security-significant as independent policies.
+**STRUCT-08**
+
+| Decision | Condition logic | Conditions |
+| --- | --- | --- |
+| Merge classes | All | Same lifecycle; substantially the same dependencies; same reason to change; not meaningfully usable independently; clearer as one cohesive type. |
+| Consolidate field, claim or rule validators | All | One owner, lifecycle, configuration model and public capability. |
+| Keep those validators separate only when justified | Any | Independently configurable, reusable or replaceable; supplied by consumers; part of a deliberate extension contract; security-significant as independent policies. |
 
 Prefer:
 
@@ -975,20 +1223,17 @@ ValidatorRegistry
 ValidatorFactory
 ```
 
-**Result-Type Consolidation**
+#### Result-Type Consolidation
 
-- Prefer one result type for operations sharing the same:
-  - success representation,
-  - failure model,
-  - lifecycle,
-  - and public contract.
-- Prefer a failure enum or reason code when failures differ only by category.
-- Do not create `IssuerValidationResult`, `AudienceValidationResult`, `ExpirationValidationResult` and similar types when they carry equivalent data.
-- Keep separate result types when:
-  - their successful values differ materially,
-  - callers handle them through different public contracts,
-  - they expose different security guarantees,
-  - or they adapt genuinely different external systems.
+**STRUCT-09**
+
+| Decision | Conditions |
+| --- | --- |
+| Prefer one result type | All are the same: success representation, failure model, lifecycle and public contract. |
+| Prefer a failure enum or reason code | Failures differ only by category. |
+| Keep result types separate | Any: materially different successful values; different public contracts used by callers; different security guarantees; genuinely different external systems. |
+
+- Do not create `IssuerValidationResult`, `AudienceValidationResult`, `ExpirationValidationResult` or similar types carrying equivalent data.
 - Do not replace several precise and materially different results with one untyped generic result container.
 
 Example:
@@ -1013,7 +1258,9 @@ final readonly class ValidationResult
 }
 ```
 
-**Public Capability Budget**
+#### Public Capability Budget
+
+**STRUCT-10**
 
 - Prefer one primary public entry point for each coherent capability.
 - Prefer one public configuration model for each coherent capability unless configurations have materially different invariants.
@@ -1036,24 +1283,11 @@ final readonly class ValidationResult
 - Do not create an interface, DTO, value object, event, exception or adapter merely because code is packaged as a library.
 - Retain stronger types and abstractions when they prevent invalid states or define a real public contract.
 
-**Call-Hop Reduction**
+#### Call-Hop Reduction
 
-- Reduce unnecessary:
-  - classes,
-  - interfaces,
-  - traits,
-  - files,
-  - methods,
-  - wrappers,
-  - factories,
-  - adapters,
-  - managers,
-  - handlers,
-  - processors,
-  - executors,
-  - events,
-  - DTO conversions,
-  - and delegation layers.
+**STRUCT-11**
+
+- Reduce unnecessary classes, interfaces, traits, files, methods, wrappers, factories, adapters, managers, handlers, processors, executors, events, DTO conversions and delegation layers. Use [New Type Justification](#new-type-justification) to assess their value within the active scope.
 - Remove pass-through layers that only:
   - forward the same arguments,
   - delegate to one collaborator,
@@ -1104,7 +1338,9 @@ final readonly class ValidationResult
   - or another frequently executed path.
 - When two structures provide equivalent correctness, safety and sustained RPM, prefer the one with fewer unnecessary abstractions, dependencies, conversions, execution hops and maintenance costs.
 
-**Structural Review Triggers**
+#### Structural Review Triggers
+
+**STRUCT-12**
 
 - Review whether consolidation is appropriate when:
   - many production source files contain only one trivial method,
@@ -1139,7 +1375,9 @@ final readonly class ValidationResult
 - Do not enforce arbitrary minimum or maximum class line counts.
 - Small value objects, enums, exceptions, DTOs, attributes and adapters remain valid when they represent meaningful concepts.
 
-**Non-Blocking Structural Review Thresholds**
+#### Non-Blocking Structural Review Thresholds
+
+**STRUCT-13**
 
 - Use the following as default review triggers, not automatic defects or quality-gate failures:
 
@@ -1168,6 +1406,8 @@ structural_review:
 
 ### Interfaces, Containers And Extension Contracts
 
+**STRUCT-14**
+
 - Do not create an interface for every class by default.
 - Create an interface only when it defines a meaningful contract or substitution boundary.
 - When an interface is justified, keep it narrow, behavior-focused and stable.
@@ -1187,7 +1427,9 @@ structural_review:
 - Design public library extension through interfaces and composition rather than requiring consumers to inherit from concrete classes.
 - Keep public contracts minimal because each method added to an interface becomes a compatibility obligation.
 
-**Dependency Containers And Composition Roots**
+#### Dependency Containers And Composition Roots
+
+**STRUCT-15**
 
 - Use PSR-11 `ContainerInterface` only when an interoperable container boundary is genuinely required.
 - Keep container access at the composition root, framework bridge, plugin loader or another explicit integration boundary.
@@ -1200,6 +1442,8 @@ structural_review:
 - When a framework container is adapted to PSR-11, perform the adaptation once at the integration boundary.
 
 ### Enums, Constants And Value Types
+
+**STRUCT-16**
 
 - Use enums for meaningful closed sets of domain or contract values.
 - Do not create an enum merely to replace every group of constants or strings.
@@ -1235,6 +1479,8 @@ structural_review:
 
 ### Autoloadable Symbol And File Behavior
 
+**STRUCT-17**
+
 - Keep classes, interfaces, traits, enums and functions in predictable Composer-autoloadable locations.
 - Keep autoloadable files free from request-specific top-level execution and unrelated side effects.
 - Prefer file-scope declarations with runtime decisions inside methods.
@@ -1245,16 +1491,14 @@ structural_review:
 
 ### Request-Path Execution
 
+**REQUEST-01**
+
 - Minimize the amount of PHP code executed per request.
 - Keep the common request path short, direct and predictable.
 - Avoid loading, resolving, validating, constructing or serializing data that the request does not use.
 - Do not add a cross-cutting layer to every request when only a subset of routes requires it.
-- Compile stable routes, configuration, dependency mappings and metadata before serving traffic.
-- Do not perform route discovery, directory scanning, annotation parsing, reflection discovery or container compilation during requests.
-- Avoid repeated `.env`, YAML, XML or JSON configuration parsing in request paths.
-- Avoid exceptions for expected control flow.
-- Validate and normalize untrusted input once at the trust boundary, then use the validated internal representation.
-- Do not repeat equivalent validation at every internal layer.
+- Compile stable routes, configuration, dependency mappings and metadata before traffic ([CONFIG-04](#configuration-and-generated-metadata)); follow [REQUEST-02](#lazy-eager-and-prefetched-loading) to prohibit request-time discovery/compilation and avoid repeated `.env`, YAML, XML or JSON parsing.
+- Apply [Type Safety And Data Boundaries](#type-safety-and-data-boundaries) to request validation and normalization; perform that work once at each trust boundary.
 - Keep response payloads limited to fields required by the caller.
 - Avoid eager object hydration when arrays, scalar projections or streamed rows are sufficient.
 - Avoid callbacks and intermediate arrays in large, frequently executed transformations when one explicit loop performs the same work.
@@ -1263,13 +1507,14 @@ structural_review:
 - Use bounded concurrency for independent I/O only when it improves end-to-end throughput and does not overload downstream systems.
 - Cache or precompute stable high-cost work when the hit rate and reuse justify construction, storage and invalidation costs.
 - Do not add caching to one-time or low-reuse operations.
-- Keep mandatory observability structured, bounded and inexpensive.
-- Do not construct expensive log context when the corresponding log level is disabled.
+- Apply [OBS-02](#logging-and-diagnostic-cost) and [OBS-04](#logging-interoperability) to mandatory request observability and disabled-level log context.
 - Keep authentication and authorization correct while avoiding duplicate resolution, parsing and database access.
 - Reuse already loaded immutable request data instead of fetching or transforming it repeatedly.
 - Remove dead request-path work before pursuing syntax-level micro-optimizations.
 
 ### Lazy, Eager And Prefetched Loading
+
+**REQUEST-02**
 
 - Do not treat lazy loading, eager loading or prefetching as universally faster.
 - Select the strategy using representative:
@@ -1314,11 +1559,11 @@ structural_review:
 - Do not issue several lazy loads for values that can be resolved in one request or one database round trip.
 - Do not perform eager initialization for optional integrations that most requests never use.
 - For optional dependencies:
-  - initialize lazily,
+  - initialize lazily so unused integrations do not affect bootstrap or common-path RPM,
   - memoize only when reuse is expected,
   - keep the lifecycle explicit,
   - and ensure state cannot leak across requests or callers.
-- For dependencies used by nearly every request, compare eager startup construction with lazy first-use construction and repeated lazy checks.
+- For dependencies used by nearly every request, compare eager startup construction with lazy first-use construction and repeated lazy checks. Eagerly construct lightweight immutable dependencies only when startup cost, retained memory and failure behavior are acceptable.
 - Validate mandatory dependencies, configuration and required backing services before traffic is accepted.
 - Compile stable routes, dependency mappings, event mappings, serializer metadata and similar structures during build, release or startup.
 - Do not lazily perform directory scanning, annotation parsing, reflection discovery, route compilation or container compilation during requests.
@@ -1346,7 +1591,7 @@ structural_review:
   - increase worker availability,
   - improve batching,
   - or produce higher total RPM.
-- Do not convert a lazy iterable into a full array unless full materialization is required.
+- Apply [MEM-09](#data-movement-memory-and-variable-lifetime) to iterable materialization.
 - Do not consume a lazy stream more than once unless it is explicitly rewindable or buffered.
 - Cache a lazily loaded value only when:
   - it is immutable or safely scoped,
@@ -1381,15 +1626,10 @@ structural_review:
 
 - Do not rely on lazy loading in performance-sensitive paths without verifying the resulting query count.
 - Benchmark lazy, joined, batched and chunked relation-loading strategies with representative cardinality and concurrency.
-- Do not eager-load large relationship graphs when the request needs only a subset of fields or relations.
-- Avoid N+1 query patterns.
-- Prefer explicit eager loading, joins, projections or batched prefetching when related data is required across a collection.
-
-- Make optional library integrations lazy so unused dependencies do not affect bootstrap or common-path RPM.
-- Eagerly construct lightweight immutable dependencies used by nearly every operation only when startup cost, retained memory and failure behavior are acceptable.
-- Do not let lazy library initialization hide database, filesystem, network, reflection or container work.
 
 ### HTTP Messages, Handlers And Middleware
+
+**REQUEST-03**
 
 - Use PSR-7 HTTP messages at public package, middleware and framework-bridge boundaries where implementation independence is required.
 - Do not convert repeatedly between framework-native requests and PSR-7 messages.
@@ -1408,6 +1648,8 @@ structural_review:
 - Do not introduce PSR-13 for ordinary URLs, redirects or APIs that do not expose hypermedia controls.
 
 ### JSON And Request Bodies
+
+**REQUEST-04**
 
 - Use `json_validate()` when only JSON syntax validation is required and the decoded value will not be consumed.
 - Do not call `json_validate()` immediately before `json_decode()` on the normal valid path because it parses the payload twice.
@@ -1438,6 +1680,8 @@ structural_review:
 
 ### Serialization And Output
 
+**REQUEST-05**
+
 - Avoid repeated serialization and deserialization of the same payload.
 - Do not construct response fields the caller does not need.
 - Bound internal and external payload sizes.
@@ -1449,8 +1693,9 @@ structural_review:
 
 ### Arrays, Strings And Membership
 
-- Prefer direct array access guarded by `isset()` when null and missing are equivalent.
-- Use `array_key_exists()` only for true null-presence semantics.
+**MEM-01**
+
+- Apply [TYPE-01](#type-safety-and-data-boundaries) to key existence and null-presence semantics.
 - For repeated membership checks, prefer a keyed set and `isset($set[$key])` over repeated `in_array()` scans when the one-time set construction is justified.
 - Use strict `in_array($value, $items, true)` for one-off membership checks where a keyed set would add unnecessary allocation.
 - Avoid calling `array_keys()` merely to iterate or test membership.
@@ -1461,7 +1706,9 @@ structural_review:
 - Avoid copying large arrays merely to preserve style. Mutate only when ownership is clear and mutation is safe.
 - Do not build an index, lookup map or transformed array unless its reuse saves more work than its construction and memory cost.
 
-**Native Array And String Operations**
+#### Native Array And String Operations
+
+**MEM-02**
 
 - Prefer `array_is_list()` over manually comparing keys when list detection is required.
 - Use `array_key_first()` and `array_key_last()` when only the key is required.
@@ -1478,7 +1725,9 @@ structural_review:
 
 ### SPL And Purpose-Built Collection Selection
 
-**Selection And Performance Rules**
+#### Selection And Performance Rules
+
+**MEM-03**
 
 - Use native PHP arrays by default for small collections, packed lists, associative maps, one-pass transformations and simple indexed access. A specialized structure is not automatically faster or clearer.
 - Choose the representation from the required access pattern, mutation behavior, ownership, lifetime, ordering, collection size and measured workload rather than from the structure's name.
@@ -1488,20 +1737,26 @@ structural_review:
 - Prefer an already suitable, bounded internal representation over converting arrays to SPL structures and back repeatedly. Do not add collection wrappers, factories or interfaces solely to introduce SPL.
 - Use the following selection rules as review guidance, not as mandates to replace an existing correct and efficient implementation.
 
-**Select By Access Pattern**
+#### Select By Access Pattern
 
-- **FIFO work queue — `SplQueue`:** Prefer for dynamically growing queues with repeated enqueue/dequeue operations, such as ready tasks, breadth-first traversal and in-memory job dispatch. Use an indexed array cursor for a fixed input batch consumed once; use a ring buffer when a fixed-capacity, reusable buffer is simpler or faster.
-- **LIFO stack — `SplStack`:** Consider when an explicit stack abstraction improves the contract for parser state, undo history or depth-first traversal. Native `[]`/`array_push()` with `array_pop()` is already efficient and is usually the simpler hot-path choice for a local stack. `SplStack` inherits indexed-access operations and does not make indexing impossible.
-- **Priority-ordered work — `SplPriorityQueue`:** Consider when priorities change by item and the next highest-priority item must be extracted repeatedly, rather than re-sorting the entire queue after each insertion. It is a max-priority queue; use a defined comparison or priority transformation if earliest deadline or lowest numeric value must win.
-- **Incremental extremes — `SplMinHeap`, `SplMaxHeap` and custom `SplHeap`:** Consider when repeatedly extracting the smallest/largest remaining item, merging sorted sources or maintaining a bounded top-K result set. Prefer a size-K min-heap for the largest K items, and a max-heap for the smallest K items, when K is much smaller than N and streaming selection is valid. Sort the final K items if the output requires fully ordered results.
-- **Object-identity set or metadata — `SplObjectStorage`:** Consider when exact object instances are keys, strong ownership is intentional, and attached per-object metadata or deduplication is needed. It retains its objects; detach entries or clear the storage at the appropriate lifecycle boundary.
-- **Non-owning object metadata — `WeakMap`:** Prefer this built-in alternative, rather than `SplObjectStorage`, when entries must disappear once an object has no other strong references. Ensure associated values do not themselves retain the key object; do not use weak keys when the collection is responsible for keeping objects alive.
-- **Dense, pre-sized integer slots — `SplFixedArray`:** Consider when indexed capacity and bounds are meaningful invariants and representative measurements show acceptable access and memory costs. It permits resizing with `setSize()`, so it is not immutable or permanently fixed. Benchmark against a packed native array before adopting it.
-- **Double-ended sequence — `SplDoublyLinkedList`:** Consider only when efficient operations at both ends or bidirectional iteration are material requirements. Avoid it for frequent arbitrary-offset access or as a default list replacement; indexed access requires traversal.
-- **Shared mutable array-like state — `ArrayObject`:** Use only when object identity and shared mutation across call boundaries are intentional parts of the contract. Native arrays have copy-on-write value semantics; replacing them with `ArrayObject` changes observable mutation and assignment behavior and should not be treated as a performance shortcut.
-- **Iterable materialization — `iterator_to_array()`:** Use at a boundary that explicitly needs a complete native array. This is a conversion function, not an SPL data structure. Preserve keys only when the keys are meaningful and unique; with the default `true`, duplicate keys overwrite earlier values. Use `iterator_to_array($iterator, false)` when all values must be retained and key preservation is unnecessary.
+**MEM-04**
 
-**Ordering, Lifetime And Correctness Constraints**
+| Access pattern | Candidate | Selection and constraints |
+| --- | --- | --- |
+| FIFO work queue | `SplQueue` | Prefer for dynamically growing queues with repeated enqueue/dequeue operations, such as ready tasks, breadth-first traversal and in-memory job dispatch. Use an indexed array cursor for a fixed input batch consumed once; use a ring buffer when a fixed-capacity, reusable buffer is simpler or faster. |
+| LIFO stack | `SplStack` | Consider when an explicit stack abstraction improves the contract for parser state, undo history or depth-first traversal. Native `[]`/`array_push()` with `array_pop()` is already efficient and is usually the simpler hot-path choice for a local stack. `SplStack` inherits indexed-access operations and does not make indexing impossible. |
+| Priority-ordered work | `SplPriorityQueue` | Consider when priorities change by item and the next highest-priority item must be extracted repeatedly, rather than re-sorting the entire queue after each insertion. It is a max-priority queue; use a defined comparison or priority transformation if earliest deadline or lowest numeric value must win. |
+| Incremental extremes | `SplMinHeap`, `SplMaxHeap` and custom `SplHeap` | Consider when repeatedly extracting the smallest/largest remaining item, merging sorted sources or maintaining a bounded top-K result set. Prefer a size-K min-heap for the largest K items, and a max-heap for the smallest K items, when K is much smaller than N and streaming selection is valid. Sort the final K items if the output requires fully ordered results. |
+| Object-identity set or metadata | `SplObjectStorage` | Consider when exact object instances are keys, strong ownership is intentional, and attached per-object metadata or deduplication is needed. It retains its objects; detach entries or clear the storage at the appropriate lifecycle boundary. |
+| Non-owning object metadata | `WeakMap` | Prefer this built-in alternative, rather than `SplObjectStorage`, when entries must disappear once an object has no other strong references. Ensure associated values do not themselves retain the key object; do not use weak keys when the collection is responsible for keeping objects alive. |
+| Dense, pre-sized integer slots | `SplFixedArray` | Consider when indexed capacity and bounds are meaningful invariants and representative measurements show acceptable access and memory costs. It permits resizing with `setSize()`, so it is not immutable or permanently fixed. Benchmark against a packed native array before adopting it. |
+| Double-ended sequence | `SplDoublyLinkedList` | Consider only when efficient operations at both ends or bidirectional iteration are material requirements. Avoid it for frequent arbitrary-offset access or as a default list replacement; indexed access requires traversal. |
+| Shared mutable array-like state | `ArrayObject` | Use only when object identity and shared mutation across call boundaries are intentional parts of the contract. Native arrays have copy-on-write value semantics; replacing them with `ArrayObject` changes observable mutation and assignment behavior and should not be treated as a performance shortcut. |
+| Iterable materialization | `iterator_to_array()` | Use at a boundary that explicitly needs a complete native array. This is a conversion function, not an SPL data structure. Preserve keys only when the keys are meaningful and unique; with the default `true`, duplicate keys overwrite earlier values. Use `iterator_to_array($iterator, false)` when all values must be retained and key preservation is unnecessary. |
+
+#### Ordering, Lifetime And Correctness Constraints
+
+**MEM-05**
 
 - `SplPriorityQueue` does not guarantee FIFO order among equal priorities. When stability matters, define and test a deterministic secondary ordering key, such as a bounded insertion sequence or stable job identifier; preserve the original priority policy and fairness requirements.
 - Define heap comparator direction and tie-breaking explicitly. A custom `SplHeap::compare()` must establish consistent ordering for the supported values; do not assume extraction is stable or that the heap stores a fully sorted list internally.
@@ -1515,7 +1770,9 @@ structural_review:
 - Preserve public array types, iteration semantics, numeric/string keys, tie order, error behavior, serialization formats and persisted state when changing internal storage. Convert only at necessary boundaries and account for conversion cost.
 - Bound queue sizes, heap sizes, retained objects, tombstones and cache entries. Do not use an SPL structure as a substitute for backpressure, cancellation, expiration, cleanup or worker-lifecycle controls.
 
-**Adoption And Verification**
+#### Adoption And Verification
+
+**MEM-06**
 
 - Before changing an existing collection, document the dominant operations (append, dequeue, lookup, move-to-front, update, remove, iterate, serialize), expected sizes and distribution, required ordering and ownership semantics, and the candidate's theoretical complexity.
 - Benchmark the current representation against at least the simplest suitable alternative, including a native-array or cursor implementation when relevant. Compare realistic small, typical, large and worst-case workloads rather than relying on a one-size-fits-all SPL benchmark.
@@ -1524,6 +1781,8 @@ structural_review:
 - Adopt the specialized structure only when it enforces a required invariant, materially reduces total complexity, or produces a meaningful measured improvement without violating correctness, compatibility or resource budgets. Otherwise retain the native array or existing specialized structure.
 
 ### Iteration And Algorithmic Work
+
+**MEM-07**
 
 - Treat total work, algorithmic complexity, allocations and I/O as more important than the number of visible loops.
 - When multiple loops process the same dataset in the same execution path, evaluate whether they can be safely combined.
@@ -1548,7 +1807,9 @@ structural_review:
 - Do not choose `for`, `foreach` or `while` based solely on generic syntax benchmarks.
 - Do not convert associative arrays into key lists merely to iterate with `for`.
 
-**By-Reference `foreach` Cleanup**
+#### By-Reference `foreach` Cleanup
+
+**MEM-08**
 
 - Avoid by-reference `foreach` unless in-place mutation is required and preferable to constructing a replacement array.
 - After a by-reference `foreach`, the loop variable remains bound to the final iterated element.
@@ -1595,6 +1856,8 @@ return $items;
 - Do not cache trivial values by default when the benefit is unmeasured and the additional state reduces readability.
 
 ### Data Movement, Memory And Variable Lifetime
+
+**MEM-09**
 
 - Treat peak memory and data movement as first-class performance concerns.
 - Avoid materializing an entire dataset when it can be processed incrementally.
@@ -1646,8 +1909,7 @@ return $items;
 - Do not retain large maps, caches or object graphs for speculative reuse.
 - Avoid memory usage that risks swapping, container eviction, PHP memory-limit failure or reduced worker density; these outcomes can produce severe latency regressions.
 - Remember that PHP arrays are hash tables with substantial per-element overhead. Do not use large arrays as free or low-cost memory.
-- For repeated membership checks, a keyed set with `isset()` may be faster than repeated linear scans, but build it only when the number of lookups justifies the one-time allocation.
-- For one pass over a large dataset, prefer streaming or a direct loop instead of building additional indexes or copies.
+- Apply [MEM-01](#arrays-strings-and-membership) to repeated lookups and index-allocation costs; prefer streaming or a direct loop over extra indexes or copies for one-pass large datasets.
 - Measure wall-clock time, sustained throughput and peak memory together.
 - Choose the fastest measured option that remains within explicit stability, memory, concurrency and capacity limits.
 - Resource efficiency is secondary to speed unless resource pressure reduces throughput, increases latency or threatens operational stability.
@@ -1657,6 +1919,8 @@ return $items;
 ## Security, Identity And Cryptography
 
 ### Security And Operational Safety
+
+**SEC-01**
 
 - Apply secure-by-default design and OWASP-aligned practices where relevant.
 - Treat validation, escaping, authorization, secrets management and dependency hygiene as mandatory.
@@ -1671,6 +1935,8 @@ return $items;
 - Bound request sizes, collection sizes, recursion, concurrency, execution time and retry behavior.
 
 ### Security-Critical Libraries And Time
+
+**SEC-02**
 
 - Apply maximum-throughput rules to security-sensitive libraries only after correctness and security requirements are fully preserved.
 - Never weaken:
@@ -1695,7 +1961,9 @@ return $items;
 - Include valid, invalid, expired, malformed and replay-related paths in representative benchmarks.
 - Treat rate limiting and replay protection as part of the production throughput model rather than removing them from tests.
 
-**Time And Clock Boundaries**
+#### Time And Clock Boundaries
+
+**SEC-03**
 
 - Use PSR-20 `ClockInterface` when a reusable or test-sensitive component requires an interoperable source of current time.
 - Inject the clock through construction or explicit configuration.
@@ -1712,6 +1980,8 @@ return $items;
 
 ### Hashing And Identifier Selection
 
+**SEC-04**
+
 - Select a hashing primitive by purpose before considering benchmark speed.
 - Do not treat cryptographic hashes, non-cryptographic hashes, HMACs, password hashes, checksums and unique identifiers as interchangeable.
 - Optimize hashing only after preserving the required collision resistance, authenticity, interoperability and threat model.
@@ -1725,7 +1995,9 @@ return $items;
 - Do not choose an algorithm solely from a large-buffer throughput benchmark.
 - Measure the effect on complete sustained successful RPM in addition to isolated hashes per second or bytes per second.
 
-**Non-Cryptographic Hashing**
+#### Non-Cryptographic Hashing
+
+**SEC-05**
 
 - Use non-cryptographic hashes only when maliciously chosen collisions cannot compromise:
   - authorization,
@@ -1749,7 +2021,9 @@ return $items;
 - Avoid hashing data that can be used directly as a safe bounded scalar key without additional work.
 - Do not repeatedly hash the same immutable value in one request; compute once and reuse the digest when the reuse is measurable and scope is clear.
 
-**Cryptographic Digests**
+#### Cryptographic Digests
+
+**SEC-06**
 
 - Use a cryptographic hash when collision resistance or adversarial input matters but no secret-key authenticity is required.
 - Prefer `sha256` as the default interoperable cryptographic digest for new general-purpose designs.
@@ -1765,7 +2039,9 @@ return $items;
 - Avoid hashing the same payload multiple times with different encodings unless the external contract requires it.
 - Do not use a plain cryptographic digest where authenticity requires a secret; use HMAC or an appropriate digital-signature primitive.
 
-**Unique And Opaque Identifiers**
+#### Unique And Opaque Identifiers
+
+**SEC-07**
 
 - Hashing does not create uniqueness.
 - Do not use a hash of a timestamp, sequence, email address, database identifier or other predictable value as a secure opaque identifier.
@@ -1782,7 +2058,9 @@ return $items;
 - Do not truncate identifiers or digests without an explicit collision analysis.
 - Do not confuse obscuring an identifier with securing access to the underlying resource.
 
-**HMAC Selection And Usage**
+#### HMAC Selection And Usage
+
+**SEC-08**
 
 - Use HMAC when a shared secret must authenticate a message or detect tampering.
 - Prefer `hash_hmac('sha256', ...)` as the default interoperable HMAC for new general-purpose designs.
@@ -1820,6 +2098,8 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 - Benchmark HMAC independently from plain hashing because key setup, inner and outer hashing and payload size can change the relative result.
 
 ### OTP, Passwords And Randomness
+
+**SEC-09**
 
 - Preserve the algorithm required by the OTP protocol and provisioning contract.
 - HOTP requires the protocol-defined HMAC-SHA-1 construction unless an explicitly compatible extension defines otherwise.
@@ -1873,6 +2153,8 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 
 ### Cryptographic Benchmarking
 
+**SEC-10**
+
 - Maintain separate benchmarks for:
   - short scalar payloads,
   - common request-sized payloads,
@@ -1899,6 +2181,8 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 ## Database, External Services And Caching
 
 ### Database Access And Storage
+
+**DATA-01**
 
 - Apply these rules to applications, database libraries, query builders, repositories, storage adapters and ORM layers.
 - Avoid hidden queries, implicit metadata discovery, unnecessary automatic count queries and per-row object construction.
@@ -1930,7 +2214,9 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 - Keep bulk operations within safe parameter, packet, lock and transaction-size limits.
 - Avoid exact total-count queries when the caller does not require an exact total.
 
-**PDO And Database-Extension Compatibility**
+#### PDO And Database-Extension Compatibility
+
+**DATA-02**
 
 - Prefer driver-specific PDO subclasses on supported runtimes when driver-specific constants or methods are required.
 - Keep portable behavior on standard PDO contracts and isolate genuinely driver-specific behavior.
@@ -1940,6 +2226,8 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 - Include PDO driver, native client and server versions in reproducible benchmark evidence.
 
 ### External I/O And Concurrency
+
+**DATA-03**
 
 - Set explicit connection, read, write and total-operation timeouts for external dependencies.
 - Do not allow a slow dependency to consume request or worker capacity indefinitely.
@@ -1956,7 +2244,9 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 - Use queues, deferred processing, circuit breaking or load shedding only when they meaningfully reduce latency or cascading failure.
 - Do not introduce asynchronous processing when synchronous execution already meets latency and reliability requirements.
 
-**Attached Resources And Service Boundaries**
+#### Attached Resources And Service Boundaries
+
+**DATA-04**
 
 - Treat databases, caches, queues, object storage, SMTP providers and external APIs as attached resources.
 - Access each resource through explicit configuration, credentials and resource handles.
@@ -1974,7 +2264,9 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 - Do not hide important transactional, consistency, latency or capability differences behind a generic abstraction.
 - Include backing-service latency and saturation in sustained RPM tests.
 
-**HTTP Client Interoperability**
+#### HTTP Client Interoperability
+
+**DATA-05**
 
 - Use PSR-18 `ClientInterface` at reusable outbound HTTP boundaries where the caller must select the client implementation.
 - Use the narrow PSR-17 request, URI and stream factories required to construct PSR-7 requests without coupling to one implementation.
@@ -1990,6 +2282,8 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 
 ### Caching
 
+**DATA-06**
+
 - Add caching only after identifying a meaningful repeated cost.
 - Cache the smallest stable result at the most appropriate layer.
 - Define cache keys, scope, ownership, expiration, invalidation and versioning explicitly.
@@ -2002,18 +2296,20 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 - Measure cache hit rate, miss cost, latency, memory use and invalidation behavior.
 - Ensure the system remains correct when the cache is cold, unavailable, stale or cleared.
 
-**Cache Interoperability**
+#### Cache Interoperability
 
-- Use PSR-16 `Psr\SimpleCache\CacheInterface` for simple key/value caching when its `null`-on-miss semantics are acceptable.
-- Use PSR-6 `Psr\Cache\CacheItemPoolInterface` when the contract needs explicit hit detection, cache items, deferred saves or richer pool semantics.
+**DATA-07**
+
+| Contract | Use when | Null and persistence requirements |
+| --- | --- | --- |
+| PSR-16 `Psr\SimpleCache\CacheInterface` | Simple key/value caching with acceptable `null`-on-miss semantics. | Do not cache `null` if callers must distinguish it from a miss, unless using an explicit sentinel or envelope. |
+| PSR-6 `Psr\Cache\CacheItemPoolInterface` | Explicit hit detection, cache items, deferred saves or richer pool semantics. | Call `isHit()` when cached `null` must be distinguished from a miss. For deferred writes, call `commit()` at an explicit safe boundary; do not rely solely on destructors for critical persistence. |
+
 - Do not depend on both PSR-6 and PSR-16 unless the package intentionally supports both contracts.
 - Do not add a PSR cache dependency when caching is entirely internal and no implementation substitution is required.
 - Reusable cache-aware libraries should accept a PSR cache interface from the caller rather than instantiate a concrete cache provider.
 - Applications must provide and configure the actual cache implementation.
-- With PSR-16, do not cache `null` when the caller must distinguish a stored `null` from a miss unless an explicit sentinel or envelope is used.
-- With PSR-6, call `isHit()` when a cached `null` value must be distinguished from a miss.
 - Use multi-key methods when they reduce network round trips and preserve semantics.
-- For PSR-6 deferred writes, call `commit()` at an explicit safe boundary; do not rely solely on destructors for critical persistence.
 - Keep keys compatible with the selected PSR and backing store.
 - Avoid layered PSR-6/PSR-16 adapters in hot paths unless interoperability value outweighs conversion cost.
 - Benchmark direct provider access and PSR adapter access when cache calls dominate request throughput.
@@ -2021,6 +2317,8 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 ## Events, Logging And Observability
 
 ### Events And Extension Points
+
+**OBS-01**
 
 - Use direct method calls for required synchronous behavior when the caller knows the collaborator.
 - Use PSR-14 when a reusable package or application exposes a genuine interoperable event-dispatch boundary.
@@ -2041,6 +2339,8 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 
 ### Logging And Diagnostic Cost
 
+**OBS-02**
+
 - Avoid expensive debug formatting when the corresponding log level is disabled.
 - Do not log complete large payloads, binary data, secrets, credentials, tokens or sensitive information.
 - Use structured logs with bounded field sizes.
@@ -2049,7 +2349,9 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 - Keep logging, tracing and metrics lightweight on hot paths.
 - Record durations, query counts, external calls, failures and relevant payload sizes where they aid diagnosis.
 
-**Logs As Event Streams**
+#### Logs As Event Streams
+
+**OBS-03**
 
 - Treat logs as event streams rather than application-managed files.
 - Write normal process output to `stdout` and errors to `stderr` when the execution environment captures those streams.
@@ -2067,7 +2369,9 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 - Do not suppress errors solely to improve benchmark throughput.
 - Use the logging platform for aggregation, searching, alerting and RPM/error analysis.
 
-**Logging Interoperability**
+#### Logging Interoperability
+
+**OBS-04**
 
 - Use PSR-3 `LoggerInterface` at reusable package and infrastructure boundaries when caller-controlled logging is useful.
 - Libraries should accept a caller-provided logger, remain logging-agnostic or use an explicitly configured no-op logger.
@@ -2084,6 +2388,8 @@ $mac = hash_hmac('sha256', $payload, $secretKey, true);
 ## Dependencies, Configuration And Code Loading
 
 ### Composer, Dependencies And Autoloading
+
+**CONFIG-01**
 
 - Use Composer autoloading instead of manual class includes.
 - Use PSR-4-compatible, case-correct namespaces and paths.
@@ -2112,7 +2418,9 @@ composer install \
 - Rebuild the production autoloader whenever source files or dependencies change.
 - Never generate Composer autoload metadata during a web request.
 
-**Dependency Declaration And Isolation**
+#### Dependency Declaration And Isolation
+
+**CONFIG-02**
 
 - Declare PHP dependencies explicitly in `composer.json`.
 - Commit `composer.lock` for deployable applications.
@@ -2125,7 +2433,9 @@ composer install \
 - Exclude development-only dependencies from production release artifacts.
 - Do not add request-path dependency-isolation wrappers when build and process isolation solve the requirement.
 
-**Interoperability Package Dependencies**
+#### Interoperability Package Dependencies
+
+**CONFIG-03**
 
 - A reusable consumer library should require only the PSR interface packages it actually uses.
 - Do not require a concrete PSR implementation from a reusable consumer library unless the implementation is an intentional part of its contract.
@@ -2138,6 +2448,8 @@ composer install \
 
 ### Configuration And Generated Metadata
 
+**CONFIG-04**
+
 - Compile stable configuration, routes, dependency mappings, event mappings, serializer metadata and similar discovery-heavy structures during build or deployment.
 - Prefer deterministic generated PHP files over reparsing YAML, XML, JSON, `.env`, annotations or directory structures on every request.
 - Do not parse `.env` files in production request paths.
@@ -2147,7 +2459,9 @@ composer install \
 - Write generated files atomically before exposing them to workers.
 - Validate generated PHP files before activating a release.
 
-**Deploy Configuration And Secrets**
+#### Deploy Configuration And Secrets
+
+**CONFIG-05**
 
 - Keep configuration that varies between deploys outside the codebase.
 - Inject database, cache, queue, service, hostname, credential, feature-control and per-deploy settings through environment variables or an equivalent deployment-controlled mechanism.
@@ -2162,6 +2476,8 @@ composer install \
 - Design the repository so it can be published without revealing deploy credentials.
 
 ### OPcache-Friendly Loading And Filesystem Resolution
+
+**CONFIG-06**
 
 - Write PHP that can be loaded from stable, deterministic files and reused unchanged across requests.
 - Treat OPcache compatibility as part of code structure, autoloading, build generation and deployment design.
@@ -2180,6 +2496,8 @@ composer install \
 ## Runtime Processes, Deployment And Operations
 
 ### Runtime Model And Process Management
+
+**OPS-01**
 
 - Choose the PHP runtime model by measured sustained successful RPM, not convention.
 - Benchmark supported execution models where relevant, including:
@@ -2210,7 +2528,9 @@ composer install \
 - Use queues for work that is not required to complete the response when deferral materially increases request throughput and preserves correctness.
 - Keep request handlers free from non-essential background work.
 
-**Stateless And Share-Nothing Processes**
+#### Stateless And Share-Nothing Processes
+
+**OPS-02**
 
 - Design web and worker processes so correctness does not depend on memory or local filesystem state surviving a request, restart or reschedule.
 - Persist durable state in appropriate backing services.
@@ -2222,7 +2542,9 @@ composer install \
 - Persistent workers must reset request-, tenant- and user-specific state after every request.
 - Test worker replacement, process restart and multi-worker routing.
 
-**Service Endpoints And Port Binding**
+#### Service Endpoints And Port Binding
+
+**OPS-03**
 
 - Bind self-contained services to an explicitly configured host, port or socket.
 - Do not hard-code listening ports, public hostnames, TLS termination or routing topology.
@@ -2230,7 +2552,9 @@ composer install \
 - Do not force reusable libraries to open or manage listening ports.
 - Keep health and readiness endpoints inexpensive and free of sensitive topology details.
 
-**Process Types And Concurrency**
+#### Process Types And Concurrency
+
+**OPS-04**
 
 - Represent workloads with different scaling, latency, resource or failure characteristics as explicit process types.
 - Separate web request handling from long-running background work when synchronous completion is not required.
@@ -2242,7 +2566,9 @@ composer install \
 - Internal asynchronous concurrency is allowed when it increases sustained successful RPM and remains bounded and observable.
 - Do not use process proliferation to conceal a downstream bottleneck.
 
-**Disposability And Graceful Shutdown**
+#### Disposability And Graceful Shutdown
+
+**OPS-05**
 
 - Keep startup fast enough for deployment, recovery and horizontal scaling.
 - Move expensive deterministic preparation into build or release stages.
@@ -2254,7 +2580,9 @@ composer install \
 - Protect durable operations with transactions, idempotency keys, leases, checkpoints or deduplication.
 - Test graceful shutdown, abrupt death and simultaneous worker startup.
 
-**Runtime Limits And Diagnostics**
+#### Runtime Limits And Diagnostics
+
+**OPS-06**
 
 - Keep per-process memory limits aligned with worker count, container limits and required worker density.
 - On supported runtimes, use `max_memory_limit` as an administrator-controlled ceiling when application code must not raise or disable its memory limit.
@@ -2268,6 +2596,8 @@ composer install \
 
 ### Build, Release And Deployment
 
+**OPS-07**
+
 - Prefer immutable, versioned releases and atomic activation.
 - Never partially overwrite PHP files that may be read concurrently.
 - Complete dependency installation, autoloader generation, metadata compilation, validation and tests before activating a release.
@@ -2279,7 +2609,9 @@ composer install \
 - Reduce file-update protection only when all PHP file updates are guaranteed to be atomic.
 - Roll back by activating a complete previous release, not by restoring individual files inside the active release.
 
-**Codebase And Release Identity**
+#### Codebase And Release Identity
+
+**OPS-08**
 
 - Keep each independently deployable application or service associated with one version-controlled codebase.
 - Use the same codebase across development, staging and production; deploys may run different committed versions.
@@ -2288,18 +2620,18 @@ composer install \
 - Identify every release by an immutable commit, tag, build ID or release ID.
 - Keep generated artifacts traceable to the source revision that produced them.
 
-**Build, Release And Run Separation**
+#### Build, Release And Run Separation
 
-- Separate deployment into build, release and run stages.
-- Build should:
-  - install dependencies,
-  - optimize Composer metadata,
-  - compile stable routes, configuration and metadata,
-  - build assets,
-  - run validation,
-  - and produce an immutable artifact.
-- Release should combine an immutable build with deploy-specific configuration and assign a unique release ID.
-- Run should start an existing release with as few moving parts as practical.
+**OPS-09**
+
+Separate deployment into these stages; each should perform its listed work:
+
+| Stage | Work |
+| --- | --- |
+| Build | Install dependencies; optimize Composer metadata; compile stable routes, configuration and metadata; build assets; run validation; produce an immutable artifact. |
+| Release | Combine an immutable build with deploy-specific configuration; assign a unique release ID. |
+| Run | Start an existing release with as few moving parts as practical. |
+
 - Do not download code, update packages, discover dependencies, generate classes, compile source or mutate application files during normal requests.
 - Treat releases as append-only and immutable.
 - Any code, dependency or build-artifact change must produce a new release.
@@ -2307,6 +2639,8 @@ composer install \
 - Verify release configuration and required resource connectivity before shifting traffic where practical.
 
 ### OPcache Capacity, Warm-Up And Observability
+
+**OPS-10**
 
 - Enable OPcache in production and verify it is active for the intended SAPI.
 - Size OPcache from observed usage, not copied configuration.
@@ -2350,6 +2684,8 @@ composer install \
 
 ### Development And Production Parity
 
+**OPS-11**
+
 - Keep development, test, staging and production as similar as practical in:
   - PHP major and minor version,
   - required extensions,
@@ -2371,6 +2707,8 @@ composer install \
 
 ### Administrative And One-Off Processes
 
+**OPS-12**
+
 - Run migrations, repair scripts, backfills, consoles and maintenance tasks as explicit one-off processes.
 - Execute them against the same immutable release, dependency set and deploy configuration as regular processes.
 - Keep administrative scripts version-controlled.
@@ -2385,284 +2723,3 @@ composer install \
 - Do not let one-off tasks monopolize database connections, locks, CPU, memory or queue capacity required by request-serving processes.
 - Benchmark or rate-limit heavy backfills when they can reduce production RPM.
 - Require dry-run support or explicit confirmation for destructive operations.
-
-## Tooling And Workflow
-
-- Respect repository tooling and quality checks such as formatting, static analysis, refactoring, tests, mutation testing, profiling and benchmarks.
-- Parallelize independent read-only tools at the orchestration layer; do not launch duplicate or nested copies of the same checker merely to increase concurrency.
-- Keep source-mutating processors sequential unless disjoint ownership and atomic publication are proven.
-- Bound task concurrency and diagnostic output, let every started peer finish, and render results in deterministic declaration order.
-- Reuse one successful analyzer execution for both gating and machine-readable reporting when the tool can produce both results.
-- Use the project’s existing automation instead of manually enforcing style.
-- Configure automated formatting for the declared PER Coding Style or established repository standard.
-- Keep formatting checks separate from semantic and performance validation.
-- Use static analysis at the strongest practical level supported by the project.
-- Treat findings from tests, static analysis, formatters, linters, mutation testing, security scanners, compatibility checks, complexity checks, coverage gates, performance gates and other quality detectors as issues to resolve at their root cause.
-
-**Agent Execution, Tool And Token Efficiency**
-
-- Treat agent token consumption, context size, tool calls and execution time as engineering resources.
-- Reduce them without reducing:
-  - correctness,
-  - security,
-  - source understanding,
-  - verification depth,
-  - test coverage,
-  - compatibility coverage,
-  - performance evidence,
-  - or solution quality.
-- Prefer deterministic local tooling over token-heavy manual inspection or reasoning when it provides equivalent or better evidence.
-- Use the cheapest authoritative mechanism that can answer the question correctly.
-- Prefer, where applicable:
-  1. PHPForge built-in commands and detectors available in the installed project version,
-  2. existing project scripts and repository automation,
-  3. native PHP and Composer commands,
-  4. Git and established system commands,
-  5. targeted source inspection,
-  6. small task-specific scripts,
-  7. broad manual reconstruction or speculative reasoning.
-- This order is a workflow preference, not permission to skip required inspection or verification.
-- Use a lower-ranked mechanism when a higher-ranked tool:
-  - cannot answer the question,
-  - lacks required context,
-  - requires independent verification,
-  - or would make the task less correct or less efficient.
-- Search before reading broadly.
-- Inspect before designing.
-- Reuse before creating.
-- Edit before rewriting.
-- Verify before reporting.
-
-**PHPForge Command Preference**
-
-- Before performing repetitive or repository-wide PHP analysis manually, determine whether the installed PHPForge version already provides an equivalent command, detector or workflow.
-- Prefer PHPForge built-in capabilities for supported operations such as:
-  - structural inspection,
-  - class, file and abstraction review,
-  - cognitive-complexity analysis,
-  - dependency analysis,
-  - documentation and PHPDoc checks,
-  - comment-policy checks,
-  - code-quality checks,
-  - compatibility checks,
-  - validation,
-  - refactoring support,
-  - profiling or benchmark support,
-  - and other project-defined PHPForge operations.
-- Treat the installed project's PHPForge version and its command help or documentation as the source of truth.
-- Do not assume a PHPForge command, option, detector or behavior exists without checking the installed version when uncertain.
-- Prefer one PHPForge operation that provides the required evidence over several manual repository scans or custom parsing passes.
-- Do not duplicate PHPForge analysis with a custom implementation unless:
-  - PHPForge does not support the required operation,
-  - its result is insufficient for the active task,
-  - a narrowly scoped alternative is materially cheaper while remaining equally authoritative,
-  - or independent verification is required.
-- Do not replace or bypass a PHPForge detector merely because another implementation is easier for the agent to interpret.
-- Resolve PHPForge findings according to the quality-gate rules.
-- Use PHPForge's documented automation and [AGENTS.md](vendor/infocyph/phpforge/resources/AGENTS.md) workflow when applicable.
-
-**Repository And System Command Preference**
-
-- Prefer existing repository commands and native tools for deterministic repository and runtime questions.
-- Prefer Git for:
-  - changed files,
-  - diffs,
-  - history,
-  - blame,
-  - tracked-file discovery,
-  - and change scope.
-- Prefer fast repository search tools for:
-  - symbol lookup,
-  - text lookup,
-  - caller discovery,
-  - configuration references,
-  - and duplicate-pattern searches.
-- Prefer filesystem commands for:
-  - bounded file discovery,
-  - file counts,
-  - path inspection,
-  - and metadata.
-- Prefer PHP commands for:
-  - syntax validation,
-  - runtime capability checks,
-  - extension checks,
-  - INI inspection,
-  - and deterministic PHP-level calculations.
-- Prefer Composer commands for:
-  - dependency information,
-  - platform requirements,
-  - autoload information,
-  - package versions,
-  - and dependency relationships.
-- Prefer the configured formatter, static analyzer, test runner, mutation tool, security scanner, benchmark and profiler over manually approximating the same result.
-- Do not create a temporary custom script for an operation already performed correctly by PHPForge, repository tooling, PHP, Composer, Git or an established system command.
-- When a small custom script is still the most efficient correct option:
-  - keep it narrowly scoped,
-  - do not make it production architecture unless required,
-  - and remove temporary analysis artifacts when the task is complete.
-
-**Search And Inspection Efficiency**
-
-- Prefer the smallest sufficient context needed for a correct decision.
-- Identify likely files, symbols, callers, tests and configuration before reading broad portions of the repository.
-- Prefer targeted:
-  - symbol lookups,
-  - reference searches,
-  - file ranges,
-  - diffs,
-  - failing diagnostics,
-  - test files,
-  - configuration sections,
-  - and command summaries
-  over repeatedly loading complete files or directories.
-- Read a complete file when full context is necessary for ownership, lifecycle, side effects, security, public contracts, concurrency or architectural decisions.
-- Do not repeatedly reread unchanged content already inspected during the same task unless:
-  - the file changed,
-  - earlier context is insufficient,
-  - or verification requires the exact current content.
-- Reuse established facts and decisions from the current task instead of rediscovering them.
-- Revalidate a fact when the relevant source or runtime state changed or when relying on the earlier result creates correctness risk.
-- Avoid recursively exploring unrelated directories, dependencies or architectural alternatives without evidence that they affect the active task.
-- Stop investigating an already resolved branch when additional inspection cannot materially change the implementation or verification decision.
-- Do not use context minimization to skip relevant callers, implementations, contracts or side effects.
-
-**Command And Tool Output Discipline**
-
-- Keep command output proportional to the question being answered.
-- Prefer summaries, changed files, matching lines, failing checks, relevant diagnostics, machine-readable output and bounded result sets over unrestricted verbose output.
-- Filter large output only when omitted information cannot affect the engineering decision.
-- Do not truncate, filter or summarize output in a way that could hide:
-  - failures,
-  - security findings,
-  - compatibility issues,
-  - affected callers,
-  - test failures,
-  - performance regressions,
-  - or required context.
-- Do not repeatedly run an expensive unchanged command unless:
-  - relevant code changed,
-  - the previous result was inconclusive,
-  - state may have changed,
-  - or final verification requires another run.
-- Batch related independent searches or checks when doing so reduces repeated setup and context without hiding failures.
-- Prefer one well-scoped command over several speculative commands.
-
-**Implementation Efficiency**
-
-- Prefer the smallest correct diff.
-- Modify the existing cohesive owner instead of creating a new file or abstraction unless the structural rules justify one.
-- Prefer targeted edits over whole-file rewrites when surrounding content does not need to change.
-- Do not generate several complete competing implementations when repository constraints already determine the appropriate approach.
-- Narrow alternatives using existing contracts, project conventions, supported runtimes, measured constraints and current architecture before designing multiple solutions.
-- Check for an existing owner, utility, PHPForge capability, repository helper or contract before creating a new implementation.
-- Do not reproduce unchanged code merely to show context.
-- Keep intermediate plans proportional to task complexity.
-- Proceed directly after obtaining sufficient context for simple, low-risk changes.
-- Use more detailed planning when the task materially affects architecture, public contracts, security, data migration, concurrency, persistence, performance-sensitive paths or coordinated multi-file behavior.
-
-**Reasoning And Context Efficiency**
-
-- Use agent reasoning for trade-offs, architecture, ownership, semantics, security implications and decisions that require judgment.
-- Use tools for facts that tools can determine directly.
-- Do not spend reasoning tokens reconstructing information that can be obtained authoritatively from PHPForge, the repository, Git, PHP, Composer, configured analyzers, configured tests, runtime diagnostics or benchmark tooling.
-- Summarize large intermediate findings compactly and retain only details required for subsequent decisions.
-- Preserve exact source details when implementation correctness depends on them.
-- Do not replace necessary source inspection with an approximate summary.
-- Avoid repeatedly restating the user's requirements, the same implementation plan, unchanged code, complete file contents, complete command output or conclusions already established in the same task.
-
-**Verification Efficiency**
-
-- During implementation, run the narrowest relevant checks that provide useful feedback.
-- After implementation, run every required broader validation defined by:
-  - the repository,
-  - PHPForge,
-  - [AGENTS.md](vendor/infocyph/phpforge/resources/AGENTS.md),
-  - CI configuration,
-  - or the active task.
-- Prefer targeted tests and detectors while iterating, then run the required complete validation before completion.
-- Do not substitute targeted checks for mandatory final checks merely to save tokens, time, context or compute.
-- Do not skip a required detector because another detector appears to cover similar behavior.
-- Do not rerun an unchanged expensive validation after every trivial edit when a narrower deterministic check can safely guide iteration.
-- Rerun affected validation after relevant changes and perform required final validation before reporting completion.
-
-**Response Efficiency**
-
-- Keep final responses concise, complete and decision-oriented.
-- Report:
-  - what changed,
-  - important engineering decisions,
-  - verification performed,
-  - unresolved risks,
-  - and anything that could not be verified.
-- Do not reproduce unchanged files, large command outputs, repeated requirements, source already available to the user or unnecessary internal reasoning unless it materially helps review, use or maintenance.
-- Include code, commands, diagnostics and explanation when they are necessary to understand or verify the solution.
-
-**Efficiency Safety Rule**
-
-- Token, context, command and execution efficiency must never be achieved by:
-  - guessing instead of inspecting,
-  - assuming instead of verifying,
-  - skipping relevant files or callers,
-  - skipping required tests,
-  - weakening quality detectors,
-  - reducing security analysis,
-  - omitting required edge cases,
-  - ignoring public contracts,
-  - avoiding necessary benchmarks,
-  - hiding command failures,
-  - or returning an incomplete solution.
-- When two workflows provide equivalent correctness, verification and solution quality, prefer the one with fewer tokens, less repeated context, fewer redundant reads, fewer redundant tool calls, less unnecessary output, fewer repository scans, less custom processing and shorter execution time.
-
-**Quality-Gate Issue Resolution**
-
-- Fix the code, configuration, test or contract that causes a valid finding.
-- When a domain-specific section prohibits suppression, baselines, exclusions or exemptions more strictly, the stricter domain rule applies.
-- The false-positive exception below does not override an explicit no-suppression rule elsewhere in this document.
-- Do not make a failing quality gate pass by:
-  - weakening or disabling the detector,
-  - reducing its configured scope,
-  - increasing a threshold,
-  - lowering a required analysis level,
-  - removing or weakening an assertion,
-  - deleting a relevant test,
-  - excluding affected files, paths, symbols or rules,
-  - adding or expanding a baseline,
-  - adding suppressions, ignore directives, allowlists or exemptions,
-  - marking a failure as expected without correcting its cause,
-  - changing CI to skip the check,
-  - or bypassing the gate manually.
-- Do not move problematic code outside the detector's scan path merely to avoid a finding.
-- Do not replace a precise rule with a broader or weaker rule solely to make existing code pass.
-- Do not change production behavior, public contracts or security controls merely to satisfy a detector when the detector is misconfigured.
-- When a finding appears incorrect:
-  - reproduce it with the smallest relevant case,
-  - verify the detector's documented semantics,
-  - verify project configuration and supported runtime versions,
-  - and correct the detector configuration only when evidence shows that the configuration itself is wrong.
-- Treat detector configuration changes as code changes:
-  - keep them narrowly scoped,
-  - explain the reason,
-  - review their effect on all existing checks,
-  - and verify that they do not hide other valid findings.
-- Do not introduce inline suppression for a false positive unless no correct code or configuration fix exists and explicit approval is given.
-- Any approved suppression must be:
-  - as narrow as possible,
-  - tied to a specific detector and finding,
-  - documented with the technical reason,
-  - covered by tests where relevant,
-  - and assigned a review or removal condition.
-- Do not use a baseline to absorb new violations.
-- Do not update an existing baseline as part of ordinary feature or bug-fix work.
-- Resolve new findings before merging.
-- When legacy violations already exist, ensure the change does not add to them and fix any touched violation within the active scope where practical.
-- If a required detector cannot run, report the exact reason and do not claim the quality gate passed.
-- A clean result is valid only when the intended detector, rules, scope and thresholds remain active.
-- Run compatibility and deprecation checks against every supported PHP version and the next intended upgrade target.
-- Add or update tests for affected behavior, boundaries, failures and contracts.
-- Add benchmarks only for meaningful, stable, performance-sensitive behavior.
-- Follow any additional mandatory post-implementation or documentation workflow in [AGENTS.md](vendor/infocyph/phpforge/resources/AGENTS.md) when that file exists.
-- Review automated changes for correctness.
-- Keep automated changes within scope.
-- Do not accept generated or automated refactoring without reviewing the resulting behavior.
-- Report which formatting, analysis, tests, profiling and benchmarks were run.
-- Clearly state anything that could not be verified.
