@@ -149,6 +149,10 @@ final readonly class ParallelRunner
             $status = 'SKIP';
         }
 
+        if ($status === 'PASS' && ($entry['task'][2] ?? null) === 'skipper' && str_contains($stdout, 'Allowed directives')) {
+            $this->output->write($stdout, false, OutputInterface::OUTPUT_RAW);
+        }
+
         if ($status === 'FAIL') {
             $stdout = PhpProbeFailureFormatter::format($entry['task'], $stdout) ?? $stdout;
             $this->output->writeln(sprintf('<info>%s</info>', $entry['heading']));

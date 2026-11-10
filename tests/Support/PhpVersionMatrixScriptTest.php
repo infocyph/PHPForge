@@ -179,6 +179,7 @@ it('exposes the default-on workflow controls and compact service controls', func
         'upload_sarif' => true,
         'run_benchmark' => true,
         'fail_on_skipped_tests' => true,
+        'skipper_policy' => '',
         'skipper_allowed_directives' => '[]',
         'integration_services' => '[]',
         'service_topologies' => '{}',
@@ -371,7 +372,7 @@ it('skips the default benchmark run when the consuming project has no benchmark 
         ->and($script)->toContain('benchmark_status=skipped');
 });
 
-it('passes an empty-by-default directive allowlist to the quality suite through the environment', function (): void {
+it('passes a default-deny scoped policy and the deprecated empty allowlist to the quality suite through the environment', function (): void {
     $workflow = Yaml::parseFile(dirname(__DIR__, 2) . '/.github/workflows/security-standards.yml');
     $input = fixtureValue($workflow, ['on', 'workflow_call', 'inputs', 'skipper_allowed_directives']);
     $steps = fixtureArray(fixtureValue($workflow, ['jobs', 'run', 'steps']));
@@ -381,5 +382,7 @@ it('passes an empty-by-default directive allowlist to the quality suite through 
     expect(fixtureValue($input, ['default']))->toBe('[]')
         ->and(fixtureValue($input, ['type']))->toBe('string')
         ->and(fixtureValue($input, ['required']))->toBeFalse()
+        ->and(fixtureValue($workflow, ['on', 'workflow_call', 'inputs', 'skipper_policy', 'default']))->toBe('')
+        ->and(fixtureValue($environment, ['IC_SKIPPER_POLICY']))->toBe('${{ inputs.skipper_policy }}')
         ->and(fixtureValue($environment, ['IC_SKIPPER_ALLOWED_DIRECTIVES']))->toBe('${{ inputs.skipper_allowed_directives }}');
 });

@@ -262,40 +262,132 @@ PHPProbe, PHPStan, Psalm, PHPCS/PHPCBF, PHPBench, Phan, PHPMD, PhpStorm, PHPUnit
 detects explicit PHPUnit skipped/incomplete tests, PHPUnit `Requires*` and
 suppression attributes, and Pest skip, todo and focus-only chains. Findings are
 grouped by tool and fail the command; directive-shaped strings and dependency,
-cache, generated-workflow and build directories are ignored. Active PHPProbe,
-PHPStan, Psalm, PHPCS/PHPCBF, PHPUnit/Pest and Rector path exclusions are honored
-per tool, so excluding a path from one analyzer does not hide another tool's
-directives. The scanner is part of `ic:ci`, `ic:tests` and `ic:tests:details` and
-rejects every detected directive by default. It has no baseline.
+cache, generated-workflow and build directories are ignored. Source extensions
+are `.php`, `.phtml` and `.inc`; extensionless PHP scripts are not scanned.
+Analyzer path exclusions do **not** authorize inline directives. No source or test
+directory automatically receives permission. The scanner is part of `ic:ci`,
+`ic:tests` and `ic:tests:details`. It has no baseline.
 
-Projects can explicitly allow selected directive names through the reusable
-workflow's `skipper_allowed_directives` input:
+#### Scoped skip policy
+
+All detected directives are denied by default. Configure explicit exceptions in
+**the consuming project's** `composer.json`, independent of its directory layout:
+
+```json
+{
+  "extra": {
+    "phpforge": {
+      "skipper_policy": {
+        "default": "deny",
+        "rules": [
+          {
+            "paths": ["benchmarks/example.php"],
+            "directive": "@psalm-suppress",
+            "issue": "UnresolvableInclude",
+            "reason": "Intentional dynamic source loading."
+          },
+          {
+            "paths": ["specs/conditional/**"],
+            "directive": "#[RequiresPhpExtension]",
+            "reason": "Integration cases explicitly require the optional Redis extension."
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+Alternatively pass the **same policy object**, encoded as JSON, through
+`IC_SKIPPER_POLICY` locally or `jobs.phpforge.with.skipper_policy` in the reusable
+workflow. The workflow input defaults to an empty string, which selects the
+project's Composer policy (or default deny when absent). Defining both sources
+is an error: rules are never silently merged or overridden.
 
 ```yaml
 jobs:
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     with:
-      skipper_allowed_directives: '["@psalm-taint-escape", "#[RequiresPhpExtension]"]'
+      skipper_policy: >-
+        {"default":"deny","rules":[{"paths":["benchmarks/example.php"],"directive":"@psalm-suppress","issue":"UnresolvableInclude","reason":"Intentional dynamic source loading."}]}
 ```
 
-The input is a JSON array of non-empty strings, defaults to `[]`, and is passed
-to the quality suite as `IC_SKIPPER_ALLOWED_DIRECTIVES`. Set that same environment
-variable for local `composer ic:skipper`, `composer ic:ci` or `composer ic:tests`
-runs. Unset means strict mode; empty strings, JSON objects, non-string entries
-and malformed JSON fail the scan. Entries are trimmed and matched
-case-insensitively against the **whole directive name shown in scanner output**.
-They apply project-wide to every occurrence of that directive; they do not
-select individual issue codes, files or taint categories. Tool names, prefixes,
-regular expressions and wildcards do not match directives.
+| Field | Contract |
+| --- | --- |
+| `default` | Required; only `deny` is valid. |
+| `rules` | Required list; `[]` retains default deny everywhere. |
+| `paths` | Required nonempty list of normalized, project-relative paths. Exact files or bounded globs; any project layout is supported. |
+| `directive` | Exact whole name from the catalog below, matched case-insensitively. No prefixes, tool names, regexes or wildcards. |
+| `issue` | Required for suppression directives. One exact case-sensitive issue identifier per rule; every issue on a multi-issue annotation needs permission. |
+| `taint` | Required instead of `issue` for sanitization. One exact taint category, never `input`, `tainted` or aggregate categories. |
+| `reason` | Required nonempty single-line technical justification. |
+| `security` | Required for sanitization contracts; reviewed implementation and regression evidence, described below. |
 
-The scanner's detailed output (`ic:skipper` or `ic:tests:details`) lists allowed
-findings with their file, line, tool and directive under `Allowed directives`.
-Every other finding and every scanner/configuration error
-remains blocking. This changes only the skip detector: it does not enable an
-unsupported annotation in another tool, change analyzer severity, or alter
-Pest's `fail_on_skipped_tests` gate. Allowing a test-skip directive can therefore
-still fail QA when Pest actually skips a test.
+Paths and issue/taint identifiers are case-sensitive. `*` and `?` match within one
+path segment; a final `/**` matches descendants. Wildcards require a literal
+leading directory, so `**`, `*.php`, absolute paths and traversal are rejected.
+`specs/fixtures/**` cannot authorize `specs/fixtures-other/`. Use an exact filename
+for root-level files. Unknown fields, unknown directives, missing fields,
+incorrect types or invalid evidence reject the **whole** policy; no earlier rule
+remains active. An issue-less blanket annotation such as `@phpstan-ignore-line`
+cannot become issue-specific through configuration and remains denied. Prefer
+an annotation that names the exact issue, such as `@phpstan-ignore argument.type`.
+Unsupported or ambiguous subject syntax also remains denied.
+
+#### Sanitization contracts and review
+
+`@psalm-taint-escape` is a sanitization contract, distinct from a suppression.
+It can be authorized at a reviewed boundary in **any** directory, using the exact
+sanitizer file, taint category and security evidence:
+
+```json
+{
+  "paths": ["security/HtmlEscaper.php"],
+  "directive": "@psalm-taint-escape",
+  "taint": "html",
+  "reason": "Reviewed HTML text/attribute output boundary; tests exercise hostile markup and quotes.",
+  "security": {
+    "sanitizer": "security/HtmlEscaper.php",
+    "sha256": "<64 lowercase hexadecimal characters from the reviewed file>",
+    "tests": ["checks/HtmlEscaperTest.php"]
+  }
+}
+```
+
+Compute the digest with `sha256sum security/HtmlEscaper.php` **after** reviewing the
+trust boundary and regression tests. Evidence files must exist, be nonempty and
+readable, remain inside the project, and contain no symlink components. Tests
+must be separate `.php` files. The rule's paths must name the exact sanitizer
+file. A changed sanitizer digest fails the scan and requires renewed review;
+do not automatically refresh hashes as a fixer step.
+
+The scanner verifies evidence references and file integrity. It cannot prove
+that a sanitizer is secure or that referenced tests cover its semantics. Review
+must verify the actual trust boundary, contextual encoding/validation, relevant
+implementation dependencies, and positive/negative security regression coverage;
+run those tests through the project's normal QA suite. Review dependency changes
+as well as edits to the pinned sanitizer. Permission never marks unrelated input
+safe. Conditional taint expressions and the category-wide
+`@psalm-assert-untainted` annotation remain denied because they cannot be narrowed
+to one exact category by this interface.
+
+#### Audit and migration
+
+Approved exceptions appear separately under `Allowed directives`, with file,
+line, tool, directive, issue/taint, reason and sanitizer evidence. The audit is
+also retained for successful parallel CI runs. Unmatched findings and all
+configuration errors remain blocking. Analyzer rules, thresholds and source
+coverage are unchanged; the policy changes only the skipper's authorization.
+Pest's independent `fail_on_skipped_tests` gate still applies even when a
+particular test-skip directive is permitted.
+
+The previous `skipper_allowed_directives` / `IC_SKIPPER_ALLOWED_DIRECTIVES`
+interface is retained only for an empty JSON list (`[]`). Nonempty global
+allowlists fail with migration guidance: convert each permission to a scoped
+rule with a reason and the relevant issue or security evidence. Previously
+honored analyzer path exclusions no longer hide skipper findings; configure
+explicit policy rules where justified.
 
 #### Skip detector directive catalog
 
@@ -927,6 +1019,7 @@ jobs:
       upload_sarif: true
       run_benchmark: true
       fail_on_skipped_tests: true
+      skipper_policy: ''
       skipper_allowed_directives: '[]'
       integration_services: '[]'
       service_topologies: '{}'
@@ -1002,7 +1095,8 @@ Common workflow inputs:
 | `upload_sarif` | `true` | Set to `false` to keep analysis but skip GitHub code-scanning uploads. |
 | `run_benchmark` | `true` | Set to `false` to skip the benchmark matrix. |
 | `fail_on_skipped_tests` | `true` | Fails workflow QA when Pest reports any skipped test. |
-| `skipper_allowed_directives` | `[]` | Allows selected exact directive names in the skip detector; see the directive catalog above. |
+| `skipper_policy` | Empty | JSON default-deny scoped policy; empty selects the consuming Composer policy. |
+| `skipper_allowed_directives` | `[]` | Deprecated; nonempty global permissions must migrate to `skipper_policy`. |
 
 <details>
 <summary>All workflow inputs and defaults</summary>
@@ -1021,7 +1115,8 @@ Common workflow inputs:
 | `run_benchmark` | `true` | Runs the benchmark matrix; projects without a benchmark directory or command report a skipped benchmark workload. |
 | `run_svg_report` | `true` | Publishes the final **Security Report Summary** and uploads `security-summary.json`. The legacy input name is retained for compatibility; no SVG is generated. |
 | `fail_on_skipped_tests` | `true` | Adds `--fail-on-skipped` to workflow Pest execution. Set to `false` only when skipped tests are acceptable in CI. |
-| `skipper_allowed_directives` | `[]` | JSON array of exact directive names, passed as `IC_SKIPPER_ALLOWED_DIRECTIVES`. Invalid values fail the scan; allowed findings remain visible. |
+| `skipper_policy` | Empty | JSON object passed as `IC_SKIPPER_POLICY`; rules require paths, directive, reason and applicable issue/taint evidence. |
+| `skipper_allowed_directives` | `[]` | Deprecated compatibility input; only an empty JSON list is accepted. |
 | `run_clean_install` | `true` | Verifies a production-style `--no-dev` install and authoritative autoload. |
 | `benchmark_composer_script` | `""` | Optional Composer script that produces a representative benchmark result. |
 | `benchmark_result_file` | `""` | Workload-neutral result JSON file validated after the benchmark script. |

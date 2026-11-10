@@ -6,16 +6,14 @@ namespace Infocyph\PHPForge\Support;
 
 final readonly class SkipDirectivePolicy
 {
-    private const string INVALID_POLICY = 'IC_SKIPPER_ALLOWED_DIRECTIVES must be a JSON array of non-empty directive strings.';
-
     /**
-     * @param array<string, true> $allowedDirectives
+     * @param list<SkipDirectiveRule> $rules
      * @param list<string> $errors
      */
-    private function __construct(private array $allowedDirectives, private array $errors) {}
+    private function __construct(private array $rules, private array $errors) {}
 
     /**
-     * @param list<array{file: string, line: int, tool: string, directive: string}> $findings
+     * @param list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}> $findings
      * @return list<string>
      */
     public static function allowedFindingLines(array $findings): array
@@ -27,40 +25,64 @@ final readonly class SkipDirectivePolicy
         $lines = ['', 'Allowed directives', '==================', sprintf('Allowed %d finding(s) by explicit configuration:', count($findings))];
 
         foreach ($findings as $finding) {
-            $lines[] = sprintf('  %s:%d [%s] %s', $finding['file'], $finding['line'], $finding['tool'], $finding['directive']);
+            $lines[] = sprintf('  %s:%d [%s] %s %s | reason: %s', $finding['file'], $finding['line'], $finding['tool'], $finding['directive'], implode(', ', $finding['subjects'] ?? []), $finding['reason'] ?? '');
+
+            $security = $finding['security'] ?? '';
+
+            if ($security !== '') {
+                $lines[] = '    Security review: ' . $security;
+            }
         }
 
         return $lines;
     }
 
-    public static function fromJson(string $json): self
+    /** @param list<array{tool: string, pattern: non-empty-string}> $extraRules */
+    public static function fromJson(string $json, string $root = '', array $extraRules = []): self
     {
         try {
-            $directives = json_decode($json, false, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return new self([], [self::INVALID_POLICY]);
-        }
+            $policy = json_decode($json, false, 64, JSON_THROW_ON_ERROR);
 
-        if (!is_array($directives) || !array_is_list($directives)) {
-            return new self([], [self::INVALID_POLICY]);
-        }
-
-        $allowed = [];
-
-        foreach ($directives as $directive) {
-            if (!is_string($directive) || trim($directive) === '') {
-                return new self([], [self::INVALID_POLICY]);
+            if (!$policy instanceof \stdClass || array_diff(array_keys(get_object_vars($policy)), ['default', 'rules']) !== []
+                || ($policy->default ?? null) !== 'deny' || !is_array($policy->rules ?? null) || !array_is_list($policy->rules)) {
+                throw new \InvalidArgumentException('Expected {"default":"deny","rules":[...]} with no unknown keys.');
             }
 
-            $allowed[strtolower(trim($directive))] = true;
-        }
+            $rules = [];
 
-        return new self($allowed, []);
+            foreach ($policy->rules as $rule) {
+                $rules[] = SkipDirectiveRule::fromConfiguration($rule, $root, $extraRules);
+            }
+
+            return new self($rules, []);
+        } catch (\JsonException|\InvalidArgumentException $exception) {
+            return new self([], ['Invalid skipper_policy: ' . $exception->getMessage()]);
+        }
+    }
+
+    /** @param list<array{tool: string, pattern: non-empty-string}> $extraRules */
+    public static function load(string $root, string $legacyJson, string $policyJson, array $extraRules = []): self
+    {
+        try {
+            if (json_decode($legacyJson, false, 64, JSON_THROW_ON_ERROR) !== []) {
+                throw new \InvalidArgumentException('IC_SKIPPER_ALLOWED_DIRECTIVES / skipper_allowed_directives no longer accepts global permissions; migrate to skipper_policy with paths, selectors and reasons.');
+            }
+
+            $project = self::projectJson($root);
+
+            if ($project !== null && $policyJson !== '') {
+                throw new \InvalidArgumentException('Configure policy in composer.json or IC_SKIPPER_POLICY, not both.');
+            }
+
+            return self::fromJson($policyJson !== '' ? $policyJson : ($project ?? '{"default":"deny","rules":[]}'), $root, $extraRules);
+        } catch (\JsonException|\InvalidArgumentException $exception) {
+            return new self([], ['Invalid skipper_policy: ' . $exception->getMessage()]);
+        }
     }
 
     /**
-     * @param array{files: int, findings: list<array{file: string, line: int, tool: string, directive: string}>, errors: list<string>} $scan
-     * @return array{files: int, findings: list<array{file: string, line: int, tool: string, directive: string}>, errors: list<string>, allowed_findings?: list<array{file: string, line: int, tool: string, directive: string}>}
+     * @param array{files: int, findings: list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>, errors: list<string>} $scan
+     * @return array{files: int, findings: list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>, errors: list<string>, allowed_findings?: list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>}
      */
     public function apply(array $scan): array
     {
@@ -68,10 +90,12 @@ final readonly class SkipDirectivePolicy
         $blocked = [];
 
         foreach ($scan['findings'] as $finding) {
-            if (isset($this->allowedDirectives[strtolower($finding['directive'])])) {
-                $allowed[] = $finding;
-            } else {
+            $approval = $this->approval($finding);
+
+            if ($approval === null) {
                 $blocked[] = $finding;
+            } else {
+                $allowed[] = [...$finding, ...$approval];
             }
         }
 
@@ -83,5 +107,75 @@ final readonly class SkipDirectivePolicy
         }
 
         return $scan;
+    }
+
+    /**
+     * @throws \JsonException
+     * @throws \InvalidArgumentException
+     */
+    private static function projectJson(string $root): ?string
+    {
+        $manifest = $root . DIRECTORY_SEPARATOR . 'composer.json';
+
+        if (!is_file($manifest)) {
+            return null;
+        }
+
+        $contents = file_get_contents($manifest);
+
+        if (!is_string($contents)) {
+            throw new \InvalidArgumentException('Unable to read project composer.json.');
+        }
+
+        $decoded = json_decode($contents, false, 64, JSON_THROW_ON_ERROR);
+        $extra = $decoded instanceof \stdClass ? ($decoded->extra ?? null) : null;
+        $forge = $extra instanceof \stdClass ? ($extra->phpforge ?? null) : null;
+
+        if ($forge !== null && !$forge instanceof \stdClass) {
+            throw new \InvalidArgumentException('extra.phpforge must be an object.');
+        }
+
+        return $forge instanceof \stdClass && property_exists($forge, 'skipper_policy')
+            ? json_encode($forge->skipper_policy, JSON_THROW_ON_ERROR) : null;
+    }
+
+    /**
+     * @param array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string} $finding
+     * @return array{reason: string, security: string}|null
+     */
+    private function approval(array $finding): ?array
+    {
+        $subjects = $finding['subjects'] ?? [];
+
+        if ($subjects === [] && SkipDirectiveDetails::kind($finding['directive'], $finding['tool']) !== 'execution') {
+            return null;
+        }
+
+        $reasons = [];
+        $security = [];
+
+        foreach ($subjects === [] ? [null] : $subjects as $subject) {
+            $rule = $this->matchingRule($finding['file'], $finding['directive'], $subject);
+
+            if ($rule === null) {
+                return null;
+            }
+
+            $reasons[] = $rule->reason;
+            $security[] = $rule->security;
+        }
+
+        return ['reason' => implode('; ', array_unique($reasons)), 'security' => implode('; ', array_filter(array_unique($security)))];
+    }
+
+    private function matchingRule(string $file, string $directive, ?string $subject): ?SkipDirectiveRule
+    {
+        foreach ($this->rules as $rule) {
+            if ($rule->matches($file, $directive, $subject)) {
+                return $rule;
+            }
+        }
+
+        return null;
     }
 }

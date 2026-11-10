@@ -261,3 +261,21 @@ it('defaults parallel subprocesses to XDEBUG_MODE off when unset', function (): 
         expect($exitCode)->toBe(0);
     });
 });
+
+it('retains approved skipper exceptions in successful parallel CI output', function (): void {
+    $script = tempnam(sys_get_temp_dir(), 'phpforge-skip-audit-');
+
+    if (!is_string($script)) {
+        throw new RuntimeException('Unable to create audit fixture.');
+    }
+
+    file_put_contents($script, '<?php echo "Allowed directives\nsource.php:2 reason: Reviewed exception.\n";');
+
+    try {
+        $output = new BufferedOutput();
+        $exit = (new ParallelRunner($output))->run([], [[PHP_BINARY, $script, 'skipper']], 1);
+        expect($exit)->toBe(0)->and($output->fetch())->toContain('Allowed directives', 'reason: Reviewed exception.', 'PASS');
+    } finally {
+        unlink($script);
+    }
+});

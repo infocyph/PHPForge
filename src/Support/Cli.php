@@ -284,7 +284,8 @@ COMMANDS;
     {
         $scanner = new SkipDirectiveScanner();
         $allowedDirectives = getenv('IC_SKIPPER_ALLOWED_DIRECTIVES');
-        $scan = $scanner->scan(Paths::projectRootPath(), $allowedDirectives === false ? '[]' : $allowedDirectives);
+        $policy = getenv('IC_SKIPPER_POLICY');
+        $scan = $scanner->scan(Paths::projectRootPath(), $allowedDirectives === false ? '[]' : $allowedDirectives, $policy === false ? '' : $policy);
         $failed = $scan['findings'] !== [] || $scan['errors'] !== [];
 
         fwrite($failed ? STDERR : STDOUT, $scanner->format($scan));
