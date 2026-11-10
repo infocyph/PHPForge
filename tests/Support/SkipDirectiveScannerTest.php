@@ -278,3 +278,105 @@ it('groups actionable findings by tool and fails closed for an unreadable root',
         ->and($invalid['errors'])->toHaveCount(1)
         ->and($scanner->format($invalid))->toContain('FAIL Scanner');
 });
+
+it('allows exact configured directive names while reporting every exception', function (): void {
+    $root = skipDirectiveScannerRoot();
+    file_put_contents($root . '/src/Policy.php', <<<'SOURCE'
+<?php
+// @psalm-taint-escape html
+// @psalm-suppress InvalidArgument
+// @phpstan-ignore-line
+#[PHPUnit\Framework\Attributes\RequiresPhpExtension('redis')]
+function conditional(): void {}
+SOURCE);
+
+    try {
+        $scanner = new SkipDirectiveScanner();
+        $strict = $scanner->scan($root);
+        $allowed = $scanner->scan($root, '[" @PSALM-TAINT-ESCAPE ", "#[RequiresPhpExtension]"]');
+        $all = $scanner->scan($root, '["@psalm-taint-escape", "@psalm-suppress", "@phpstan-ignore-line", "#[RequiresPhpExtension]"]');
+        $prefix = $scanner->scan($root, '["@phpstan-ignore", "Psalm", "*", "/@psalm-.*/"]');
+
+        expect($strict['findings'])->toHaveCount(4)
+            ->and($strict)->not->toHaveKey('allowed_findings')
+            ->and($allowed['errors'])->toBe([])
+            ->and(array_column($allowed['findings'], 'directive'))->toBe(['@phpstan-ignore-line', '@psalm-suppress'])
+            ->and(fixtureArray(fixtureValue($allowed, ['allowed_findings'])))->toHaveCount(2)
+            ->and($scanner->format($allowed))->toContain('Allowed 2 finding(s) by explicit configuration:')
+            ->toContain('src/Policy.php:2 [Psalm] @psalm-taint-escape')
+            ->and($all['findings'])->toBe([])
+            ->and($scanner->format($all))->toContain('Skip directive scan passed:')->toContain('Allowed 4 finding(s)')
+            ->and($prefix['findings'])->toBe($strict['findings']);
+    } finally {
+        removeFixtureDirectory($root);
+    }
+});
+
+it('fails closed on an invalid directive policy without partially allowing entries', function (string $json): void {
+    $root = skipDirectiveScannerRoot();
+    file_put_contents($root . '/src/Policy.php', "<?php\n// @psalm-taint-escape html\n");
+
+    try {
+        $scanner = new SkipDirectiveScanner();
+        $scan = $scanner->scan($root, $json);
+
+        expect($scan['errors'])->toHaveCount(1)
+            ->and($scan['findings'])->toHaveCount(1)
+            ->and($scan)->not->toHaveKey('allowed_findings')
+            ->and($scanner->format($scan))->toContain('FAIL Scanner')->toContain('IC_SKIPPER_ALLOWED_DIRECTIVES');
+    } finally {
+        removeFixtureDirectory($root);
+    }
+})->with([
+    'broken JSON' => '[',
+    'empty environment value' => '',
+    'empty object' => '{}',
+    'null' => 'null',
+    'scalar' => '"@psalm-taint-escape"',
+    'object with numeric keys' => '{"0":"@psalm-taint-escape"}',
+    'mixed entry types' => '["@psalm-taint-escape",false]',
+    'blank entry' => '["@psalm-taint-escape","   "]',
+    'nested list' => '[["@psalm-taint-escape"]]',
+]);
+
+it('applies the workflow environment policy when running in a consuming project', function (string $json, int $exitCode, string $message): void {
+    $root = skipDirectiveScannerRoot();
+    file_put_contents($root . '/composer.json', '{"name":"example/consumer"}');
+    file_put_contents($root . '/src/Policy.php', "<?php\n// @psalm-taint-escape html\n");
+
+    try {
+        $process = new Symfony\Component\Process\Process([
+            PHP_BINARY,
+            Infocyph\PHPForge\Support\Paths::packageFile('bin/phpforge'),
+            'skipper',
+        ], $root, ['IC_SKIPPER_ALLOWED_DIRECTIVES' => $json]);
+        $process->run();
+
+        expect($process->getExitCode())->toBe($exitCode)
+            ->and($process->getOutput() . $process->getErrorOutput())->toContain($message)
+            ->toContain('src/Policy.php');
+    } finally {
+        removeFixtureDirectory($root);
+    }
+})->with([
+    'strict default' => ['[]', 1, 'FAIL Psalm'],
+    'explicit exception' => ['["@psalm-taint-escape"]', 0, 'Allowed directives'],
+    'invalid configuration' => ['{}', 1, 'FAIL Scanner'],
+]);
+
+it('keeps tool configuration errors blocking even when every directive is allowed', function (): void {
+    $root = skipDirectiveScannerRoot();
+    file_put_contents($root . '/phpprobe.json', '{broken');
+    file_put_contents($root . '/src/Policy.php', "<?php\n// @psalm-taint-escape html\n");
+
+    try {
+        $scanner = new SkipDirectiveScanner();
+        $scan = $scanner->scan($root, '["@psalm-taint-escape"]');
+
+        expect($scan['errors'])->not->toBeEmpty()
+            ->and($scan['findings'])->toBe([])
+            ->and($scanner->format($scan))->toContain('FAIL Scanner')->toContain('Allowed 1 finding(s)');
+    } finally {
+        removeFixtureDirectory($root);
+    }
+});

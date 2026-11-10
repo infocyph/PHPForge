@@ -99,13 +99,16 @@ final class SkipDirectiveScanner
      * @param array{
      *     files: int,
      *     findings: list<array{file: string, line: int, tool: string, directive: string}>,
+     *     allowed_findings?: list<array{file: string, line: int, tool: string, directive: string}>,
      *     errors: list<string>
      * } $scan
      */
     public function format(array $scan): string
     {
+        $allowedLines = SkipDirectivePolicy::allowedFindingLines($scan['allowed_findings'] ?? []);
+
         if ($scan['findings'] === [] && $scan['errors'] === []) {
-            return sprintf('Skip directive scan passed: %d PHP file(s) checked.%s', $scan['files'], PHP_EOL);
+            return implode(PHP_EOL, [sprintf('Skip directive scan passed: %d PHP file(s) checked.', $scan['files']), ...$allowedLines]) . PHP_EOL;
         }
 
         $groupedFindings = $this->groupedFindings($scan['findings']);
@@ -116,6 +119,7 @@ final class SkipDirectiveScanner
             '===============',
             ...$this->findingDetailLines($groupedFindings),
             ...$this->scannerErrorLines($scan['errors']),
+            ...$allowedLines,
         ];
 
         if ($scan['findings'] !== []) {
@@ -129,10 +133,11 @@ final class SkipDirectiveScanner
      * @return array{
      *     files: int,
      *     findings: list<array{file: string, line: int, tool: string, directive: string}>,
+     *     allowed_findings?: list<array{file: string, line: int, tool: string, directive: string}>,
      *     errors: list<string>
      * }
      */
-    public function scan(string $root): array
+    public function scan(string $root, string $allowedDirectivesJson = '[]'): array
     {
         $resolvedRoot = realpath($root);
 
@@ -145,6 +150,7 @@ final class SkipDirectiveScanner
         }
 
         $configuration = SkipDirectiveConfiguration::load($resolvedRoot);
+        $policy = SkipDirectivePolicy::fromJson($allowedDirectivesJson);
         [$files, $errors] = $this->phpFiles($resolvedRoot);
         $errors = [...$configuration->errors(), ...$errors];
         $findings = [];
@@ -174,11 +180,11 @@ final class SkipDirectiveScanner
                 <=> [$right['tool'], $right['file'], $right['line'], $right['directive']],
         );
 
-        return [
+        return $policy->apply([
             'files' => count($files),
             'findings' => $findings,
             'errors' => $errors,
-        ];
+        ]);
     }
 
     /**
