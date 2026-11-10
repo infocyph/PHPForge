@@ -38,6 +38,7 @@ final class InfocyphCommand extends Command
 
     /**
      * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+     * @throws \RuntimeException
      */
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int

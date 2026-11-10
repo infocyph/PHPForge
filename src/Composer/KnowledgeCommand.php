@@ -109,8 +109,12 @@ final class KnowledgeCommand extends Command
         return is_array($value) ? array_values(array_filter($value, is_string(...))) : [];
     }
 
-    /** @param list<string> $arguments
+    /**
+     * @param list<string> $arguments
+     *
      * @return list<string>
+     *
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
      */
     private function withFlagOptions(array $arguments, InputInterface $input): array
     {
@@ -147,8 +151,12 @@ final class KnowledgeCommand extends Command
         return $arguments;
     }
 
-    /** @param list<string> $arguments
+    /**
+     * @param list<string> $arguments
+     *
      * @return list<string>
+     *
+     * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
      */
     private function withValueOptions(array $arguments, InputInterface $input): array
     {

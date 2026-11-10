@@ -165,7 +165,10 @@ final class KnowledgeQuery
     /**
      * @param list<KnowledgeEdge> $edges
      * @param list<string> $requested
+     *
      * @return list<string>
+     *
+     * @throws \InvalidArgumentException
      */
     private function activeRelations(array $edges, string $context, array $requested): array
     {

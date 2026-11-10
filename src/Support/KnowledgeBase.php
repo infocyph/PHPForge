@@ -27,6 +27,7 @@ final class KnowledgeBase
      * @return array{document:KnowledgeDocument,reused:bool,path:string,artifacts:list<string>}
      *
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function build(array $paths = [], ?string $output = null, bool $force = false): array
     {
@@ -142,7 +143,11 @@ final class KnowledgeBase
         return $document;
     }
 
-    /** @return list<array{offset:int,content:string}> */
+    /**
+     * @return list<array{offset:int,content:string}>
+     *
+     * @throws \RuntimeException
+     */
     private function contentChunks(string $contents): array
     {
         $chunks = [];
@@ -169,8 +174,12 @@ final class KnowledgeBase
         return $chunks;
     }
 
-    /** @param array<string, mixed> $record
+    /**
+     * @param array<string, mixed> $record
+     *
      * @return array{list<KnowledgeNode>,list<KnowledgeEdge>}
+     *
+     * @throws \RuntimeException
      */
     private function contentGraph(array $record, string $root): array
     {

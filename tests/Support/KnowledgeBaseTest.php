@@ -49,6 +49,7 @@ PHP);
 
 /**
  * @throws RuntimeException
+ * @throws InvalidArgumentException
  */
 function writeTraversalKnowledgeFixture(string $root): string
 {

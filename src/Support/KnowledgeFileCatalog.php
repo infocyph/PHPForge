@@ -54,6 +54,7 @@ final class KnowledgeFileCatalog
      * @return list<FileRecord>
      *
      * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      */
     public function records(string $root, array $paths): array
     {
@@ -172,8 +173,12 @@ final class KnowledgeFileCatalog
         return is_string($contents) && !str_contains($contents, "\0") && preg_match('//u', $contents) === 1;
     }
 
-    /** @param list<string> $paths
+    /**
+     * @param list<string> $paths
+     *
      * @return list<string>
+     *
+     * @throws \InvalidArgumentException
      */
     private function pathspecs(string $root, array $paths): array
     {

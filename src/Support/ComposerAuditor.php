@@ -8,6 +8,9 @@ final class ComposerAuditor
 {
     private const int MAX_NETWORK_ATTEMPTS = 3;
 
+    /**
+     * @throws \Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException|\Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
+     */
     public function run(): int
     {
         for ($attempt = 1; $attempt <= self::MAX_NETWORK_ATTEMPTS; $attempt++) {
