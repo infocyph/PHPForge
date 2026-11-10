@@ -99,6 +99,8 @@ COMMANDS;
 
     /**
      * @return list<InfocyphCommand>
+     *
+     * @throws \Symfony\Component\Console\Exception\LogicException
      */
     private function infocyphCommands(string $group): array
     {

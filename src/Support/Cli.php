@@ -62,6 +62,8 @@ COMMANDS;
 
     /**
      * @param list<string> $args
+     *
+     * @throws \RuntimeException
      */
     private function activeConfig(array $args): int
     {
@@ -157,6 +159,7 @@ COMMANDS;
      * @param list<string> $args
      *
      * @throws \RuntimeException
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
      */
     private function ci(array $args): int
     {
@@ -280,7 +283,8 @@ COMMANDS;
     private function skipper(): int
     {
         $scanner = new SkipDirectiveScanner();
-        $scan = $scanner->scan(Paths::projectRootPath());
+        $allowedDirectives = getenv('IC_SKIPPER_ALLOWED_DIRECTIVES');
+        $scan = $scanner->scan(Paths::projectRootPath(), $allowedDirectives === false ? '[]' : $allowedDirectives);
         $failed = $scan['findings'] !== [] || $scan['errors'] !== [];
 
         fwrite($failed ? STDERR : STDOUT, $scanner->format($scan));

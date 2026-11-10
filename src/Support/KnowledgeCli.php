@@ -284,8 +284,12 @@ final readonly class KnowledgeCli
         return strlen($value) <= $length ? $value : substr($value, 0, $length - 1) . '…';
     }
 
-    /** @param list<string> $args
+    /**
+     * @param list<string> $args
+     *
      * @return array{name:string,value:string}|null
+     *
+     * @throws \InvalidArgumentException
      */
     private function valueOption(array $args, int &$index, string $arg): ?array
     {

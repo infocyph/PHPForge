@@ -60,6 +60,9 @@ final readonly class ParallelRunner
     /**
      * @param list<list<string>> $preflightTasks
      * @param list<list<string>> $parallelTasks
+     *
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\ProcessStartFailedException|\Symfony\Component\Process\Exception\RuntimeException|ProcessTimedOutException|\Symfony\Component\Process\Exception\ProcessSignaledException
+     * @throws \RuntimeException
      */
     public function run(array $preflightTasks, array $parallelTasks, ?int $concurrency = null): int
     {
@@ -232,6 +235,8 @@ final readonly class ParallelRunner
     /**
      * @param list<list<string>> $tasks
      * @param list<array{heading:string,status:string,exit_code:int}> $preflightResults
+     *
+     * @throws \RuntimeException|\Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException|\Symfony\Component\Process\Exception\RuntimeException|\Symfony\Component\Process\Exception\ProcessStartFailedException
      */
     private function runParallel(array $tasks, int $concurrency, array $preflightResults): int
     {

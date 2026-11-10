@@ -265,9 +265,60 @@ grouped by tool and fail the command; directive-shaped strings and dependency,
 cache, generated-workflow and build directories are ignored. Active PHPProbe,
 PHPStan, Psalm, PHPCS/PHPCBF, PHPUnit/Pest and Rector path exclusions are honored
 per tool, so excluding a path from one analyzer does not hide another tool's
-directives. The scanner has no
-allowlist or baseline and is part of `ic:ci`, `ic:tests` and
-`ic:tests:details`.
+directives. The scanner is part of `ic:ci`, `ic:tests` and `ic:tests:details` and
+rejects every detected directive by default. It has no baseline.
+
+Projects can explicitly allow selected directive names through the reusable
+workflow's `skipper_allowed_directives` input:
+
+```yaml
+jobs:
+  phpforge:
+    uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
+    with:
+      skipper_allowed_directives: '["@psalm-taint-escape", "#[RequiresPhpExtension]"]'
+```
+
+The input is a JSON array of non-empty strings, defaults to `[]`, and is passed
+to the quality suite as `IC_SKIPPER_ALLOWED_DIRECTIVES`. Set that same environment
+variable for local `composer ic:skipper`, `composer ic:ci` or `composer ic:tests`
+runs. Unset means strict mode; empty strings, JSON objects, non-string entries
+and malformed JSON fail the scan. Entries are trimmed and matched
+case-insensitively against the **whole directive name shown in scanner output**.
+They apply project-wide to every occurrence of that directive; they do not
+select individual issue codes, files or taint categories. Tool names, prefixes,
+regular expressions and wildcards do not match directives.
+
+The scanner's detailed output (`ic:skipper` or `ic:tests:details`) lists allowed
+findings with their file, line, tool and directive under `Allowed directives`.
+Every other finding and every scanner/configuration error
+remains blocking. This changes only the skip detector: it does not enable an
+unsupported annotation in another tool, change analyzer severity, or alter
+Pest's `fail_on_skipped_tests` gate. Allowing a test-skip directive can therefore
+still fail QA when Pest actually skips a test.
+
+#### Skip detector directive catalog
+
+These are the names recognized by the detector, including compatibility checks
+for optional tools used by consuming projects. Attribute names use their short
+name in `#[…]` syntax, even when the source uses a fully qualified class name.
+
+| Tool | Directive names |
+| --- | --- |
+| PHPStan | `@phpstan-ignore`, `@phpstan-ignore-line`, `@phpstan-ignore-next-line` |
+| Psalm | `@psalm-suppress`, `@psalm-api`, `@psalm-assert-untainted`, `@psalm-taint-escape`, `@psalm-ignore-nullable-return`, `@psalm-ignore-falsable-return`, `@psalm-ignore-variable-property`, `@psalm-ignore-variable-method` |
+| PHPCS / PHPCBF | `phpcs:ignoreFile`, `phpcs:ignore`, `phpcs:disable`, `phpcs:set`, `@codingStandardsIgnoreFile`, `@codingStandardsIgnoreStart`, `@codingStandardsIgnoreLine`, `@codingStandardsChangeSetting` |
+| PHPProbe | `@phpprobe-ignore`, or the custom suppression directive configured in `phpprobe.json` |
+| PHPBench | `@Skip`, `#[Skip]` |
+| Phan | `@phan-file-suppress`, `@phan-suppress`, `@phan-suppress-next-line`, `@phan-suppress-current-line` |
+| PHPMD | `@SuppressWarnings` |
+| PhpStorm | `@noinspection` |
+| Infection | `@infection-ignore-all`, `@infection-ignore-source-code`, `@infection-ignore-return-value` |
+| Rector | `@noRector` |
+| PHPUnit comments | `@codeCoverageIgnore`, `@codeCoverageIgnoreStart`, `@codeCoverageIgnoreEnd`, `@coversNothing`, `@doesNotPerformAssertions`, `@ignoreDeprecations`, `@requires` |
+| PHPUnit calls | `markTestSkipped()`, `markTestIncomplete()` |
+| Pest | `todo()`, `->only()`, `->onlyOnLinux()`, `->onlyOnMac()`, `->onlyOnWindows()`, `->skip()`, `->skipLocally()`, `->skipOnCi()`, `->skipOnLinux()`, `->skipOnMac()`, `->skipOnPhp()`, `->skipOnWindows()`, `->todo()` |
+| PHPUnit attributes | `#[CodeCoverageIgnore]`, `#[CoversNothing]`, `#[DoesNotPerformAssertions]`, `#[IgnoreDeprecations]`, `#[IgnorePhpunitDeprecations]`, `#[IgnorePhpunitWarnings]`, `#[RequiresEnvironmentVariable]`, `#[RequiresFunction]`, `#[RequiresMethod]`, `#[RequiresOperatingSystem]`, `#[RequiresOperatingSystemFamily]`, `#[RequiresPhp]`, `#[RequiresPhpExtension]`, `#[RequiresPhpunit]`, `#[RequiresPhpunitExtension]`, `#[RequiresSetting]`, `#[WithoutErrorHandler]` |
 
 <details>
 <summary>Advanced PHPProbe CLI examples and options</summary>
@@ -876,6 +927,7 @@ jobs:
       upload_sarif: true
       run_benchmark: true
       fail_on_skipped_tests: true
+      skipper_allowed_directives: '[]'
       integration_services: '[]'
       service_topologies: '{}'
     permissions:
@@ -950,6 +1002,7 @@ Common workflow inputs:
 | `upload_sarif` | `true` | Set to `false` to keep analysis but skip GitHub code-scanning uploads. |
 | `run_benchmark` | `true` | Set to `false` to skip the benchmark matrix. |
 | `fail_on_skipped_tests` | `true` | Fails workflow QA when Pest reports any skipped test. |
+| `skipper_allowed_directives` | `[]` | Allows selected exact directive names in the skip detector; see the directive catalog above. |
 
 <details>
 <summary>All workflow inputs and defaults</summary>
@@ -968,6 +1021,7 @@ Common workflow inputs:
 | `run_benchmark` | `true` | Runs the benchmark matrix; projects without a benchmark directory or command report a skipped benchmark workload. |
 | `run_svg_report` | `true` | Publishes the final **Security Report Summary** and uploads `security-summary.json`. The legacy input name is retained for compatibility; no SVG is generated. |
 | `fail_on_skipped_tests` | `true` | Adds `--fail-on-skipped` to workflow Pest execution. Set to `false` only when skipped tests are acceptable in CI. |
+| `skipper_allowed_directives` | `[]` | JSON array of exact directive names, passed as `IC_SKIPPER_ALLOWED_DIRECTIVES`. Invalid values fail the scan; allowed findings remain visible. |
 | `run_clean_install` | `true` | Verifies a production-style `--no-dev` install and authoritative autoload. |
 | `benchmark_composer_script` | `""` | Optional Composer script that produces a representative benchmark result. |
 | `benchmark_result_file` | `""` | Workload-neutral result JSON file validated after the benchmark script. |

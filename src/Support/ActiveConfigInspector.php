@@ -8,7 +8,10 @@ final class ActiveConfigInspector
 {
     /**
      * @param list<string> $selectedFiles
+     *
      * @return list<array<string, mixed>>
+     *
+     * @throws \RuntimeException
      */
     public function inspect(array $selectedFiles = [], ?string $parameter = null): array
     {
