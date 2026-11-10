@@ -6,40 +6,6 @@ namespace Infocyph\PHPForge\Support;
 
 final class SkipDirectiveScanner
 {
-    private const array ATTRIBUTE_TOOLS = [
-        'codecoverageignore' => 'PHPUnit',
-        'coversnothing' => 'PHPUnit',
-        'doesnotperformassertions' => 'PHPUnit',
-        'ignoredeprecations' => 'PHPUnit',
-        'ignorephpunitdeprecations' => 'PHPUnit',
-        'ignorephpunitwarnings' => 'PHPUnit',
-        'requiresenvironmentvariable' => 'PHPUnit',
-        'requiresfunction' => 'PHPUnit',
-        'requiresmethod' => 'PHPUnit',
-        'requiresoperatingsystem' => 'PHPUnit',
-        'requiresoperatingsystemfamily' => 'PHPUnit',
-        'requiresphp' => 'PHPUnit',
-        'requiresphpextension' => 'PHPUnit',
-        'requiresphpunit' => 'PHPUnit',
-        'requiresphpunitextension' => 'PHPUnit',
-        'requiressetting' => 'PHPUnit',
-        'skip' => 'PHPBench',
-        'withouterrorhandler' => 'PHPUnit',
-    ];
-
-    private const array COMMENT_RULES = [
-        ['tool' => 'PHPStan', 'pattern' => '/@phpstan-ignore(?:-next-line|-line)?\b/i'],
-        ['tool' => 'Psalm', 'pattern' => '/@psalm-(?:suppress|api|assert-untainted|taint-escape|ignore-(?:nullable-return|falsable-return|variable-property|variable-method))\b/i'],
-        ['tool' => 'PHPCS', 'pattern' => '/(?:\bphpcs:(?:ignoreFile|ignore|disable|set)\b|@codingStandards(?:IgnoreFile|IgnoreStart|IgnoreLine|ChangeSetting)\b)/i'],
-        ['tool' => 'PHPBench', 'pattern' => '/@Skip\b/'],
-        ['tool' => 'Phan', 'pattern' => '/@phan-(?:file-suppress|suppress(?:-next-line|-current-line)?)\b/i'],
-        ['tool' => 'PHPMD', 'pattern' => '/@SuppressWarnings\b/i'],
-        ['tool' => 'PhpStorm', 'pattern' => '/@noinspection\b/i'],
-        ['tool' => 'PHPUnit', 'pattern' => '/@(?:codeCoverageIgnore(?:Start|End)?|coversNothing|doesNotPerformAssertions|ignoreDeprecations|requires)\b/i'],
-        ['tool' => 'Infection', 'pattern' => '/@infection-ignore-(?:all|source-code|return-value)\b/i'],
-        ['tool' => 'Rector', 'pattern' => '/@noRector\b/i'],
-    ];
-
     private const array EXCLUDED_DIRECTORIES = [
         '.git',
         '.idea',
@@ -61,34 +27,6 @@ final class SkipDirectiveScanner
         'vendor',
     ];
 
-    private const array PEST_ROOT_CALLS = [
-        'afterall' => true,
-        'aftereach' => true,
-        'arch' => true,
-        'beforeall' => true,
-        'beforeeach' => true,
-        'describe' => true,
-        'it' => true,
-        'pest' => true,
-        'test' => true,
-        'uses' => true,
-    ];
-
-    private const array PEST_SKIP_METHODS = [
-        'only' => true,
-        'onlyonlinux' => true,
-        'onlyonmac' => true,
-        'onlyonwindows' => true,
-        'skip' => true,
-        'skiplocally' => true,
-        'skiponci' => true,
-        'skiponlinux' => true,
-        'skiponmac' => true,
-        'skiponphp' => true,
-        'skiponwindows' => true,
-        'todo' => true,
-    ];
-
     private const array PHP_EXTENSIONS = [
         'inc' => true,
         'php' => true,
@@ -98,8 +36,8 @@ final class SkipDirectiveScanner
     /**
      * @param array{
      *     files: int,
-     *     findings: list<array{file: string, line: int, tool: string, directive: string}>,
-     *     allowed_findings?: list<array{file: string, line: int, tool: string, directive: string}>,
+     *     findings: list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>,
+     *     allowed_findings?: list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>,
      *     errors: list<string>
      * } $scan
      */
@@ -132,12 +70,12 @@ final class SkipDirectiveScanner
     /**
      * @return array{
      *     files: int,
-     *     findings: list<array{file: string, line: int, tool: string, directive: string}>,
-     *     allowed_findings?: list<array{file: string, line: int, tool: string, directive: string}>,
+     *     findings: list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>,
+     *     allowed_findings?: list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>,
      *     errors: list<string>
      * }
      */
-    public function scan(string $root, string $allowedDirectivesJson = '[]'): array
+    public function scan(string $root, string $allowedDirectivesJson = '[]', string $policyJson = ''): array
     {
         $resolvedRoot = realpath($root);
 
@@ -150,7 +88,7 @@ final class SkipDirectiveScanner
         }
 
         $configuration = SkipDirectiveConfiguration::load($resolvedRoot);
-        $policy = SkipDirectivePolicy::fromJson($allowedDirectivesJson);
+        $policy = SkipDirectivePolicy::load($resolvedRoot, $allowedDirectivesJson, $policyJson, $configuration->extraCommentRules());
         [$files, $errors] = $this->phpFiles($resolvedRoot);
         $errors = [...$configuration->errors(), ...$errors];
         $findings = [];
@@ -167,10 +105,7 @@ final class SkipDirectiveScanner
             $relativeFile = $this->relativePath($resolvedRoot, $file);
             $findings = [
                 ...$findings,
-                ...$configuration->includedFindings(
-                    $relativeFile,
-                    $this->fileFindings($relativeFile, $contents, $configuration->extraCommentRules()),
-                ),
+                ...$this->fileFindings($relativeFile, $contents, $configuration->extraCommentRules()),
             ];
         }
 
@@ -189,7 +124,7 @@ final class SkipDirectiveScanner
 
     /**
      * @param array{0: int, 1: string, 2: int}|string $token
-     * @return array{file: string, line: int, tool: string, directive: string}|null
+     * @return array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}|null
      */
     private function attributeFinding(string $file, array|string $token, int $depth): ?array
     {
@@ -198,7 +133,7 @@ final class SkipDirectiveScanner
         }
 
         $attribute = $this->baseName($token[1]);
-        $tool = self::ATTRIBUTE_TOOLS[strtolower($attribute)] ?? null;
+        $tool = SkipDirectiveDetails::ATTRIBUTE_TOOLS[strtolower($attribute)] ?? null;
 
         return is_string($tool)
             ? $this->finding($file, $token[2], $tool, '#[' . $attribute . ']')
@@ -207,7 +142,7 @@ final class SkipDirectiveScanner
 
     /**
      * @param list<array{0: int, 1: string, 2: int}|string> $tokens
-     * @return list<array{file: string, line: int, tool: string, directive: string}>
+     * @return list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>
      */
     private function attributeFindings(string $file, array $tokens): array
     {
@@ -235,33 +170,9 @@ final class SkipDirectiveScanner
     }
 
     /**
-     * @param list<array{tool: string, pattern: non-empty-string}> $extraRules
-     * @return list<array{file: string, line: int, tool: string, directive: string}>
-     */
-    private function commentFindings(string $file, string $comment, int $startLine, array $extraRules): array
-    {
-        $findings = [];
-
-        foreach ([...self::COMMENT_RULES, ...$extraRules] as $rule) {
-            $matches = [];
-
-            if (preg_match_all($rule['pattern'], $comment, $matches, PREG_OFFSET_CAPTURE) === false) {
-                continue;
-            }
-
-            foreach ($matches[0] as [$directive, $offset]) {
-                $line = $startLine + substr_count(substr($comment, 0, $offset), "\n");
-                $findings[] = $this->finding($file, $line, $rule['tool'], $directive);
-            }
-        }
-
-        return $findings;
-    }
-
-    /**
      * @param list<array{0: int, 1: string, 2: int}|string> $tokens
      * @param list<array{tool: string, pattern: non-empty-string}> $extraRules
-     * @return list<array{file: string, line: int, tool: string, directive: string}>
+     * @return list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>
      */
     private function commentTokenFindings(string $file, array $tokens, array $extraRules): array
     {
@@ -269,7 +180,7 @@ final class SkipDirectiveScanner
 
         foreach ($tokens as $token) {
             if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
-                $findings = [...$findings, ...$this->commentFindings($file, $token[1], $token[2], $extraRules)];
+                $findings = [...$findings, ...SkipDirectiveDetails::commentFindings($file, $token[1], $token[2], $extraRules)];
             }
         }
 
@@ -278,7 +189,7 @@ final class SkipDirectiveScanner
 
     /**
      * @param list<array{id: int|null, text: string, line: int}> $tokens
-     * @return array{file: string, line: int, tool: string, directive: string}|null
+     * @return array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}|null
      */
     private function executableFinding(string $file, array $tokens, int $index): ?array
     {
@@ -294,13 +205,13 @@ final class SkipDirectiveScanner
             return $this->finding($file, $token['line'], 'PHPUnit', $token['text'] . '()');
         }
 
-        if (!isset(self::PEST_SKIP_METHODS[$name]) || $previous !== '->') {
+        if (!isset(SkipDirectiveDetails::PEST_SKIP_METHODS[$name]) || $previous !== '->') {
             return null;
         }
 
         $rootCall = $this->rootCallBeforeOperator($tokens, $index - 1);
 
-        if (is_string($rootCall) && isset(self::PEST_ROOT_CALLS[$rootCall])) {
+        if (is_string($rootCall) && isset(SkipDirectiveDetails::PEST_ROOT_CALLS[$rootCall])) {
             return $this->finding($file, $token['line'], 'Pest', '->' . $token['text'] . '()');
         }
 
@@ -309,7 +220,7 @@ final class SkipDirectiveScanner
 
     /**
      * @param list<array{id: int|null, text: string, line: int}> $tokens
-     * @return list<array{file: string, line: int, tool: string, directive: string}>
+     * @return list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>
      */
     private function executableFindings(string $file, array $tokens): array
     {
@@ -332,7 +243,7 @@ final class SkipDirectiveScanner
 
     /**
      * @param list<array{tool: string, pattern: non-empty-string}> $extraRules
-     * @return list<array{file: string, line: int, tool: string, directive: string}>
+     * @return list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>
      */
     private function fileFindings(string $file, string $contents, array $extraRules): array
     {
@@ -346,7 +257,7 @@ final class SkipDirectiveScanner
     }
 
     /**
-     * @return array{file: string, line: int, tool: string, directive: string}
+     * @return array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}
      */
     private function finding(string $file, int $line, string $tool, string $directive): array
     {
@@ -359,7 +270,7 @@ final class SkipDirectiveScanner
     }
 
     /**
-     * @param array<string, list<array{file: string, line: int, tool: string, directive: string}>> $groups
+     * @param array<string, list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>> $groups
      * @return list<string>
      */
     private function findingDetailLines(array $groups): array
@@ -371,7 +282,8 @@ final class SkipDirectiveScanner
             $lines = [...$lines, '', $title, str_repeat('-', strlen($title)), sprintf('Found %d skip directive finding(s):', count($findings))];
 
             foreach ($findings as $index => $finding) {
-                $lines[] = sprintf('  %d. %s:%d [%s]', $index + 1, $finding['file'], $finding['line'], $finding['directive']);
+                $subjects = implode(', ', $finding['subjects'] ?? []);
+                $lines[] = sprintf('  %d. %s:%d [%s]%s', $index + 1, $finding['file'], $finding['line'], $finding['directive'], $subjects === '' ? '' : ' ' . $subjects);
             }
         }
 
@@ -379,8 +291,8 @@ final class SkipDirectiveScanner
     }
 
     /**
-     * @param list<array{file: string, line: int, tool: string, directive: string}> $findings
-     * @return array<string, list<array{file: string, line: int, tool: string, directive: string}>>
+     * @param list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}> $findings
+     * @return array<string, list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>>
      */
     private function groupedFindings(array $findings): array
     {
@@ -579,7 +491,7 @@ final class SkipDirectiveScanner
     }
 
     /**
-     * @param array<string, list<array{file: string, line: int, tool: string, directive: string}>> $groups
+     * @param array<string, list<array{file: string, line: int, tool: string, directive: string, subjects?: list<string>, reason?: string, security?: string}>> $groups
      * @return list<string>
      */
     private function summaryLines(int $files, array $groups, int $errorCount): array

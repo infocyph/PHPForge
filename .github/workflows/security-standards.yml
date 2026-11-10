@@ -63,8 +63,13 @@ on:
         required: false
         type: boolean
         default: true
+      skipper_policy:
+        description: 'JSON object with default deny and scoped skip rules; empty uses extra.phpforge.skipper_policy in composer.json.'
+        required: false
+        type: string
+        default: ''
       skipper_allowed_directives:
-        description: "JSON string array of exact directive names allowed by the skip detector."
+        description: "Deprecated: must remain []; use skipper_policy or project Composer configuration."
         required: false
         type: string
         default: '[]'
@@ -387,6 +392,7 @@ jobs:
         env:
           IC_PHPSTAN_MEMORY_LIMIT: ${{ inputs.phpstan_memory_limit }}
           IC_PEST_FAIL_ON_SKIPPED: ${{ inputs.fail_on_skipped_tests }}
+          IC_SKIPPER_POLICY: ${{ inputs.skipper_policy }}
           IC_SKIPPER_ALLOWED_DIRECTIVES: ${{ inputs.skipper_allowed_directives }}
           IC_TEST_TASK_TIMEOUT: ${{ inputs.quality_task_timeout_seconds }}
         run: |
