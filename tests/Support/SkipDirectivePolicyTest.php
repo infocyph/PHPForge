@@ -155,6 +155,11 @@ it('rejects an entire invalid policy without partially approving a valid first r
         removeFixtureDirectory($root);
     }
 })->with([
+    'null rule' => 'null',
+    'boolean rule' => 'false',
+    'scalar rule' => '42',
+    'string rule' => '"@psalm-suppress"',
+    'array rule' => '[]',
     'missing reason' => '{"paths":["tools/source.php"],"directive":"@psalm-suppress","issue":"UnresolvableInclude"}',
     'missing paths' => '{"directive":"@psalm-suppress","issue":"UnresolvableInclude","reason":"reviewed"}',
     'missing issue' => '{"paths":["tools/source.php"],"directive":"@psalm-suppress","reason":"reviewed"}',
@@ -188,12 +193,13 @@ it('rejects malformed top-level policy and global legacy permissions', function 
     } finally {
         removeFixtureDirectory($root);
     }
-})->with(['{', '{}', 'null', 'false', '["->skip()"]', '{"default":"allow","rules":[]}', '{"default":"deny","rules":{}}']);
+})->with(['{', '{}', 'null', 'false', '["->skip()"]', '{"default":"allow","rules":[]}', '{"default":"deny","rules":{}}',
+    '{"default":"deny"}', '{"default":"deny","rules":null}', '{"default":"deny","rules":false}', '{"default":"deny","rules":"[]"}']);
 
 it('loads the consuming Composer policy and rejects conflicting environment rules', function (): void {
     $root = skipPolicyRoot();
     skipPolicySource($root, 'tools/source.php', "<?php\n/** @psalm-suppress UnresolvableInclude */\n");
-    $policy = json_decode(skipPolicyJson([skipPolicyIssueRule()]), false, 512, JSON_THROW_ON_ERROR);
+    $policy = ['default' => 'deny', 'rules' => [skipPolicyIssueRule()]];
     skipPolicySource($root, 'composer.json', json_encode(['name' => 'example/consumer', 'extra' => ['phpforge' => ['skipper_policy' => $policy]]], JSON_THROW_ON_ERROR));
 
     try {
@@ -288,6 +294,9 @@ it('rejects missing broad or invalid security evidence', function (string $case)
         'missing evidence' => $rule['security'] = null,
         'broad taint' => $rule['taint'] = 'input',
         'missing tests' => $rule['security'] = [...$security, 'tests' => []],
+        'non-string test' => $rule['security'] = [...$security, 'tests' => ['checks/EscapeTest.php', false]],
+        'object test' => $rule['security'] = [...$security, 'tests' => ['checks/EscapeTest.php', new stdClass()]],
+        'nested test list' => $rule['security'] = [...$security, 'tests' => [['checks/EscapeTest.php']]],
         'missing file' => $rule['security'] = [...$security, 'tests' => ['checks/Missing.php']],
         'self evidence' => $rule['security'] = [...$security, 'tests' => ['security/Escape.php']],
         'outside project' => $rule['security'] = [...$security, 'sanitizer' => '../Escape.php'],
@@ -311,7 +320,7 @@ it('rejects missing broad or invalid security evidence', function (string $case)
     } finally {
         removeFixtureDirectory($root);
     }
-})->with(['missing evidence', 'broad taint', 'missing tests', 'missing file', 'self evidence', 'outside project', 'unknown key', 'mismatched hash', 'unscoped assertion']);
+})->with(['missing evidence', 'broad taint', 'missing tests', 'non-string test', 'object test', 'nested test list', 'missing file', 'self evidence', 'outside project', 'unknown key', 'mismatched hash', 'unscoped assertion']);
 
 it('rejects symlinked security evidence', function (): void {
     $root = skipPolicyRoot();
@@ -389,3 +398,22 @@ it('matches configured benchmark annotation names case-insensitively', function 
         removeFixtureDirectory($root);
     }
 });
+
+it('keeps Composer metadata boundaries fail-closed without granting default permissions', function (string $manifest, int $errors): void {
+    $root = skipPolicyRoot();
+    skipPolicySource($root, 'composer.json', $manifest);
+    skipPolicySource($root, 'Root.php', "<?php\nit('pending')->skip();\n");
+
+    try {
+        $scan = (new SkipDirectiveScanner())->scan($root);
+        expect($scan['errors'])->toHaveCount($errors)->and($scan['findings'])->toHaveCount(1)
+            ->and($scan)->not->toHaveKey('allowed_findings');
+    } finally {
+        removeFixtureDirectory($root);
+    }
+})->with([
+    'no extra metadata' => ['{"name":"example/consumer"}', 0],
+    'no PHPForge metadata' => ['{"extra":{}}', 0],
+    'invalid PHPForge metadata' => ['{"extra":{"phpforge":"invalid"}}', 1],
+    'null policy' => ['{"extra":{"phpforge":{"skipper_policy":null}}}', 1],
+]);

@@ -43,8 +43,7 @@ final class SkipDirectiveEvidence
 
         $testPaths = [];
 
-        foreach ($tests as $test) {
-            $testFile = self::file($test, $root);
+        foreach (array_map(static fn(mixed $test): string => self::file($test, $root), $tests) as $testFile) {
             $testPaths[] = self::relativeFile($testFile, $root);
 
             if ($testFile === $sanitizer || strtolower(pathinfo($testFile, PATHINFO_EXTENSION)) !== 'php') {

@@ -44,17 +44,11 @@ final readonly class SkipDirectivePolicy
             $policy = json_decode($json, false, 64, JSON_THROW_ON_ERROR);
 
             if (!$policy instanceof \stdClass || array_diff(array_keys(get_object_vars($policy)), ['default', 'rules']) !== []
-                || ($policy->default ?? null) !== 'deny' || !is_array($policy->rules ?? null) || !array_is_list($policy->rules)) {
+                || ($policy->default ?? null) !== 'deny') {
                 throw new \InvalidArgumentException('Expected {"default":"deny","rules":[...]} with no unknown keys.');
             }
 
-            $rules = [];
-
-            foreach ($policy->rules as $rule) {
-                $rules[] = SkipDirectiveRule::fromConfiguration($rule, $root, $extraRules);
-            }
-
-            return new self($rules, []);
+            return new self(self::rules($policy->rules ?? null, $root, $extraRules), []);
         } catch (\JsonException|\InvalidArgumentException $exception) {
             return new self([], ['Invalid skipper_policy: ' . $exception->getMessage()]);
         }
@@ -127,9 +121,20 @@ final readonly class SkipDirectivePolicy
             throw new \InvalidArgumentException('Unable to read project composer.json.');
         }
 
-        $decoded = json_decode($contents, false, 64, JSON_THROW_ON_ERROR);
-        $extra = $decoded instanceof \stdClass ? ($decoded->extra ?? null) : null;
-        $forge = $extra instanceof \stdClass ? ($extra->phpforge ?? null) : null;
+        return self::projectPolicy(json_decode($contents, false, 64, JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * @throws \JsonException
+     * @throws \InvalidArgumentException
+     */
+    private static function projectPolicy(mixed $decoded): ?string
+    {
+        if (!$decoded instanceof \stdClass || !isset($decoded->extra) || !$decoded->extra instanceof \stdClass) {
+            return null;
+        }
+
+        $forge = $decoded->extra->phpforge ?? null;
 
         if ($forge !== null && !$forge instanceof \stdClass) {
             throw new \InvalidArgumentException('extra.phpforge must be an object.');
@@ -137,6 +142,20 @@ final readonly class SkipDirectivePolicy
 
         return $forge instanceof \stdClass && property_exists($forge, 'skipper_policy')
             ? json_encode($forge->skipper_policy, JSON_THROW_ON_ERROR) : null;
+    }
+
+    /**
+     * @param list<array{tool: string, pattern: non-empty-string}> $extraRules
+     * @return list<SkipDirectiveRule>
+     * @throws \InvalidArgumentException
+     */
+    private static function rules(mixed $value, string $root, array $extraRules): array
+    {
+        if (!is_array($value) || !array_is_list($value)) {
+            throw new \InvalidArgumentException('rules must be a JSON array of scoped rule objects.');
+        }
+
+        return array_map(static fn(mixed $rule): SkipDirectiveRule => SkipDirectiveRule::fromConfiguration($rule, $root, $extraRules), $value);
     }
 
     /**
