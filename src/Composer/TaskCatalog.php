@@ -192,9 +192,30 @@ final class TaskCatalog
         return [
             ...self::normalizeComposer(),
             ...self::refactorFix(),
+            ...self::psalmFix(),
             ...self::lintFix(),
             ...self::sniffFix(),
         ];
+    }
+
+    /**
+     * @return list<list<string>>
+     *
+     * @throws \RuntimeException
+     */
+    public static function psalmFix(): array
+    {
+        return [[
+            Paths::php(),
+            Paths::bin('psalter'),
+            '--root=' . Paths::projectRootPath(),
+            '--config=' . self::psalmConfig(),
+            '--issues=MissingClosureReturnType,MissingOverrideAttribute,MissingParamType,MismatchingDocblockParamType,MismatchingDocblockReturnType,RedundantCast,UnnecessaryVarAnnotation',
+            '--safe-types',
+            '--allow-backwards-incompatible-changes=false',
+            '--threads=1',
+            '--no-cache',
+        ]];
     }
 
     /**

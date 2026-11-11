@@ -24,8 +24,9 @@ quality|ic:test:static|Run PHPStan.|staticAnalysis
 quality|ic:test:security|Run Psalm security analysis.|security
 quality|ic:test:refactor|Run Rector in dry-run mode.|refactorCheck
 quality|ic:test:bench|Run PHPBench aggregate benchmarks.|benchRun
-process|ic:process|Run Composer Normalize, Rector, Pint, and PHPCBF fixes.|processAll
-process|ic:process:all|Run Composer Normalize, Rector, Pint, and PHPCBF fixes.|processAll
+process|ic:process|Run Composer Normalize, Rector, Psalter, Pint, and PHPCBF fixes.|processAll
+process|ic:process:all|Run Composer Normalize, Rector, Psalter, Pint, and PHPCBF fixes.|processAll
+process|ic:process:psalm|Apply selected Psalm fixes with safe types and compatibility guards.|psalmFix
 process|ic:process:lint|Run Pint fixes.|lintFix
 process|ic:process:sniff|Run PHPCBF fixes.|sniffFix
 process|ic:process:sniff:fix|Run PHPCBF fixes.|sniffFix

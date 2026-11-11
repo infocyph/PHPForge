@@ -279,3 +279,21 @@ it('retains approved skipper exceptions in successful parallel CI output', funct
         unlink($script);
     }
 });
+
+it('keeps native integer and other boundary inputs supported by timeout parsing', function (mixed $value, int $expected): void {
+    expect(ParallelRunner::timeoutFrom($value))->toBe($expected);
+})->with([
+    'integer seconds' => [120, 120],
+    'integer lower bound' => [-1, 1],
+    'array fallback' => [[], 300],
+    'boolean fallback' => [false, 300],
+    'object fallback' => [new stdClass(), 300],
+]);
+
+it('keeps non-string concurrency inputs falling back to the eligible task count', function (mixed $value): void {
+    withParallelRunnerEnv('IC_TEST_CONCURRENCY', null, function () use ($value): void {
+        withParallelRunnerEnv('PHPFORGE_PARALLEL', null, function () use ($value): void {
+            expect(ParallelRunner::concurrencyFrom($value, 3))->toBe(3);
+        });
+    });
+})->with([42, false, [[]], [new stdClass()]]);

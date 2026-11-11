@@ -173,6 +173,7 @@ final class TaskDisplay
             $tool === 'phpcbf' => 'PHPCBF',
             $tool === 'phpstan' => 'PHPStan',
             $tool === 'psalm' => 'Psalm',
+            $tool === 'psalter' => 'Psalm Autofix',
             $tool === 'rector' => 'Rector',
             $tool === 'phpbench' => 'PHPBench',
             $tool === 'deptrac' => 'Deptrac',

@@ -37,6 +37,7 @@ function taskCommands(string $task): array
         'process:all' => TaskCatalog::processAll(),
         'process:lint' => TaskCatalog::lintFix(),
         'process:refactor' => TaskCatalog::refactorFix(),
+        'process:psalm' => TaskCatalog::psalmFix(),
         'process:sniff' => TaskCatalog::sniffFix(),
         'bench:chart' => TaskCatalog::benchChart(),
         'bench:quick' => TaskCatalog::benchQuick(),
