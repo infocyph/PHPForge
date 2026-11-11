@@ -307,6 +307,11 @@ final class KnowledgeGraphTraversal
         };
     }
 
+    /**
+     * @param (array|bool|int|string)[] $value
+     *
+     * @psalm-param array{source?: string, target?: string, relation?: string, file: string, line: int, certainty?: string, resolution?: string, id?: string, type?: string, name?: string, end_line?: int, defined?: bool, attributes?: array<string, mixed>} $value
+     */
     private function tokens(mixed $value): int
     {
         $json = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);

@@ -33,7 +33,7 @@
         "deptrac/deptrac": "^4.7.2",
         "ergebnis/composer-normalize": "^2.56.0",
         "infocyph/phpprobe": "^1.3.1",
-        "laravel/pint": "^1.32.1",
+        "laravel/pint": "^1.32.2",
         "pestphp/pest": "^5.3.5",
         "pestphp/pest-plugin-drift": "^5.0.0",
         "pestphp/pest-plugin-phpstan": "^5.3.1",
@@ -47,11 +47,20 @@
         "symfony/polyfill-php85": "^1.43.0",
         "symfony/process": "^8.1.10",
         "tomasvotruba/cognitive-complexity": "^1.3.0",
-        "vimeo/psalm": "^7.2.1"
+        "vimeo/psalm": "^7.3"
     },
     "require-dev": {
-        "composer/composer": "^2.11.1",
+        "composer/composer": "^2.11.2",
         "symfony/yaml": "^8.1.11"
+    },
+    "conflict": {
+        "amphp/cache": "<2.0.1",
+        "amphp/dns": "<2.1.2",
+        "amphp/parser": "<1.1.1",
+        "amphp/process": "<2.0.3",
+        "amphp/socket": "<2.3.1",
+        "daverandom/libdns": "<2.1.0",
+        "spatie/array-to-xml": "<3.3.0"
     },
     "prefer-stable": true,
     "autoload": {
@@ -107,11 +116,13 @@
         "ic:process": [
             "@composer normalize",
             "@ic:process:refactor",
+            "@ic:process:psalm",
             "@ic:process:lint",
             "@ic:process:sniff"
         ],
         "ic:process:all": "@ic:process",
         "ic:process:lint": "@php bin/run-task.php process:lint",
+        "ic:process:psalm": "@php bin/run-task.php process:psalm",
         "ic:process:refactor": "@php bin/run-task.php process:refactor",
         "ic:process:sniff": "@php bin/run-task.php process:sniff",
         "ic:process:sniff:fix": "@ic:process:sniff",

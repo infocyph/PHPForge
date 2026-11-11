@@ -40,7 +40,7 @@ PHPForge is installed as a dev dependency in PHP libraries and packages. It prov
 | --- | --- |
 | Quality checks | One bounded-parallel command for tests, syntax, style, architecture, static analysis, security analysis and refactor checks. |
 | Suppression guard | Detects inline analyzer, linter, coverage, mutation and test skip directives before they can hide unresolved work. |
-| Automated fixes | A deterministic sequential processor for Composer Normalize, Rector, Pint and PHPCBF. |
+| Automated fixes | A deterministic sequential processor for Composer Normalize, Rector, Psalter, Pint and PHPCBF. |
 | CI | A reusable GitHub Actions workflow plus starter pipelines for GitLab, Bitbucket and Forgejo. |
 | Integration services | Opt-in databases, caches, messaging, search and email services with automatic PHP extension resolution and readiness checks. |
 | Benchmarks | PHPBench commands, a workload-neutral result contract, regression comparison and worker soak testing. |
@@ -466,12 +466,42 @@ Useful checker options:
 
 | Command                           | Purpose                                                  |
 | --------------------------------- | -------------------------------------------------------- |
-| `composer ic:process`           | Runs Composer Normalize, Rector, Pint and PHPCBF fixes. |
+| `composer ic:process`           | Runs Composer Normalize, Rector, Psalter, Pint and PHPCBF fixes. |
 | `composer ic:process:all`       | Alias of `ic:process`.                                 |
+| `composer ic:process:psalm`     | Applies selected Psalm fixes with safe types and compatibility guards. |
 | `composer ic:process:refactor`  | Runs Rector fixes.                                       |
 | `composer ic:process:lint`      | Runs Pint fixes.                                         |
 | `composer ic:process:sniff`     | Runs PHPCBF fixes.                                       |
 | `composer ic:process:sniff:fix` | Alias of `ic:process:sniff`.                           |
+
+The processor order is **Composer Normalize → Rector → Psalter → Pint → PHPCBF**.
+Psalter uses the same project-first Psalm config resolution as security analysis,
+including bundled vendor configs and custom Composer vendor/bin directories.
+The standalone `composer ic:process:psalm` command runs the same step.
+
+Its default issue selection is `MissingClosureReturnType`,
+`MissingOverrideAttribute`, `MissingParamType`, `MismatchingDocblockParamType`,
+`MismatchingDocblockReturnType`, `RedundantCast` and `UnnecessaryVarAnnotation`.
+It uses `--safe-types`, `--allow-backwards-incompatible-changes=false`, one thread
+and no cache. `MissingParamType` infers parameter types from available calls.
+For overridable methods, the compatibility guard keeps the native signature and
+adds PHPDoc. Final methods can receive native parameter types; `--safe-types`
+keeps types inferred only from PHPDoc out of native signatures. Review those
+inferred types against external callers. Psalter may also narrow an explicitly
+declared `mixed` parameter; preserve intentional input-validation contracts when
+reviewing generated changes. Unused-code deletion and casts inferred
+only from PHPDoc remain outside the selection. Review the generated diff and run
+`composer ic:tests:details` afterward: autofix does not resolve every finding.
+A successful autofix means the selected rewrite pass completed; unrelated errors
+can remain and still fail regular Psalm analysis and QA. Tool/configuration
+failures stop the sequential processor normally. QA and CI analysis remain read-only.
+
+The `conflict` constraints in `composer.json` enforce compatible releases of
+Psalm's transitive Amp, LibDNS and ArrayToXml dependencies on PHP 8.4 and newer.
+Older releases declare implicitly nullable parameters; Psalm's preloader turns
+their deprecations into startup exceptions. These minimum versions also apply to
+`--prefer-lowest` installs. Fix dependency compatibility when startup fails;
+retain deprecation reporting and the analyzer's failure status.
 
 ### Benchmark commands
 

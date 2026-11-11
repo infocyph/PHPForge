@@ -432,6 +432,11 @@ final class KnowledgeQuery
         return array_keys($terms);
     }
 
+    /**
+     * @param (array|bool|int|string)[] $value
+     *
+     * @psalm-param array{id: string, type: string, name: string, file: string, line: int, end_line: int, defined: bool, attributes: array<string, mixed>} $value
+     */
     private function tokens(mixed $value): int
     {
         $json = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);

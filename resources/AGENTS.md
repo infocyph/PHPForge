@@ -7,7 +7,7 @@
 ## Core Flow
 
 - `composer ic:process` (unless read-only task).
-- If above command fails somehow try: `composer ic:process:lint`, `composer ic:process:sniff:fix`, `composer ic:process:refactor`
+- If above command fails somehow try: `composer ic:process:lint`, `composer ic:process:sniff:fix`, `composer ic:process:refactor`, `composer ic:process:psalm`
 - `composer ic:tests:details`, fix issues, then re-run above command.
 - Final check: `composer ic:tests` or `composer ic:release:guard`.
 - If blocked, report the exact failing command + key error.
@@ -57,8 +57,9 @@
 - `composer ic:test:refactor` - Rector dry-run checks.
 - `composer ic:test:bench` - PHPBench aggregate benchmark run.
 
-- `composer ic:process` - run normalize + Rector + Pint + PHPCBF fixers.
+- `composer ic:process` - run normalize + Rector + Psalter + Pint + PHPCBF fixers.
 - `composer ic:process:all` - alias of `ic:process`.
+- `composer ic:process:psalm` - selected Psalter fixes with safe types, compatibility guards, one thread and no cache; includes MissingParamType. Review inferred parameter types, especially native types added to final methods or changes to explicit mixed inputs; unused code is retained.
 - `composer ic:process:refactor` - Rector fix run.
 - `composer ic:process:lint` - Pint fix run.
 - `composer ic:process:sniff` - PHPCBF fix run.
