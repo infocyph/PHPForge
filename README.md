@@ -496,6 +496,13 @@ A successful autofix means the selected rewrite pass completed; unrelated errors
 can remain and still fail regular Psalm analysis and QA. Tool/configuration
 failures stop the sequential processor normally. QA and CI analysis remain read-only.
 
+The `conflict` constraints in `composer.json` enforce compatible releases of
+Psalm's transitive Amp, LibDNS and ArrayToXml dependencies on PHP 8.4 and newer.
+Older releases declare implicitly nullable parameters; Psalm's preloader turns
+their deprecations into startup exceptions. These minimum versions also apply to
+`--prefer-lowest` installs. Fix dependency compatibility when startup fails;
+retain deprecation reporting and the analyzer's failure status.
+
 ### Benchmark commands
 
 | Command                     | Purpose                             |

@@ -90,7 +90,7 @@ SOURCE;
             ->and($command[1])->toBe($root . '/' . $vendorDirectory . '/bin/psalter')
             ->and($command)->toContain('--config=' . $config)
             ->toContain('--root=' . $root)
-            ->and($preview->getExitCode())->toBe(0);
+            ->and($preview->getExitCode())->toBe(0, $preview->getOutput() . $preview->getErrorOutput());
 
         $process = new Process($command, $workingDirectory);
         $process->setTimeout(60);
@@ -100,12 +100,12 @@ SOURCE;
             ->toMatch('/function\s*\(\)\s*:\s*int/')
             ->toContain('public function acceptsInferred($value): int', 'public function finalInferred(int $value): int', '@param int $value')
             ->not->toContain('(string) $input')
-            ->and($process->getExitCode())->toBe(0);
+            ->and($process->getExitCode())->toBe(0, $process->getOutput() . $process->getErrorOutput());
 
         $analysis = new Process([PHP_BINARY, $psalm, '--config=' . $config, '--no-cache', '--threads=1', '--no-progress'], $root);
         $analysis->setTimeout(60);
         $analysis->run();
-        expect($analysis->getExitCode())->toBe(2)
+        expect($analysis->getExitCode())->toBe(2, $analysis->getOutput() . $analysis->getErrorOutput())
             ->and($analysis->getOutput() . $analysis->getErrorOutput())->toContain('InvalidReturnType');
 
         file_put_contents($config, '<invalid>');
