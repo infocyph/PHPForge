@@ -21,7 +21,11 @@ final readonly class KnowledgeCli
         private ?\Closure $stderr = null,
     ) {}
 
-    /** @param list<string> $args */
+    /**
+     * @param list<string> $args
+     *
+     * @throws \Symfony\Component\Process\Exception\LogicException
+     */
     public function build(array $args): int
     {
         try {

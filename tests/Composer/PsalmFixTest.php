@@ -90,7 +90,8 @@ SOURCE;
             ->and($command[1])->toBe($root . '/' . $vendorDirectory . '/bin/psalter')
             ->and($command)->toContain('--config=' . $config)
             ->toContain('--root=' . $root)
-            ->and($preview->getExitCode())->toBe(0, $preview->getOutput() . $preview->getErrorOutput());
+            ->and($preview->getExitCode())->toBe(2, $preview->getOutput() . $preview->getErrorOutput())
+            ->and($preview->getOutput())->toContain('--- a/src/Example.php', '+++ b/src/Example.php');
 
         $process = new Process($command, $workingDirectory);
         $process->setTimeout(60);
@@ -101,6 +102,10 @@ SOURCE;
             ->toContain('public function acceptsInferred($value): int', 'public function finalInferred(int $value): int', '@param int $value')
             ->not->toContain('(string) $input')
             ->and($process->getExitCode())->toBe(0, $process->getOutput() . $process->getErrorOutput());
+
+        $preview->run();
+        expect($preview->getExitCode())->toBe(0, $preview->getOutput() . $preview->getErrorOutput())
+            ->and(fixtureFile($root . '/src/Example.php'))->toBe($fixed);
 
         $analysis = new Process([PHP_BINARY, $psalm, '--config=' . $config, '--no-cache', '--threads=1', '--no-progress'], $root);
         $analysis->setTimeout(60);

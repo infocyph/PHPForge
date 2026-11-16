@@ -28,6 +28,7 @@ final class KnowledgeBase
      *
      * @throws \RuntimeException
      * @throws \InvalidArgumentException
+     * @throws \Symfony\Component\Process\Exception\LogicException
      */
     public function build(array $paths = [], ?string $output = null, bool $force = false): array
     {

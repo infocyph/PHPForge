@@ -54,6 +54,9 @@ final class KnowledgeCommand extends Command
             ->addOption('model', null, InputOption::VALUE_REQUIRED, 'Provider model override.');
     }
 
+    /**
+     * @throws \Symfony\Component\Process\Exception\LogicException
+     */
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {

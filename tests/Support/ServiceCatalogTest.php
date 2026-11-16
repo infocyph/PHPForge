@@ -267,7 +267,7 @@ it('uses the versioned runtime manifest as the service image source of truth', f
     expect(fixtureValue($runtime, ['php_versions'], true) ?? null)->toBe(['8.4', '8.5'])
         ->and(fixtureValue($runtime, ['service_client_versions', 'mssql_odbc'], true) ?? null)->toBe('18')
         ->and(fixtureValue($runtime, ['service_images', 'mssql'], true) ?? null)
-        ->toBe('mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-22.04')
+        ->toBe('mcr.microsoft.com/mssql/server:2025-CU11-ubuntu-22.04')
         ->and(array_keys(fixtureArray(fixtureValue($runtime, ['service_images'], true) ?? [])))->toBe(array_values(array_filter(
             ServiceCatalog::names(),
             static fn(string $service): bool => $service !== 'sqlite',
