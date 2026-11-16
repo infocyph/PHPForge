@@ -132,6 +132,8 @@ final class PhpstanActiveConfig
 
     /**
      * @return list<string>
+     *
+     * @throws \RuntimeException
      */
     private function phpstanAnalysePaths(): array
     {

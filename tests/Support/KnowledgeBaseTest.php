@@ -50,6 +50,7 @@ PHP);
 /**
  * @throws RuntimeException
  * @throws InvalidArgumentException
+ * @throws \Symfony\Component\Process\Exception\LogicException
  */
 function writeTraversalKnowledgeFixture(string $root): string
 {

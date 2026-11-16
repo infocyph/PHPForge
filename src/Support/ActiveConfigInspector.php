@@ -12,6 +12,7 @@ final class ActiveConfigInspector
      * @return list<array<string, mixed>>
      *
      * @throws \RuntimeException
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
      */
     public function inspect(array $selectedFiles = [], ?string $parameter = null): array
     {
@@ -133,6 +134,9 @@ final class ActiveConfigInspector
 
     /**
      * @param array<string, mixed> $summary
+     *
+     * @throws \RuntimeException
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
      */
     private function parameterValue(array $summary, string $parameter): mixed
     {

@@ -36,6 +36,8 @@ COMMANDS;
 
     /**
      * @param list<string> $argv
+     *
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
      */
     public function run(array $argv): int
     {
@@ -64,6 +66,7 @@ COMMANDS;
      * @param list<string> $args
      *
      * @throws \RuntimeException
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
      */
     private function activeConfig(array $args): int
     {

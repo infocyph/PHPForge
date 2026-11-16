@@ -41,6 +41,7 @@ final class ActiveConfigCommand extends Command
     /**
      * @throws \Symfony\Component\Console\Exception\InvalidArgumentException
      * @throws \RuntimeException
+     * @throws \Symfony\Component\Process\Exception\LogicException|\Symfony\Component\Process\Exception\InvalidArgumentException
      */
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int

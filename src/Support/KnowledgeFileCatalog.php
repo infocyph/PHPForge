@@ -55,6 +55,7 @@ final class KnowledgeFileCatalog
      *
      * @throws \RuntimeException
      * @throws \InvalidArgumentException
+     * @throws \Symfony\Component\Process\Exception\LogicException
      */
     public function records(string $root, array $paths): array
     {
