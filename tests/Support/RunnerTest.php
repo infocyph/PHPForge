@@ -23,13 +23,7 @@ function withRunnerEnv(string $name, ?string $value, callable $callback): void
     try {
         $callback();
     } finally {
-        if ($previous === false) {
-            putenv($name);
-
-            return;
-        }
-
-        putenv($name.'='.$previous);
+        putenv($previous === false ? $name : $name.'='.$previous);
     }
 }
 

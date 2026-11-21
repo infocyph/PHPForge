@@ -264,7 +264,7 @@ it('uses the versioned runtime manifest as the service image source of truth', f
             ->and(fixtureValue($service, ['image'], true) ?? null)->toBe($expected);
     }
 
-    expect(fixtureValue($runtime, ['php_versions'], true) ?? null)->toBe(['8.4', '8.5'])
+    expect(fixtureValue($runtime, ['php_versions'], true) ?? null)->toBe(['8.4', '8.5', '8.6'])
         ->and(fixtureValue($runtime, ['service_client_versions', 'mssql_odbc'], true) ?? null)->toBe('18')
         ->and(fixtureValue($runtime, ['service_images', 'mssql'], true) ?? null)
         ->toBe('mcr.microsoft.com/mssql/server:2025-CU11-ubuntu-22.04')

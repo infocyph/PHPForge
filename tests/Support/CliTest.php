@@ -16,8 +16,6 @@ function runPhpforgeCli(array $arguments): ProcessResult
     $binary = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpforge';
     $result = (new ProcRunner())->run([PHP_BINARY, $binary, ...$arguments]);
 
-    expect($result)->toBeInstanceOf(ProcessResult::class);
-
     if (!$result instanceof ProcessResult) {
         throw new RuntimeException('The CLI did not return a process result.');
     }

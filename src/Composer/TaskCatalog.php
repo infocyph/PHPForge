@@ -527,7 +527,7 @@ final class TaskCatalog
         return rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
             . DIRECTORY_SEPARATOR
             . 'phpprobe-duplicates-cache-'
-            . md5($projectKey)
+            . hash('xxh3', $projectKey)
             . '.json';
     }
 

@@ -92,7 +92,7 @@ services:
     entrypoint: ["bash", "/configure-replica.sh"]
 
   postgres:
-    image: postgres:18-alpine
+    image: postgres:19-alpine
     profiles: [postgres]
     ports: ["5432:5432"]
     environment: &postgres-environment
@@ -106,7 +106,7 @@ services:
       retries: 40
 
   postgres-primary:
-    image: postgres:18-alpine
+    image: postgres:19-alpine
     profiles: [postgres-replica]
     ports: ["5432:5432"]
     environment: &postgres-replica-environment
@@ -124,7 +124,7 @@ services:
       retries: 40
 
   postgres-replica:
-    image: postgres:18-alpine
+    image: postgres:19-alpine
     profiles: [postgres-replica]
     ports: ["5433:5432"]
     depends_on:
@@ -282,7 +282,7 @@ services:
     healthcheck: *redis-replica-health
 
   valkey:
-    image: valkey/valkey:9.1-alpine
+    image: valkey/valkey:9.2-alpine
     profiles: [valkey]
     command: ["valkey-server", "--requirepass", "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}"]
     ports: ["6380:6379"]
@@ -293,7 +293,7 @@ services:
       retries: 30
 
   valkey-primary:
-    image: valkey/valkey:9.1-alpine
+    image: valkey/valkey:9.2-alpine
     profiles: [valkey-replica]
     command: ["valkey-server", "--requirepass", "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}"]
     ports: ["6380:6379"]
@@ -304,7 +304,7 @@ services:
       retries: 30
 
   valkey-replica:
-    image: valkey/valkey:9.1-alpine
+    image: valkey/valkey:9.2-alpine
     profiles: [valkey-replica]
     command: ["valkey-server", "--replicaof", "valkey-primary", "6379", "--masterauth", "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}", "--requirepass", "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}", "--replica-read-only", "yes"]
     ports: ["6382:6379"]
@@ -419,7 +419,7 @@ services:
     healthcheck: *nats-health
 
   mailpit:
-    image: axllent/mailpit:v1.33
+    image: axllent/mailpit:v1.34
     profiles: [mailpit]
     ports: ["1025:1025", "8025:8025"]
     healthcheck:

@@ -12,6 +12,7 @@ use Symfony\Component\Yaml\Yaml;
  */
 function phpVersionMatrixOutputs(string $requestedVersions): array
 {
+    $runtime = require dirname(__DIR__, 2) . '/resources/runtime.php';
     $outputPath = tempnam(sys_get_temp_dir(), 'phpforge-matrix-');
 
     if (!is_string($outputPath)) {
@@ -25,7 +26,7 @@ function phpVersionMatrixOutputs(string $requestedVersions): array
             [
                 'GITHUB_OUTPUT' => $outputPath,
                 'INPUT_PHP_VERSIONS' => $requestedVersions,
-                'SUPPORTED_PHP_VERSIONS' => '["8.4","8.5"]',
+                'SUPPORTED_PHP_VERSIONS' => json_encode(fixtureValue($runtime, ['php_versions']), JSON_THROW_ON_ERROR),
             ],
         );
         $process->mustRun();
@@ -52,11 +53,11 @@ function phpVersionMatrixOutputs(string $requestedVersions): array
 }
 
 it('silently removes unsupported PHP versions from the workflow matrix', function (): void {
-    $outputs = phpVersionMatrixOutputs('["8.2","8.4","8.3","8.5","8.4.12","8.4",9]');
+    $outputs = phpVersionMatrixOutputs('["8.2","8.4","8.3","8.5","8.4.12","8.4","8.6","8.6.0","8.7",9]');
 
     expect($outputs)->toMatchArray([
-        'php_versions' => '["8.4","8.5","8.4.12"]',
-        'clean_install_php_version' => '8.4.12',
+        'php_versions' => '["8.4","8.5","8.4.12","8.6","8.6.0"]',
+        'clean_install_php_version' => '8.6.0',
         'has_supported_php_versions' => 'true',
     ]);
 });

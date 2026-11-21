@@ -209,7 +209,7 @@ Use focused `composer ic:test:*` commands while developing. Use `composer ic:ci`
 
 ### Test commands
 
-PHPForge requires Pest **^5.3.6** and ParaTest **^7.29.0**. These releases
+PHPForge requires Pest **^5.3.7** and ParaTest **^7.29.0**. These releases
 support PHPUnit 13.4.7, which includes the fix for
 [GHSA-9vw2-f4vp-x7gf](https://github.com/sebastianbergmann/phpunit/security/advisories/GHSA-9vw2-f4vp-x7gf),
 and the updated ParaTest worker constructor. The mixed Pest/PHPUnit
@@ -504,6 +504,12 @@ Older releases declare implicitly nullable parameters; Psalm's preloader turns
 their deprecations into startup exceptions. These minimum versions also apply to
 `--prefer-lowest` installs. Fix dependency compatibility when startup fails;
 retain deprecation reporting and the analyzer's failure status.
+
+CaptainHook's CLI dependency also needs explicit nullable parameter types.
+The Composer conflict constraint requires the first release with that fix.
+Psalm 7.12 includes a PHP 8.6 runtime fix. The current constraint stays on 7.12
+while PHPForge reviews the file and network findings from Psalm 7.13's new
+environment taint tracking.
 
 ### Benchmark commands
 
@@ -1195,18 +1201,22 @@ Image versions are maintained centrally in [`resources/runtime.php`](resources/r
 | --- | --- | --- | --- | --- |
 | MySQL | `mysql:26.10` | [Docker Official Image](https://hub.docker.com/_/mysql) | primary + replica | `3306`, replica `3307` |
 | MariaDB | `mariadb:13.0` | [Docker Official Image](https://hub.docker.com/_/mariadb) | primary + replica | `3308`, replica `3309` |
-| PostgreSQL | `postgres:18-alpine` | [Docker Official Image](https://hub.docker.com/_/postgres) | streaming primary + replica | `5432`, replica `5433` |
+| PostgreSQL | `postgres:19-alpine` | [Docker Official Image](https://hub.docker.com/_/postgres) | streaming primary + replica | `5432`, replica `5433` |
 | Microsoft SQL Server | `mcr.microsoft.com/mssql/server:2025-CU11-ubuntu-22.04` | [Microsoft Container Registry](https://mcr.microsoft.com/product/mssql/server/about) | two-node read-scale availability group | `1433`, replica `1434` |
 | SQLite | host PHP extension | [SQLite](https://www.sqlite.org/) | standalone only | in-memory/file DSNs |
 | MongoDB | `mongo:9.0.8` | [Docker Official Image](https://hub.docker.com/_/mongo) | two-member replica set | `27017`, secondary `27018` |
 | Redis | `redis:8.10-alpine` | [Docker Official Image](https://hub.docker.com/_/redis) | primary + read-only replica | `6379`, replica `6381` |
-| Valkey | `valkey/valkey:9.1-alpine` | [Valkey official image](https://hub.docker.com/r/valkey/valkey) | primary + read-only replica | `6380`, replica `6382` |
+| Valkey | `valkey/valkey:9.2-alpine` | [Valkey official image](https://hub.docker.com/r/valkey/valkey) | primary + read-only replica | `6380`, replica `6382` |
 | Memcached | `memcached:1.6.45-alpine` | [Docker Official Image](https://hub.docker.com/_/memcached) | standalone only | `11211` |
 | RabbitMQ | `rabbitmq:4.4-management-alpine` | [Docker Official Image](https://hub.docker.com/_/rabbitmq) | three-node cluster | AMQP `5672`–`5674`; management `15672`–`15674` |
 | NATS | `nats:2.15-alpine` | [Docker Official Image](https://hub.docker.com/_/nats) | three-node JetStream cluster | clients `4222`–`4224`; monitoring `8222`–`8224` |
-| Mailpit | `axllent/mailpit:v1.33` | [Mailpit publisher image](https://hub.docker.com/r/axllent/mailpit) | standalone only | SMTP `1025`; UI/API `8025` |
+| Mailpit | `axllent/mailpit:v1.34` | [Mailpit publisher image](https://hub.docker.com/r/axllent/mailpit) | standalone only | SMTP `1025`; UI/API `8025` |
 | Elasticsearch | `docker.elastic.co/elasticsearch/elasticsearch:9.5.6` | [Elastic registry](https://www.docker.elastic.co/r/elasticsearch/elasticsearch) | two-node cluster | `9200`, peer `9201` |
 | ScyllaDB | `scylladb/scylla:2026.3` | [ScyllaDB official image](https://hub.docker.com/r/scylladb/scylla) | three-node cluster | Alternator `8000`–`8002`; admin `10000`–`10002` |
+
+For a local PostgreSQL instance with data you want to keep, migrate the data to
+PostgreSQL 19 before switching an existing PostgreSQL 18 instance to the new
+image. See the [PostgreSQL upgrade guide](https://www.postgresql.org/docs/19/upgrading.html).
 
 MongoDB uses the 9.0.8 maintenance release, retaining the Ubuntu kernel-version detection fix introduced in 9.0.4 in [SERVER-131779](https://jira.mongodb.org/browse/SERVER-131779). This lets MongoDB recognize Ubuntu kernels containing the upstream 7.0.14 fix while retaining its startup guard for affected kernels. The same image is used by standalone, replica members and replica initialization.
 
@@ -1251,10 +1261,10 @@ Explicit `"standalone"` mappings are accepted but unnecessary because standalone
 
 ```yaml
 with:
-  php_versions: '["8.4","8.5"]'
+  php_versions: '["8.4","8.5","8.6"]'
 ```
 
-PHPForge currently supports the `8.4` and `8.5` cycles. Unsupported entries are
+PHPForge currently supports the `8.4`, `8.5`, and `8.6` cycles. Unsupported entries are
 silently removed from the matrix; when no supported entry remains, PHP-dependent
 jobs are skipped successfully. Exact patch releases within a supported cycle,
 such as `8.4.12`, are accepted.
@@ -1460,7 +1470,7 @@ jobs:
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     with:
-      php_versions: '["8.4","8.5"]'
+      php_versions: '["8.4","8.5","8.6"]'
       dependency_versions: '["prefer-stable"]'
       run_analysis: false
       run_benchmark: false
@@ -1478,7 +1488,7 @@ jobs:
       actions: read
       contents: read
     with:
-      php_versions: '["8.4","8.5"]'
+      php_versions: '["8.4","8.5","8.6"]'
       dependency_versions: '["prefer-lowest","prefer-stable"]'
       run_analysis: true
 ```
@@ -1490,7 +1500,7 @@ jobs:
   phpforge:
     uses: infocyph/phpforge/.github/workflows/security-standards.yml@main
     with:
-      php_versions: '["8.4","8.5"]'
+      php_versions: '["8.4","8.5","8.6"]'
       php_extensions: "mbstring, intl, pdo_mysql"
       composer_flags: "--ignore-platform-req=ext-redis"
       run_analysis: true
@@ -1520,7 +1530,7 @@ jobs:
       actions: read
       contents: read
     with:
-      php_versions: '["8.4","8.5"]'
+      php_versions: '["8.4","8.5","8.6"]'
       dependency_versions: '["prefer-stable"]'
       php_extensions: "mbstring, intl, bcmath, pdo_mysql"
       composer_flags: "--ignore-platform-req=ext-redis"

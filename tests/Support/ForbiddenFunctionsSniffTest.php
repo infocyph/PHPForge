@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+namespace PHPForge\Sniffs\PHP;
+
 use Composer\InstalledVersions;
 use Infocyph\PHPForge\Support\Paths;
 use PHP_CodeSniffer\Files\File;
-use PHPForge\Sniffs\PHP\ForbiddenFunctionsSniff;
 use PhpParser\ParserFactory;
+use RuntimeException;
 
 it('accepts successful exits without breaking the PHP parser', function (): void {
     // Initialize integer token polyfills before PHPCS installs its legacy token emulation.

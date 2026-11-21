@@ -34,13 +34,7 @@ function withTaskCatalogEnv(string $name, ?string $value, callable $callback): v
     try {
         $callback();
     } finally {
-        if ($previous === false) {
-            putenv($name);
-
-            return;
-        }
-
-        putenv($name . '=' . $previous);
+        putenv($previous === false ? $name : $name . '=' . $previous);
     }
 }
 
