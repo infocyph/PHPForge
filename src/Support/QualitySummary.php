@@ -48,13 +48,18 @@ final class QualitySummary
         return 'success';
     }
 
+    /**
+     * The process launcher may choose an absolute or relative local report destination.
+     *
+     * @psalm-taint-escape file
+     */
     private static function path(): ?string
     {
         foreach (['PHPFORGE_QUALITY_SUMMARY', 'IC_QUALITY_SUMMARY'] as $name) {
-            $path = getenv($name);
+            $path = getenv($name, true);
 
             if (is_string($path) && $path !== '') {
-                return $path;
+                return preg_match('~[\x00-\x1f\x7f]|^[a-z][a-z0-9+.-]*://~i', $path) === 0 ? $path : null;
             }
         }
 

@@ -57,7 +57,7 @@ final class PublishConfigCommand extends Command
             return 1;
         }
 
-        $force = (bool) $input->getOption('force');
+        $force = ConsoleValue::flag($input->getOption('force'));
 
         $phpprobePreset = $this->resolvePhpprobePreset($input, $output);
 
@@ -170,13 +170,13 @@ final class PublishConfigCommand extends Command
      */
     private function resolveFiles(InputInterface $input): array
     {
-        $files = $input->getArgument('files');
+        $files = ConsoleValue::values($input->getArgument('files'));
 
-        if (!is_array($files) || $files === [] || (bool) $input->getOption('all')) {
+        if (ConsoleValue::flag($input->getOption('all')) || $files === []) {
             return ConfigInventory::files();
         }
 
-        return ConfigFileSelection::normalize(array_values($files), ConfigInventory::files());
+        return ConfigFileSelection::normalize($files, ConfigInventory::files());
     }
 
     /**
@@ -184,7 +184,7 @@ final class PublishConfigCommand extends Command
      */
     private function resolvePhpprobePreset(InputInterface $input, OutputInterface $output): ?string
     {
-        $preset = $this->stringOption($input->getOption('phpprobe-preset'));
+        $preset = ConsoleValue::string($input->getOption('phpprobe-preset'));
 
         if ($preset === '') {
             return '';
@@ -201,11 +201,6 @@ final class PublishConfigCommand extends Command
         ));
 
         return null;
-    }
-
-    private function stringOption(mixed $value): string
-    {
-        return is_string($value) ? $value : '';
     }
 
     /**

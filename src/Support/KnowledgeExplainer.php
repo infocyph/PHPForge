@@ -193,8 +193,8 @@ final readonly class KnowledgeExplainer
             throw new \RuntimeException('GEMINI_API_KEY contains invalid characters.');
         }
 
-        $model = $this->validatedModel($model ?? $this->environment('PHPFORGE_KNOWLEDGE_GEMINI_MODEL') ?? self::DEFAULT_GEMINI_MODEL);
-        $url = sprintf('https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent', $model);
+        $model ??= $this->environment('PHPFORGE_KNOWLEDGE_GEMINI_MODEL') ?? self::DEFAULT_GEMINI_MODEL;
+        $url = GeminiEndpoint::forModel($model, 'Knowledge model name');
         $payload = json_encode([
             'system_instruction' => ['parts' => [['text' => $this->instruction()]]],
             'contents' => [['parts' => [['text' => $context]]]],
@@ -232,15 +232,10 @@ final readonly class KnowledgeExplainer
      */
     private function ollama(string $context, ?string $model): string
     {
-        $host = rtrim($this->environment('OLLAMA_HOST') ?? 'http://127.0.0.1:11434', '/');
-
-        if (filter_var($host, FILTER_VALIDATE_URL) === false || !preg_match('#^https?://#i', $host)) {
-            throw new \RuntimeException('OLLAMA_HOST must be an HTTP or HTTPS URL.');
-        }
-
+        $host = $this->ollamaHost();
         $configuredModel = $model ?? $this->environment('OLLAMA_MODEL');
         $model = is_string($configuredModel)
-            ? $this->validatedModel($configuredModel, true)
+            ? $this->validatedOllamaModel($configuredModel)
             : $this->ollamaModel($host);
 
         $payload = json_encode([
@@ -265,6 +260,36 @@ final readonly class KnowledgeExplainer
     }
 
     /**
+     * The process launcher chooses the HTTP origin, including loopback or private hosts.
+     *
+     * @psalm-taint-escape ssrf
+     * @psalm-taint-escape file
+     * @psalm-taint-escape url_component
+     * @psalm-taint-escape url_path
+     *
+     * @throws \RuntimeException
+     */
+    private function ollamaHost(): string
+    {
+        $configured = getenv('OLLAMA_HOST', true);
+        $host = is_string($configured) ? trim($configured) : '';
+
+        if ($host === '') {
+            return 'http://127.0.0.1:11434';
+        }
+
+        $parts = parse_url($host);
+
+        if (filter_var($host, FILTER_VALIDATE_URL) === false || !isset($parts['scheme'], $parts['host'])
+            || !in_array(strtolower($parts['scheme']), ['http', 'https'], true)
+            || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
+            throw new \RuntimeException('OLLAMA_HOST must be an HTTP or HTTPS base URL without credentials, a query or a fragment.');
+        }
+
+        return rtrim($host, '/');
+    }
+
+    /**
      * @throws \RuntimeException
      */
     private function ollamaModel(string $host): string
@@ -286,7 +311,7 @@ final readonly class KnowledgeExplainer
             $model = $this->ollamaModelFrom($body);
 
             if (is_string($model)) {
-                return $this->validatedModel($model, true);
+                return $this->validatedOllamaModel($model);
             }
         }
 
@@ -370,6 +395,7 @@ final readonly class KnowledgeExplainer
                 'header' => $headers,
                 'content' => $payload,
                 'ignore_errors' => true,
+                'follow_location' => 0,
                 'timeout' => $timeout,
             ],
         ]);
@@ -396,13 +422,9 @@ final readonly class KnowledgeExplainer
     /**
      * @throws \RuntimeException
      */
-    private function validatedModel(string $model, bool $ollama = false): string
+    private function validatedOllamaModel(string $model): string
     {
-        $pattern = $ollama
-            ? '#^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,254}$#'
-            : '/^[A-Za-z0-9._-]+$/';
-
-        if (preg_match($pattern, $model) !== 1) {
+        if (preg_match('#^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,254}$#', $model) !== 1) {
             throw new \RuntimeException('Knowledge model name contains invalid characters.');
         }
 

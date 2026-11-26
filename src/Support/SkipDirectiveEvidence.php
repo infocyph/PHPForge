@@ -56,7 +56,15 @@ final class SkipDirectiveEvidence
         return ['sanitizer' => $relative, 'audit' => sprintf('sanitizer=%s sha256=%s tests=%s', $relative, $hash, implode(', ', $testPaths))];
     }
 
-    /** @throws \InvalidArgumentException */
+    /**
+     * Returns a canonical, local file confined to the project root.
+     *
+     * @psalm-taint-escape file
+     * @psalm-taint-escape url_component
+     * @psalm-taint-escape url_path
+     *
+     * @throws \InvalidArgumentException
+     */
     private static function file(mixed $value, string $root): string
     {
         $relative = self::relativePath($value);

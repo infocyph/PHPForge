@@ -59,16 +59,14 @@ final class BenchmarkCommand extends Command
     private function compare(InputInterface $input, OutputInterface $output): int
     {
         $maximumRegression = filter_var($input->getOption('max-regression'), FILTER_VALIDATE_FLOAT);
-        $baseline = $input->getArgument('baseline');
-        $candidate = $input->getArgument('candidate');
+        $baseline = ConsoleValue::string($input->getArgument('baseline'));
+        $candidate = ConsoleValue::string($input->getArgument('candidate'));
 
         if (
             !is_float($maximumRegression)
             || $maximumRegression < 0
             || $maximumRegression > 100
-            || !is_string($baseline)
             || $baseline === ''
-            || !is_string($candidate)
             || $candidate === ''
         ) {
             $output->writeln('<error>--max-regression must be a number between 0 and 100.</error>');
@@ -80,7 +78,7 @@ final class BenchmarkCommand extends Command
             $baseline,
             $candidate,
             $maximumRegression,
-            (bool) $input->getOption('stable-environment'),
+            ConsoleValue::flag($input->getOption('stable-environment')),
         );
 
         foreach ($result['comparisons'] as $comparison) {
@@ -109,9 +107,9 @@ final class BenchmarkCommand extends Command
      */
     private function validate(InputInterface $input, OutputInterface $output): int
     {
-        $file = $input->getArgument('result');
+        $file = ConsoleValue::string($input->getArgument('result'));
 
-        if (!is_string($file) || $file === '') {
+        if ($file === '') {
             $output->writeln('<error>A benchmark result JSON file is required.</error>');
 
             return 2;

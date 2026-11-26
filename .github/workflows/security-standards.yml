@@ -194,8 +194,13 @@ jobs:
           }
           echo implode(",", array_values(array_unique($extensions)));
           ')"
-          PHP_EXTENSIONS_INPUT="${composer_extensions},${EXTRA_EXTENSIONS}" \
-            php .phpforge-workflow/.github/scripts/resolve-services.php
+          outputs="$(PHP_EXTENSIONS_INPUT="${composer_extensions},${EXTRA_EXTENSIONS}" \
+            php .phpforge-workflow/.github/scripts/resolve-services.php)"
+          jq -er '
+            to_entries
+            | if any(.[]; .value | test("[\r\n]")) then error("Service output must fit on one line") else . end
+            | .[] | "\(.key)=\(.value)"
+          ' <<< "$outputs" >> "$GITHUB_OUTPUT"
 
   run:
     needs: prepare

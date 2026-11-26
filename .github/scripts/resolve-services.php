@@ -103,21 +103,4 @@ $output = [
     'php_extensions' => implode(', ', $extensionNames),
     'has_external_services' => $external ? 'true' : 'false',
 ];
-$githubOutput = getenv('GITHUB_OUTPUT');
-
-if (is_string($githubOutput) && $githubOutput !== '') {
-    $handle = fopen($githubOutput, 'ab');
-
-    if (!is_resource($handle)) {
-        fwrite(STDERR, "Unable to open GITHUB_OUTPUT.\n");
-        exit(1);
-    }
-
-    foreach ($output as $name => $value) {
-        fwrite($handle, $name . '=' . $value . PHP_EOL);
-    }
-
-    fclose($handle);
-} else {
-    fwrite(STDOUT, json_encode($output, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . PHP_EOL);
-}
+fwrite(STDOUT, json_encode($output, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . PHP_EOL);

@@ -39,7 +39,7 @@ final class PublishCommunityTemplatesCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $published = 0;
-        $force = (bool) $input->getOption('force');
+        $force = ConsoleValue::flag($input->getOption('force'));
 
         foreach (CommunityTemplateCatalog::publishPairs() as $pair) {
             $published += $this->publish($pair['source'], $pair['target'], $pair['target_relative'], $force, $output) ? 1 : 0;

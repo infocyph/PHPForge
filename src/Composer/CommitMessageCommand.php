@@ -42,9 +42,9 @@ final class CommitMessageCommand extends Command
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $messageFile = $input->getArgument('message-file');
+        $messageFile = ConsoleValue::string($input->getArgument('message-file'));
 
-        if (!is_string($messageFile) || !is_file($messageFile) || !is_readable($messageFile) || !is_writable($messageFile)) {
+        if (!is_file($messageFile) || !is_readable($messageFile) || !is_writable($messageFile)) {
             $output->writeln('<error>The Git commit message file is not readable and writable.</error>');
 
             return 1;

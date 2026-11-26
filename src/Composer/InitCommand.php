@@ -64,7 +64,7 @@ final class InitCommand extends Command
             return 2;
         }
 
-        $force = (bool) $input->getOption('force');
+        $force = ConsoleValue::flag($input->getOption('force'));
         $copied = 0;
 
         if ($selection['flags']['workflow']) {
@@ -255,8 +255,7 @@ final class InitCommand extends Command
      */
     private function selection(InputInterface $input, OutputInterface $output): ?array
     {
-        $workflowRef = $input->getOption('workflow-ref');
-        $workflowRef = is_string($workflowRef) ? $workflowRef : 'main';
+        $workflowRef = ConsoleValue::string($input->getOption('workflow-ref'), 'main');
 
         if (preg_match('/^[A-Za-z0-9._\/-]+$/', $workflowRef) !== 1) {
             $output->writeln('<error>Invalid workflow ref.</error>');
@@ -265,28 +264,28 @@ final class InitCommand extends Command
         }
 
         $flags = [
-            'workflow' => (bool) $input->getOption('workflow'),
-            'captainhook' => (bool) $input->getOption('captainhook'),
-            'gitlab_ci' => (bool) $input->getOption('gitlab-ci'),
-            'bitbucket_ci' => (bool) $input->getOption('bitbucket-ci'),
-            'forgejo_workflow' => (bool) $input->getOption('forgejo-workflow'),
-            'community_templates' => (bool) $input->getOption('community-templates'),
+            'workflow' => ConsoleValue::flag($input->getOption('workflow')),
+            'captainhook' => ConsoleValue::flag($input->getOption('captainhook')),
+            'gitlab_ci' => ConsoleValue::flag($input->getOption('gitlab-ci')),
+            'bitbucket_ci' => ConsoleValue::flag($input->getOption('bitbucket-ci')),
+            'forgejo_workflow' => ConsoleValue::flag($input->getOption('forgejo-workflow')),
+            'community_templates' => ConsoleValue::flag($input->getOption('community-templates')),
         ];
         $explicitTarget = in_array(true, $flags, true);
 
-        if ($input->isInteractive() && !$explicitTarget && !(bool) $input->getOption('no-interaction-defaults')) {
+        if ($input->isInteractive() && !$explicitTarget && !ConsoleValue::flag($input->getOption('no-interaction-defaults'))) {
             return $this->interactiveSelection($input, $output, $flags, $workflowRef);
         }
 
-        if (!$explicitTarget && (bool) $input->getOption('no-interaction-defaults')) {
+        if (!$explicitTarget && ConsoleValue::flag($input->getOption('no-interaction-defaults'))) {
             $flags['workflow'] = true;
             $flags['captainhook'] = true;
         }
 
-        $servicesValue = $input->getOption('services');
-        $topologiesValue = $input->getOption('service-topologies');
-        $services = $this->jsonStringList(is_string($servicesValue) ? $servicesValue : '[]', 'services', $output);
-        $topologies = $this->jsonStringMap(is_string($topologiesValue) ? $topologiesValue : '{}', 'service-topologies', $output);
+        $servicesValue = ConsoleValue::string($input->getOption('services'), '[]');
+        $topologiesValue = ConsoleValue::string($input->getOption('service-topologies'), '{}');
+        $services = $this->jsonStringList($servicesValue, 'services', $output);
+        $topologies = $this->jsonStringMap($topologiesValue, 'service-topologies', $output);
 
         if (!is_array($services) || !is_array($topologies)) {
             return null;
