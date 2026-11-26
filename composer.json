@@ -26,32 +26,36 @@
     ],
     "require": {
         "php": "^8.4",
+        "ext-filter": "*",
+        "ext-simplexml": "*",
+        "ext-tokenizer": "*",
         "composer-plugin-api": "^2.9",
-        "alies-dev/psalm-plugin-pest": "^1.0.0",
+        "alies-dev/psalm-plugin-pest": "^1.0.1",
         "brianium/paratest": "^7.29.0",
         "captainhook/captainhook": "^5.29.3",
         "deptrac/deptrac": "^4.7.2",
-        "ergebnis/composer-normalize": "^2.58.0",
+        "ergebnis/composer-normalize": "^2.59.0",
         "infocyph/phpprobe": "^1.3.1",
         "laravel/pint": "^1.32.3",
         "pestphp/pest": "^5.3.7",
         "pestphp/pest-plugin-drift": "^5.0.0",
         "pestphp/pest-plugin-phpstan": "^5.3.1",
-        "phpbench/phpbench": "^1.7.0",
+        "phpbench/phpbench": "^1.7.1",
         "phpstan/phpstan": "^2.3.7",
-        "phpstan/phpstan-phpunit": "^2.1.2",
-        "psalm/plugin-phpunit": "^1.3.2",
-        "rector/rector": "^2.8.5",
+        "phpstan/phpstan-phpunit": "^2.1.3",
+        "psalm/plugin-phpunit": "^1.3.6",
+        "rector/rector": "^2.9.2",
         "squizlabs/php_codesniffer": "^4.0.4",
-        "symfony/console": "^8.1.11",
+        "symfony/console": "^8.1.12",
         "symfony/polyfill-php85": "^1.44.0",
-        "symfony/process": "^8.1.10",
+        "symfony/process": "^8.1.12",
         "tomasvotruba/cognitive-complexity": "^1.3.0",
-        "vimeo/psalm": "~7.12.0"
+        "vimeo/psalm": "^7.21.1"
     },
     "require-dev": {
-        "composer/composer": "^2.11.2",
-        "symfony/yaml": "^8.1.11"
+        "ext-dom": "*",
+        "composer/composer": "^2.11.3",
+        "symfony/yaml": "^8.1.12"
     },
     "conflict": {
         "amphp/cache": "<2.0.1",
@@ -95,7 +99,149 @@
         "sort-packages": true
     },
     "extra": {
-        "class": "Infocyph\\PHPForge\\Composer\\Plugin"
+        "class": "Infocyph\\PHPForge\\Composer\\Plugin",
+        "phpforge": {
+            "skipper_policy": {
+                "default": "deny",
+                "rules": [
+                    {
+                        "directive": "@psalm-taint-escape",
+                        "paths": [
+                            "src/Support/GeminiEndpoint.php"
+                        ],
+                        "reason": "Gemini model names are restricted and URL-encoded as a single segment on a fixed HTTPS origin.",
+                        "security": {
+                            "sanitizer": "src/Support/GeminiEndpoint.php",
+                            "sha256": "efd7873deab77c5b0f3661e5082143cecca442acca6aed5029e540e838bf4603",
+                            "tests": [
+                                "tests/Composer/CommitMessageCommandTest.php"
+                            ]
+                        },
+                        "taint": "url_path"
+                    },
+                    {
+                        "directive": "@psalm-taint-escape",
+                        "paths": [
+                            "src/Support/KnowledgeExplainer.php"
+                        ],
+                        "reason": "The process launcher authorizes the Ollama origin and base path. Only HTTP(S) base URLs without credentials, queries or fragments are accepted, and redirects are disabled.",
+                        "security": {
+                            "sanitizer": "src/Support/KnowledgeExplainer.php",
+                            "sha256": "a61d9f69ca16c1081e4e15d89ec5f5e6dce9581d8bb131e2501628d496b1f018",
+                            "tests": [
+                                "tests/Support/KnowledgeBaseTest.php"
+                            ]
+                        },
+                        "taint": "file"
+                    },
+                    {
+                        "directive": "@psalm-taint-escape",
+                        "paths": [
+                            "src/Support/KnowledgeExplainer.php"
+                        ],
+                        "reason": "The process launcher authorizes the Ollama origin and base path. Only HTTP(S) base URLs without credentials, queries or fragments are accepted, and redirects are disabled.",
+                        "security": {
+                            "sanitizer": "src/Support/KnowledgeExplainer.php",
+                            "sha256": "a61d9f69ca16c1081e4e15d89ec5f5e6dce9581d8bb131e2501628d496b1f018",
+                            "tests": [
+                                "tests/Support/KnowledgeBaseTest.php"
+                            ]
+                        },
+                        "taint": "ssrf"
+                    },
+                    {
+                        "directive": "@psalm-taint-escape",
+                        "paths": [
+                            "src/Support/KnowledgeExplainer.php"
+                        ],
+                        "reason": "The process launcher authorizes the Ollama origin and base path. Only HTTP(S) base URLs without credentials, queries or fragments are accepted, and redirects are disabled.",
+                        "security": {
+                            "sanitizer": "src/Support/KnowledgeExplainer.php",
+                            "sha256": "a61d9f69ca16c1081e4e15d89ec5f5e6dce9581d8bb131e2501628d496b1f018",
+                            "tests": [
+                                "tests/Support/KnowledgeBaseTest.php"
+                            ]
+                        },
+                        "taint": "url_component"
+                    },
+                    {
+                        "directive": "@psalm-taint-escape",
+                        "paths": [
+                            "src/Support/KnowledgeExplainer.php"
+                        ],
+                        "reason": "The process launcher authorizes the Ollama origin and base path. Only HTTP(S) base URLs without credentials, queries or fragments are accepted, and redirects are disabled.",
+                        "security": {
+                            "sanitizer": "src/Support/KnowledgeExplainer.php",
+                            "sha256": "a61d9f69ca16c1081e4e15d89ec5f5e6dce9581d8bb131e2501628d496b1f018",
+                            "tests": [
+                                "tests/Support/KnowledgeBaseTest.php"
+                            ]
+                        },
+                        "taint": "url_path"
+                    },
+                    {
+                        "directive": "@psalm-taint-escape",
+                        "paths": [
+                            "src/Support/QualitySummary.php"
+                        ],
+                        "reason": "The process launcher selects a local report destination. Stream wrappers and control characters are rejected.",
+                        "security": {
+                            "sanitizer": "src/Support/QualitySummary.php",
+                            "sha256": "84fdcb75fc717d5a01c348ae7fe6910f4536358b4d19ba5098d82231a57ad719",
+                            "tests": [
+                                "tests/Support/QualitySummaryTest.php"
+                            ]
+                        },
+                        "taint": "file"
+                    },
+                    {
+                        "directive": "@psalm-taint-escape",
+                        "paths": [
+                            "src/Support/SkipDirectiveEvidence.php"
+                        ],
+                        "reason": "Evidence resolves to a canonical local project file. Paths with traversal, wrapper syntax or symlinks are rejected.",
+                        "security": {
+                            "sanitizer": "src/Support/SkipDirectiveEvidence.php",
+                            "sha256": "2b9f1f93f223ef94423714613642616ca0b54e1741ed383166d9ba1a0816bda1",
+                            "tests": [
+                                "tests/Support/SkipDirectivePolicyTest.php"
+                            ]
+                        },
+                        "taint": "file"
+                    },
+                    {
+                        "directive": "@psalm-taint-escape",
+                        "paths": [
+                            "src/Support/SkipDirectiveEvidence.php"
+                        ],
+                        "reason": "Evidence resolves to a canonical local project file. Paths with traversal, wrapper syntax or symlinks are rejected.",
+                        "security": {
+                            "sanitizer": "src/Support/SkipDirectiveEvidence.php",
+                            "sha256": "2b9f1f93f223ef94423714613642616ca0b54e1741ed383166d9ba1a0816bda1",
+                            "tests": [
+                                "tests/Support/SkipDirectivePolicyTest.php"
+                            ]
+                        },
+                        "taint": "url_component"
+                    },
+                    {
+                        "directive": "@psalm-taint-escape",
+                        "paths": [
+                            "src/Support/SkipDirectiveEvidence.php"
+                        ],
+                        "reason": "Evidence resolves to a canonical local project file. Paths with traversal, wrapper syntax or symlinks are rejected.",
+                        "security": {
+                            "sanitizer": "src/Support/SkipDirectiveEvidence.php",
+                            "sha256": "2b9f1f93f223ef94423714613642616ca0b54e1741ed383166d9ba1a0816bda1",
+                            "tests": [
+                                "tests/Support/SkipDirectivePolicyTest.php"
+                            ]
+                        },
+                        "taint": "url_path"
+                    }
+                ]
+            }
+        }
     },
     "scripts": {
         "post-autoload-dump": "@php bin/install-captainhook.php",

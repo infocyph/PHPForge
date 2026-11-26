@@ -19,9 +19,19 @@ final class TaskSkipPolicy
             return false;
         }
 
-        $configPath = self::optionValue($command, '--config');
+        $config = self::optionValue($command, '--config');
 
-        if (!is_string($configPath) || !is_file($configPath)) {
+        if (!is_string($config) || str_contains($config, "\0")) {
+            return false;
+        }
+
+        try {
+            $configPath = realpath(Paths::config('pint.json'));
+        } catch (\RuntimeException) {
+            return false;
+        }
+
+        if ($configPath === false || realpath($config) !== $configPath || !is_file($configPath)) {
             return false;
         }
 
@@ -39,7 +49,9 @@ final class TaskSkipPolicy
      */
     private static function isPintCommand(array $command): bool
     {
-        return array_any($command, fn($part) => str_ends_with($part, DIRECTORY_SEPARATOR . 'pint') || $part === 'pint');
+        $executable = ($command[0] ?? '') === Paths::php() ? ($command[1] ?? '') : ($command[0] ?? '');
+
+        return $executable === 'pint' || str_ends_with($executable, DIRECTORY_SEPARATOR . 'pint');
     }
 
     /**

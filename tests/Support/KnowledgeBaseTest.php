@@ -403,6 +403,48 @@ it('requires explicit Gemini credentials for remote explanations', function (): 
     }
 });
 
+it('rejects ambiguous or non-HTTP Ollama base URLs before requesting', function (string $host): void {
+    $originalHost = getenv('OLLAMA_HOST');
+    putenv('OLLAMA_HOST=' . $host);
+    $explainer = new KnowledgeExplainer(static function (): never {
+        throw new LogicException('An invalid Ollama host must not receive a request.');
+    });
+
+    try {
+        expect(fn(): array => $explainer->explain(['matches' => [], 'context_nodes' => [], 'edges' => []], 'ollama'))
+            ->toThrow(RuntimeException::class, 'OLLAMA_HOST must be an HTTP or HTTPS base URL');
+    } finally {
+        putenv($originalHost === false ? 'OLLAMA_HOST' : 'OLLAMA_HOST=' . $originalHost);
+    }
+})->with(['file:///tmp/example', 'https://user@example.test', 'https://example.test?x=1', 'https://example.test#fragment']);
+
+it('keeps the configured Ollama origin and path prefix for discovery and chat', function (): void {
+    $originalHost = getenv('OLLAMA_HOST');
+    $originalModel = getenv('OLLAMA_MODEL');
+    putenv('OLLAMA_HOST=https://ollama.example.test:9443/prefix/');
+    putenv('OLLAMA_MODEL');
+    $urls = [];
+    $explainer = new KnowledgeExplainer(static function (string $url) use (&$urls): string {
+        $urls[] = $url;
+
+        return str_ends_with($url, '/api/ps')
+            ? '{"models":[{"model":"llama3.2:latest"}]}'
+            : '{"message":{"content":"{\"summary\":\"Found\",\"evidence\":[],\"uncertainty\":\"\"}"}}';
+    });
+
+    try {
+        $result = $explainer->explain(['matches' => [], 'context_nodes' => [], 'edges' => []], 'ollama');
+
+        expect($urls)->toBe([
+            'https://ollama.example.test:9443/prefix/api/ps',
+            'https://ollama.example.test:9443/prefix/api/chat',
+        ])->and($result['model'])->toBe('llama3.2:latest');
+    } finally {
+        putenv($originalHost === false ? 'OLLAMA_HOST' : 'OLLAMA_HOST=' . $originalHost);
+        putenv($originalModel === false ? 'OLLAMA_MODEL' : 'OLLAMA_MODEL=' . $originalModel);
+    }
+});
+
 it('discovers the running Ollama model and labels model output as inferred', function (): void {
     $originalModel = getenv('OLLAMA_MODEL');
     putenv('OLLAMA_MODEL');

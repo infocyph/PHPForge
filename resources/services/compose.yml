@@ -251,7 +251,7 @@ services:
     entrypoint: ["mongosh", "--host", "mongodb-primary", "--file", "/configure-replica.js"]
 
   redis:
-    image: redis:8.10-alpine
+    image: redis:8.12-alpine
     profiles: [redis]
     command: ["redis-server", "--requirepass", "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}"]
     ports: ["6379:6379"]
@@ -262,7 +262,7 @@ services:
       retries: 30
 
   redis-primary:
-    image: redis:8.10-alpine
+    image: redis:8.12-alpine
     profiles: [redis-replica]
     command: ["redis-server", "--requirepass", "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}"]
     ports: ["6379:6379"]
@@ -273,7 +273,7 @@ services:
       retries: 30
 
   redis-replica:
-    image: redis:8.10-alpine
+    image: redis:8.12-alpine
     profiles: [redis-replica]
     command: ["redis-server", "--replicaof", "redis-primary", "6379", "--masterauth", "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}", "--requirepass", "${PHPFORGE_SERVICE_PASSWORD:-Phpforge_123!}", "--replica-read-only", "yes"]
     ports: ["6381:6379"]
@@ -429,7 +429,7 @@ services:
       retries: 30
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.6
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.7
     profiles: [elasticsearch]
     ports: ["9200:9200"]
     environment:
@@ -443,7 +443,7 @@ services:
       retries: 40
 
   elasticsearch-primary:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.6
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.7
     profiles: [elasticsearch-cluster]
     ports: ["9200:9200"]
     environment: &elasticsearch-cluster-environment
@@ -460,7 +460,7 @@ services:
       retries: 40
 
   elasticsearch-replica:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.6
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.7
     profiles: [elasticsearch-cluster]
     ports: ["9201:9200"]
     environment:

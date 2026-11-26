@@ -58,7 +58,7 @@ final class ActiveConfigCommand extends Command
             $this->optionString($input, 'parameter'),
         );
 
-        if ((bool) $input->getOption('json')) {
+        if (ConsoleValue::flag($input->getOption('json'))) {
             $output->writeln((string) json_encode($activeConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
             return 0;
@@ -86,13 +86,13 @@ final class ActiveConfigCommand extends Command
      */
     private function resolveFiles(InputInterface $input): array
     {
-        $files = $input->getArgument('files');
+        $files = ConsoleValue::values($input->getArgument('files'));
 
-        if (!is_array($files) || $files === [] || (bool) $input->getOption('all')) {
+        if (ConsoleValue::flag($input->getOption('all')) || $files === []) {
             return [];
         }
 
-        return ConfigFileSelection::normalize(array_values($files), ConfigInventory::activeFiles());
+        return ConfigFileSelection::normalize($files, ConfigInventory::activeFiles());
     }
 
     /**

@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use Infocyph\PHPForge\Support\Paths;
 use Infocyph\PHPForge\Support\Runner;
+use Infocyph\PHPForge\Support\TaskSkipPolicy;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 function runnerTempPath(string $suffix): string
@@ -75,4 +77,20 @@ it('defaults subprocesses to XDEBUG_MODE=off when unset', function (): void {
         expect($exitCode)->toBe(0)
             ->and($output->fetch())->toContain('XDEBUG_MODE=off');
     });
+});
+
+it('only tolerates an unavailable PER preset for Pint and its active config', function (): void {
+    $active = Paths::config('pint.json');
+    $anotherConfig = fixtureTempFile('phpforge-pint-');
+    file_put_contents($anotherConfig, '{"preset":"per"}');
+    $error = 'Preset not found';
+
+    try {
+        expect(TaskSkipPolicy::shouldSkipUnavailablePerPreset([Paths::php(), Paths::bin('pint'), '--config', $active], '', $error))->toBeTrue()
+            ->and(TaskSkipPolicy::shouldSkipUnavailablePerPreset(['pint', '--config=' . $active], $error, ''))->toBeTrue()
+            ->and(TaskSkipPolicy::shouldSkipUnavailablePerPreset(['pint', '--config', $anotherConfig], '', $error))->toBeFalse()
+            ->and(TaskSkipPolicy::shouldSkipUnavailablePerPreset(['phpstan', '--config', $active, 'pint'], '', $error))->toBeFalse();
+    } finally {
+        unlink($anotherConfig);
+    }
 });

@@ -134,6 +134,25 @@ it('uses the gitx instruction and staged diff in the Gemini request', function (
     }
 });
 
+it('rejects Gemini model names that can change the request path', function (string $model): void {
+    $originalKey = getenv('GEMINI_API_KEY');
+    $originalModel = getenv('GEMINI_MODEL');
+    putenv('GEMINI_API_KEY=test-api-key');
+    putenv('GEMINI_MODEL=' . $model);
+
+    try {
+        $generator = new GeminiCommitMessageGenerator(static function (): never {
+            throw new LogicException('The provider must not be called for an invalid model.');
+        });
+
+        expect(fn(): string => $generator->generate('staged diff'))
+            ->toThrow(RuntimeException::class, 'GEMINI_MODEL contains invalid characters.');
+    } finally {
+        restoreCommitMessageEnvironment('GEMINI_API_KEY', $originalKey);
+        restoreCommitMessageEnvironment('GEMINI_MODEL', $originalModel);
+    }
+})->with(['../different-resource', 'example%2fescape', 'example?different=1']);
+
 it('sends complete staged diffs larger than one megabyte', function (): void {
     $originalKey = getenv('GEMINI_API_KEY');
     $originalInstruction = getenv('GITX_SYS_INSTRUCTION_B64');
@@ -160,10 +179,10 @@ it('sends complete staged diffs larger than one megabyte', function (): void {
         $decodedDiff = is_string($encodedDiff) ? base64_decode($encodedDiff, true) : false;
         $requestText = fixtureValue($payload, ['contents', 0, 'parts', 0, 'text'], true) ?? null;
 
+        PHPUnit\Framework\Assert::assertIsString($decodedDiff);
         expect(strlen($diff))->toBeGreaterThan(1_000_000)
-            ->and($decodedDiff)->toBeString()
-            ->and(strlen(is_string($decodedDiff) ? $decodedDiff : ''))->toBe(strlen($diff))
-            ->and(hash('sha256', is_string($decodedDiff) ? $decodedDiff : ''))->toBe(hash('sha256', $diff))
+            ->and(strlen($decodedDiff))->toBe(strlen($diff))
+            ->and(hash('sha256', $decodedDiff))->toBe(hash('sha256', $diff))
             ->and($requestText)->not->toContain('truncated');
     } finally {
         restoreCommitMessageEnvironment('GEMINI_API_KEY', $originalKey);

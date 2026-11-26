@@ -40,7 +40,7 @@ final class CiCommand extends Command
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        if ((bool) $input->getOption('prefer-lowest') || (bool) $input->getOption('without-analysis')) {
+        if (ConsoleValue::flag($input->getOption('prefer-lowest')) || ConsoleValue::flag($input->getOption('without-analysis'))) {
             return new ParallelRunner($output)->run([], TaskCatalog::ci(true));
         }
 

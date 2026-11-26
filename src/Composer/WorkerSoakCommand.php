@@ -47,9 +47,9 @@ final class WorkerSoakCommand extends Command
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $command = $input->getArgument('worker-command');
+        $command = ConsoleValue::values($input->getArgument('worker-command'));
 
-        if (!is_array($command) || $command === [] || array_filter($command, is_string(...)) !== $command) {
+        if ($command === [] || array_filter($command, is_string(...)) !== $command) {
             $output->writeln('<error>A worker command is required after --.</error>');
 
             return 2;
@@ -61,7 +61,7 @@ final class WorkerSoakCommand extends Command
             return 2;
         }
 
-        $process = new Process(array_values($command), getcwd() ?: null, ['XDEBUG_MODE' => 'off']);
+        $process = new Process($command, getcwd() ?: null, ['XDEBUG_MODE' => 'off']);
         $process->setTimeout(null);
         $process->disableOutput();
         $process->start();

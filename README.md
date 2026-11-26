@@ -214,6 +214,7 @@ support PHPUnit 13.4.7, which includes the fix for
 [GHSA-9vw2-f4vp-x7gf](https://github.com/sebastianbergmann/phpunit/security/advisories/GHSA-9vw2-f4vp-x7gf),
 and the updated ParaTest worker constructor. The mixed Pest/PHPUnit
 parallel-worker regression verifies that both test styles execute.
+ParaTest 7.30 requires PHPUnit 13.4.8, which Pest 5.3.7 excludes.
 
 Keep temporary worker results private when running parallel tests. The normal
 PHPForge suite runs aggregate Pest sequentially. For direct parallel or
@@ -507,9 +508,9 @@ retain deprecation reporting and the analyzer's failure status.
 
 CaptainHook's CLI dependency also needs explicit nullable parameter types.
 The Composer conflict constraint requires the first release with that fix.
-Psalm 7.12 includes a PHP 8.6 runtime fix. The current constraint stays on 7.12
-while PHPForge reviews the file and network findings from Psalm 7.13's new
-environment taint tracking.
+PHPForge runs Psalm 7.21.1 or newer with environment taint tracking enabled.
+The repository's skip policy records the reviewed local-file and HTTP boundaries,
+including exact taint categories, regression tests, and implementation digests.
 
 ### Benchmark commands
 
@@ -953,7 +954,7 @@ composer ic:publish-config psalm.xml --force
 | `IC_TEST_CONCURRENCY`       | task count (max `16`) | Canonical maximum number of independent tools run concurrently.                           |
 | `PHPFORGE_PARALLEL`         | unset   | Legacy fallback for `IC_TEST_CONCURRENCY`.                                                              |
 | `IC_TEST_TASK_TIMEOUT`      | `300`   | Maximum seconds for each independent quality tool (bounded to `1`–`3600`).                              |
-| `PHPFORGE_QUALITY_SUMMARY`  | none    | Writes an aggregate per-tool quality result JSON file for `ic:ci`, `ic:tests` and `ic:tests:parallel`.  |
+| `PHPFORGE_QUALITY_SUMMARY`  | none    | Writes an aggregate per-tool quality result JSON file to a local path for `ic:ci`, `ic:tests` and `ic:tests:parallel`. |
 | `IC_QUALITY_SUMMARY`        | none    | Alias for `PHPFORGE_QUALITY_SUMMARY`.                                                                    |
 | `IC_PHPSTAN_MEMORY_LIMIT`   | `1G`    | Controls PHPStan memory limit.                                                                           |
 | `IC_PSALM_THREADS`          | `1`     | Controls Psalm thread count.                                                                             |
@@ -961,7 +962,7 @@ composer ic:publish-config psalm.xml --force
 | `GEMINI_API_KEY`            | unset   | Enables AI commit messages, explicit Gemini explanations and fallback when Ollama is unavailable.        |
 | `GEMINI_MODEL`              | `gemini-flash-lite-latest` | Selects the Gemini model used for commit-message generation.                     |
 | `PHPFORGE_KNOWLEDGE_GEMINI_MODEL` | `gemini-flash-lite-latest` | Selects the Gemini model used for knowledge explanations.               |
-| `OLLAMA_HOST`               | `http://127.0.0.1:11434` | Selects the Ollama endpoint used by `ic:kb:query --explain`.                       |
+| `OLLAMA_HOST`               | `http://127.0.0.1:11434` | Selects the Ollama HTTP(S) base URL used by `ic:kb:query --explain`. Path prefixes are allowed. Credentials, queries, and fragments are rejected. Redirect following is disabled. |
 | `OLLAMA_MODEL`              | auto-discovered | Overrides the running or installed Ollama model selected for knowledge explanations.          |
 | `GITX_SYS_INSTRUCTION_B64`  | bundled prompt | Overrides the bundled `gitx` commit-message instruction with base64-encoded text.                   |
 
@@ -1205,13 +1206,13 @@ Image versions are maintained centrally in [`resources/runtime.php`](resources/r
 | Microsoft SQL Server | `mcr.microsoft.com/mssql/server:2025-CU11-ubuntu-22.04` | [Microsoft Container Registry](https://mcr.microsoft.com/product/mssql/server/about) | two-node read-scale availability group | `1433`, replica `1434` |
 | SQLite | host PHP extension | [SQLite](https://www.sqlite.org/) | standalone only | in-memory/file DSNs |
 | MongoDB | `mongo:9.0.8` | [Docker Official Image](https://hub.docker.com/_/mongo) | two-member replica set | `27017`, secondary `27018` |
-| Redis | `redis:8.10-alpine` | [Docker Official Image](https://hub.docker.com/_/redis) | primary + read-only replica | `6379`, replica `6381` |
+| Redis | `redis:8.12-alpine` | [Docker Official Image](https://hub.docker.com/_/redis) | primary + read-only replica | `6379`, replica `6381` |
 | Valkey | `valkey/valkey:9.2-alpine` | [Valkey official image](https://hub.docker.com/r/valkey/valkey) | primary + read-only replica | `6380`, replica `6382` |
 | Memcached | `memcached:1.6.45-alpine` | [Docker Official Image](https://hub.docker.com/_/memcached) | standalone only | `11211` |
 | RabbitMQ | `rabbitmq:4.4-management-alpine` | [Docker Official Image](https://hub.docker.com/_/rabbitmq) | three-node cluster | AMQP `5672`–`5674`; management `15672`–`15674` |
 | NATS | `nats:2.15-alpine` | [Docker Official Image](https://hub.docker.com/_/nats) | three-node JetStream cluster | clients `4222`–`4224`; monitoring `8222`–`8224` |
 | Mailpit | `axllent/mailpit:v1.34` | [Mailpit publisher image](https://hub.docker.com/r/axllent/mailpit) | standalone only | SMTP `1025`; UI/API `8025` |
-| Elasticsearch | `docker.elastic.co/elasticsearch/elasticsearch:9.5.6` | [Elastic registry](https://www.docker.elastic.co/r/elasticsearch/elasticsearch) | two-node cluster | `9200`, peer `9201` |
+| Elasticsearch | `docker.elastic.co/elasticsearch/elasticsearch:9.5.7` | [Elastic registry](https://www.docker.elastic.co/r/elasticsearch/elasticsearch) | two-node cluster | `9200`, peer `9201` |
 | ScyllaDB | `scylladb/scylla:2026.3` | [ScyllaDB official image](https://hub.docker.com/r/scylladb/scylla) | three-node cluster | Alternator `8000`–`8002`; admin `10000`–`10002` |
 
 For a local PostgreSQL instance with data you want to keep, migrate the data to

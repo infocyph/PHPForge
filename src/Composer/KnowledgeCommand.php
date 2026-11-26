@@ -139,14 +139,10 @@ final class KnowledgeCommand extends Command
      */
     private function withRelationOptions(array $arguments, InputInterface $input): array
     {
-        $relations = $input->getOption('relation');
-
-        if (!is_array($relations)) {
-            return $arguments;
-        }
+        $relations = $this->strings($input->getOption('relation'));
 
         foreach ($relations as $relation) {
-            if (is_string($relation) && $relation !== '') {
+            if ($relation !== '') {
                 $arguments[] = '--relation=' . $relation;
             }
         }

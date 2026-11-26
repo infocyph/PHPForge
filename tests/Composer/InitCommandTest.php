@@ -149,7 +149,7 @@ it('pins QA and release workflows to the selected PHPForge ref', function (): vo
         ->and($updated)->not->toContain('@main');
 });
 
-it('keeps release instructions in the referenced PHPForge workflow source', function (): void {
+it('keeps release instructions in the referenced PHPForge workflow source', function (bool|string $workflowFlag): void {
     $originalCwd = getcwd();
     $projectRoot = sys_get_temp_dir() . '/phpforge-release-init-' . uniqid('', true);
     mkdir($projectRoot, 0755, true);
@@ -159,7 +159,7 @@ it('keeps release instructions in the referenced PHPForge workflow source', func
     try {
         $command = new InitCommand();
         $method = new ReflectionMethod(InitCommand::class, 'execute');
-        $input = new ArrayInput(['--workflow' => true, '--workflow-ref' => 'v3.0.0'], $command->getDefinition());
+        $input = new ArrayInput(['--workflow' => $workflowFlag, '--workflow-ref' => 'v3.0.0'], $command->getDefinition());
         $input->setInteractive(false);
         $output = new BufferedOutput();
 
@@ -177,4 +177,4 @@ it('keeps release instructions in the referenced PHPForge workflow source', func
         unlink($projectRoot . '/composer.json');
         rmdir($projectRoot);
     }
-});
+})->with([true, '1']);

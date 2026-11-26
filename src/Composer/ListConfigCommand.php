@@ -50,7 +50,7 @@ final class ListConfigCommand extends Command
             }
         }
 
-        if ((bool) $input->getOption('json')) {
+        if (ConsoleValue::flag($input->getOption('json'))) {
             $output->writeln((string) json_encode($rows, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
             return 0;

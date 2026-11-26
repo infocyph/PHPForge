@@ -32,16 +32,8 @@ final readonly class GeminiCommitMessageGenerator
         }
 
         $model = $this->environment('GEMINI_MODEL') ?? self::DEFAULT_MODEL;
-
-        if (preg_match('/^[A-Za-z0-9._-]+$/', $model) !== 1) {
-            throw new \RuntimeException('GEMINI_MODEL contains invalid characters.');
-        }
-
+        $url = GeminiEndpoint::forModel($model, 'GEMINI_MODEL');
         $payload = $this->payload($diff);
-        $url = sprintf(
-            'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent',
-            $model,
-        );
         $response = $this->request instanceof \Closure
             ? ($this->request)($url, $apiKey, $payload)
             : $this->send($url, $apiKey, $payload);
@@ -205,6 +197,7 @@ final readonly class GeminiCommitMessageGenerator
                 ],
                 'content' => $payload,
                 'ignore_errors' => true,
+                'follow_location' => 0,
                 'timeout' => 30,
             ],
         ]);
